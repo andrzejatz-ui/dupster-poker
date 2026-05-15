@@ -14,6 +14,10 @@ export async function runMigrations(): Promise<void> {
       name: 'players.password column',
       sql: 'alter table players add column if not exists password text',
     },
+    {
+      name: 'players.avatar_url column',
+      sql: 'alter table players add column if not exists avatar_url text',
+    },
     // future: add more idempotent migrations here
   ];
 

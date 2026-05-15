@@ -10,6 +10,8 @@ export interface PublicSeat {
   seatIndex: number;
   playerId: string;
   displayName: string;
+  /** Data-URL of the player's avatar (~128×128 JPEG) or null. */
+  avatarUrl?: string | null;
   stack: number;
   currentBet: number;
   hasFolded: boolean;

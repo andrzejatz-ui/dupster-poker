@@ -13,6 +13,7 @@ export interface StoredProfile {
   id: string;
   handle: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   chips: number;
 }
 

@@ -69,6 +69,11 @@ const en = {
 
   // Lobby
   'lobby.title': 'Lobby',
+  'lobby.editProfile': 'Edit profile',
+  'lobby.profileTitle': 'Your profile',
+  'lobby.profileBody': 'Pick a square image. It is resized to 128×128 and stored as a small JPEG.',
+  'lobby.profileUpload': 'Upload image',
+  'lobby.profileRemove': 'Remove',
   'lobby.signedInAs': 'Signed in as',
   'lobby.chipsSuffix': 'chips',
   'lobby.socketStatus': 'Socket',
@@ -241,6 +246,11 @@ const de: Record<keyof typeof en, string> = {
   'join.banned.body': 'Diese Player-ID ist aktuell nicht spielberechtigt.',
 
   'lobby.title': 'Lobby',
+  'lobby.editProfile': 'Profil bearbeiten',
+  'lobby.profileTitle': 'Dein Profil',
+  'lobby.profileBody': 'Wähle ein quadratisches Bild. Es wird auf 128×128 skaliert und als kleines JPEG gespeichert.',
+  'lobby.profileUpload': 'Bild hochladen',
+  'lobby.profileRemove': 'Entfernen',
   'lobby.signedInAs': 'Angemeldet als',
   'lobby.chipsSuffix': 'Chips',
   'lobby.socketStatus': 'Socket',
@@ -406,6 +416,11 @@ const pl: Record<keyof typeof en, string> = {
   'join.banned.body': 'Ten Player ID nie ma obecnie uprawnień do gry.',
 
   'lobby.title': 'Lobby',
+  'lobby.editProfile': 'Edytuj profil',
+  'lobby.profileTitle': 'Twój profil',
+  'lobby.profileBody': 'Wybierz kwadratowe zdjęcie. Zostanie przeskalowane do 128×128 i zapisane jako małe JPEG.',
+  'lobby.profileUpload': 'Wgraj zdjęcie',
+  'lobby.profileRemove': 'Usuń',
   'lobby.signedInAs': 'Zalogowany jako',
   'lobby.chipsSuffix': 'żetonów',
   'lobby.socketStatus': 'Socket',

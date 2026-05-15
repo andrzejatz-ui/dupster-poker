@@ -24,6 +24,16 @@ export async function joinAsPlayer(
   return { status: res.status, body } as const;
 }
 
+export async function updateAvatar(token: string, avatarUrl: string | null) {
+  const res = await rawFetch('/auth/profile', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ avatarUrl }),
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body } as const;
+}
+
 export async function adminLogin(username: string, password: string) {
   const res = await rawFetch('/admin/login', {
     method: 'POST',

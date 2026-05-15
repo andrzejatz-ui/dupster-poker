@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
+import { Modal } from '@/components/ui/Modal';
+import { AvatarUploader } from '@/components/ui/AvatarUploader';
 import { useSocket } from '@/hooks/useSocket';
-import { getProfile, clearSession } from '@/lib/session';
+import { getProfile, clearSession, getToken } from '@/lib/session';
+import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
@@ -18,6 +21,21 @@ export default function LobbyPage() {
   const [pending, setPending] = useState(false);
   const initial = typeof window !== 'undefined' ? getProfile() : null;
   const [profile, setProfile] = useState(initial);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  async function setAvatar(dataUrl: string | null) {
+    const token = getToken();
+    if (!token) return;
+    const r = await updateAvatar(token, dataUrl);
+    if (r.status === 200 && r.body.profile) {
+      setProfile(r.body.profile);
+      try {
+        window.sessionStorage.setItem('np_profile', JSON.stringify(r.body.profile));
+      } catch {}
+    } else {
+      throw new Error(r.body.error ?? 'upload_failed');
+    }
+  }
 
   useEffect(() => {
     if (!socket) return;
@@ -71,11 +89,27 @@ export default function LobbyPage() {
 
   return (
     <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-8 sm:mb-10 pr-24 sm:pr-36">
-        <div>
-          <h1 className="font-display text-3xl text-gold text-glow-gold">{t('lobby.title')}</h1>
-          <p className="text-white/50 text-sm">
-            {t('lobby.signedInAs')} <span className="font-mono text-white/80">{profile?.handle}</span>
+      <header className="flex items-center justify-between mb-8 sm:mb-10 pr-24 sm:pr-36 gap-3">
+        {/* Avatar (clickable → opens profile modal) */}
+        <button
+          type="button"
+          onClick={() => setProfileOpen(true)}
+          className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-rim-bright hover:border-gold/70 transition"
+          aria-label={t('lobby.editProfile')}
+        >
+          {profile?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full surface-strong flex items-center justify-center text-gold font-display text-base">
+              {(profile?.handle ?? '?').slice(0, 2).toUpperCase()}
+            </div>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-display text-2xl sm:text-3xl text-gold text-glow-gold">{t('lobby.title')}</h1>
+          <p className="text-ink-muted text-sm truncate">
+            {t('lobby.signedInAs')} <span className="font-mono text-ink-secondary">{profile?.handle}</span>
             {profile?.chips != null && (
               <>
                 {' '}· <span className="text-gold">
@@ -83,7 +117,7 @@ export default function LobbyPage() {
                 </span>
               </>
             )}
-            {' '}· {t('lobby.socketStatus')}: <span className="text-white/40">{status}</span>
+            {' '}· {t('lobby.socketStatus')}: <span className="text-ink-muted">{status}</span>
           </p>
         </div>
         <NeonButton variant="ghost" onClick={logout}>
@@ -137,6 +171,25 @@ export default function LobbyPage() {
         </div>
       )}
       <Signature className="mt-10 pb-6" />
+
+      {profileOpen && (
+        <Modal
+          open
+          onClose={() => setProfileOpen(false)}
+          title={t('lobby.profileTitle')}
+          subtitle={t('lobby.profileBody')}
+        >
+          <AvatarUploader
+            current={profile?.avatarUrl ?? null}
+            fallback={(profile?.handle ?? '?').slice(0, 2).toUpperCase()}
+            onPick={setAvatar}
+            onClear={() => setAvatar(null)}
+            pickLabel={t('lobby.profileUpload')}
+            clearLabel={t('lobby.profileRemove')}
+            busyLabel={t('common.loading')}
+          />
+        </Modal>
+      )}
     </main>
   );
 }

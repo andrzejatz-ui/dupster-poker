@@ -120,6 +120,7 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
           seatIndex: payload.seatIndex,
           playerId: profile.id,
           displayName: profile.displayName ?? profile.handle,
+          avatarUrl: profile.avatarUrl ?? null,
         });
         socket.join(`table:${payload.tableId}`);
         ack({ ok: true });

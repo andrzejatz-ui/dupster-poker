@@ -3,7 +3,7 @@ import type { PlayerProfile } from '@neon-poker/shared/types';
 
 export async function findPlayerByHandle(handle: string): Promise<PlayerProfile | null> {
   const r = await pool.query(
-    `select id, player_handle, display_name, status, chips, allow_concurrent_sessions
+    `select id, player_handle, display_name, avatar_url, status, chips, allow_concurrent_sessions
        from players where player_handle = $1`,
     [handle],
   );
@@ -13,6 +13,7 @@ export async function findPlayerByHandle(handle: string): Promise<PlayerProfile 
     id: row.id,
     handle: row.player_handle,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url,
     status: row.status,
     chips: Number(row.chips),
     allowConcurrentSessions: row.allow_concurrent_sessions,
@@ -21,7 +22,7 @@ export async function findPlayerByHandle(handle: string): Promise<PlayerProfile 
 
 export async function findPlayerById(id: string): Promise<PlayerProfile | null> {
   const r = await pool.query(
-    `select id, player_handle, display_name, status, chips, allow_concurrent_sessions
+    `select id, player_handle, display_name, avatar_url, status, chips, allow_concurrent_sessions
        from players where id = $1`,
     [id],
   );
@@ -31,6 +32,7 @@ export async function findPlayerById(id: string): Promise<PlayerProfile | null> 
     id: row.id,
     handle: row.player_handle,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url,
     status: row.status,
     chips: Number(row.chips),
     allowConcurrentSessions: row.allow_concurrent_sessions,

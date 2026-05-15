@@ -160,6 +160,7 @@ export class TableManager {
     seatIndex: number;
     playerId: string;
     displayName: string;
+    avatarUrl?: string | null;
   }): Promise<{ seatIndex: number }> {
     const table = this.tables.get(args.tableId);
     if (!table) throw new Error('table_not_found');
@@ -208,6 +209,7 @@ export class TableManager {
       seatIndex: chosen,
       playerId: args.playerId,
       displayName: args.displayName,
+      avatarUrl: args.avatarUrl ?? null,
       stack: buyIn,
     });
 
@@ -267,6 +269,23 @@ export class TableManager {
     if (started) {
       this.scheduleTurnTimer(tableId);
       this.onStateChange(tableId);
+    }
+  }
+
+  /**
+   * If the player happens to be sitting at any table, update the
+   * in-memory seat avatar and trigger a state broadcast so the other
+   * seats see the new picture immediately.
+   */
+  updatePlayerAvatar(playerId: string, avatarUrl: string | null): void {
+    for (const table of this.tables.values()) {
+      for (const seat of table.seats.values()) {
+        if (seat.playerId === playerId) {
+          seat.avatarUrl = avatarUrl;
+          this.onStateChange(table.cfg.tableId);
+          return;
+        }
+      }
     }
   }
 

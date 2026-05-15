@@ -27,7 +27,9 @@ async function main() {
   await tables.ensureDefaultTables(config.TURN_TIMER_MS);
 
   const app = express();
-  app.use(express.json({ limit: '64kb' }));
+  // 128kb is comfortable for the data-URL avatar (typically 8–15kb) plus
+  // normal JSON traffic; the avatar route also enforces its own 70kb cap.
+  app.use(express.json({ limit: '128kb' }));
 
   // CORS: a plain `*` in `Access-Control-Allow-Origin` is incompatible
   // with credentials. To support both wildcard ("allow anywhere") and an
@@ -48,7 +50,7 @@ async function main() {
   );
 
   app.get('/health', (_req, res) => res.json({ ok: true, time: Date.now() }));
-  app.use('/auth', authRouter());
+  app.use('/auth', authRouter(tables));
 
   // Socket server is attached first so the admin routes can push events
   // (chip updates, ban kicks, password resets) to live player sockets.

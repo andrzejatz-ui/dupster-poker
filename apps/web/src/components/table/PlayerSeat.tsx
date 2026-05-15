@@ -42,15 +42,24 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
       {/* Avatar disc */}
       <div
         className={clsx(
-          'relative w-14 h-14 sm:w-24 sm:h-24 rounded-full glass-strong flex items-center justify-center',
+          'relative w-14 h-14 sm:w-24 sm:h-24 rounded-full surface-strong flex items-center justify-center overflow-hidden',
           'transition-shadow duration-200',
           seat.isToAct && 'ring-toact',
           seat.hasFolded && 'opacity-40 grayscale',
         )}
       >
-        <div className="font-display text-xs sm:text-lg">
-          {seat.displayName.slice(0, 2).toUpperCase()}
-        </div>
+        {seat.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={seat.avatarUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="font-display text-xs sm:text-lg">
+            {seat.displayName.slice(0, 2).toUpperCase()}
+          </div>
+        )}
         {seat.isReconnecting && (
           <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-status-alert/85 text-[9px] font-display tracking-widest">
             {t('seat.recon')}

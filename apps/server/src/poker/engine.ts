@@ -16,6 +16,7 @@ export interface Seat {
   seatIndex: number;
   playerId: string;
   displayName: string;
+  avatarUrl: string | null;
   stack: number;
   holeCards: [Card, Card] | null;
   currentBet: number;
@@ -95,6 +96,7 @@ export class PokerTable {
     seatIndex: number;
     playerId: string;
     displayName: string;
+    avatarUrl?: string | null;
     stack: number;
   }): void {
     if (this.seats.has(args.seatIndex)) throw new Error('seat_taken');
@@ -107,6 +109,7 @@ export class PokerTable {
       seatIndex: args.seatIndex,
       playerId: args.playerId,
       displayName: args.displayName,
+      avatarUrl: args.avatarUrl ?? null,
       stack: args.stack,
       holeCards: null,
       currentBet: 0,
@@ -608,6 +611,7 @@ export class PokerTable {
         seatIndex: s.seatIndex,
         playerId: s.playerId,
         displayName: s.displayName,
+        avatarUrl: s.avatarUrl,
         stack: s.stack,
         currentBet: s.currentBet,
         hasFolded: s.hasFolded,
