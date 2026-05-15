@@ -34,6 +34,27 @@ export async function runMigrations(): Promise<void> {
       name: 'admins.play_chips column',
       sql: 'alter table admins add column if not exists play_chips bigint default 10000',
     },
+    {
+      // The first-generation default tables and any manually-created
+      // "Neon Table" / "Dupster Table" entries are replaced by the new
+      // escalating natural-disaster tier (Breeze → Tsunami). Archive
+      // them so the next ensureDefaultTables() pass can seed fresh —
+      // but only when no one is currently seated, to avoid disrupting
+      // an active game. Idempotent: re-runs are no-ops on subsequent
+      // deploys because the new names won't match the WHERE clause.
+      name: 'archive legacy default tables',
+      sql: `
+        update tables set archived_at = now()
+        where archived_at is null
+          and name in (
+            'Neon Table', 'Dupster Table',
+            'Casual', 'Standard', 'High Roller', 'Heads-Up'
+          )
+          and not exists (
+            select 1 from table_seats s where s.table_id = tables.id
+          )
+      `,
+    },
     // future: add more idempotent migrations here
   ];
 

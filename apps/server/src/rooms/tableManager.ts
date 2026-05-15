@@ -61,10 +61,13 @@ export class TableManager {
       buyIn: number;
       maxPlayers: number;
     }> = [
-      { name: 'Casual',      sb: 5,   bb: 10,  buyIn: 500,   maxPlayers: 6 },
-      { name: 'Standard',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 6 },
-      { name: 'High Roller', sb: 100, bb: 200, buyIn: 10000, maxPlayers: 6 },
-      { name: 'Heads-Up',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 2 },
+      // Five escalating natural-disaster tiers, ×5 stakes per step,
+      // 50 BB buy-in everywhere so the playing depth is consistent.
+      { name: 'Breeze',    sb: 5,    bb: 10,   buyIn: 500,    maxPlayers: 6 },
+      { name: 'Storm',     sb: 25,   bb: 50,   buyIn: 2500,   maxPlayers: 6 },
+      { name: 'Tornado',   sb: 100,  bb: 200,  buyIn: 10000,  maxPlayers: 6 },
+      { name: 'Hurricane', sb: 500,  bb: 1000, buyIn: 50000,  maxPlayers: 6 },
+      { name: 'Tsunami',   sb: 2500, bb: 5000, buyIn: 250000, maxPlayers: 6 },
     ];
 
     for (const p of presets) {

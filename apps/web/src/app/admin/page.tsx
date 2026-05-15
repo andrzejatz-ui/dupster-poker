@@ -683,23 +683,26 @@ function PasswordDialog({ player, onClose, onDone }: {
   );
 }
 
+// Mirrors the server's ensureDefaultTables tiers. Stakes escalate ×5
+// per step; buy-in stays at 50 BB everywhere.
 const TABLE_PRESETS = [
-  { key: 'casual',  name: 'Casual',      sb: 5,   bb: 10,  buyIn: 500,   maxPlayers: 6 },
-  { key: 'standard',name: 'Standard',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 6 },
-  { key: 'high',    name: 'High Roller', sb: 100, bb: 200, buyIn: 10000, maxPlayers: 6 },
-  { key: 'headsup', name: 'Heads-Up',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 2 },
+  { key: 'breeze',    name: 'Breeze',    sb: 5,    bb: 10,   buyIn: 500,    maxPlayers: 6 },
+  { key: 'storm',     name: 'Storm',     sb: 25,   bb: 50,   buyIn: 2500,   maxPlayers: 6 },
+  { key: 'tornado',   name: 'Tornado',   sb: 100,  bb: 200,  buyIn: 10000,  maxPlayers: 6 },
+  { key: 'hurricane', name: 'Hurricane', sb: 500,  bb: 1000, buyIn: 50000,  maxPlayers: 6 },
+  { key: 'tsunami',   name: 'Tsunami',   sb: 2500, bb: 5000, buyIn: 250000, maxPlayers: 6 },
 ] as const;
 
 function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const t = useT();
-  const [name, setName] = useState('Casual');
+  const [name, setName] = useState('Breeze');
   const [sb, setSb] = useState(5);
   const [bb, setBb] = useState(10);
   const [buyIn, setBuyIn] = useState(500);
   const [maxPlayers, setMaxPlayers] = useState(6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activePreset, setActivePreset] = useState<string | null>('casual');
+  const [activePreset, setActivePreset] = useState<string | null>('breeze');
 
   function applyPreset(p: typeof TABLE_PRESETS[number]) {
     setActivePreset(p.key);
