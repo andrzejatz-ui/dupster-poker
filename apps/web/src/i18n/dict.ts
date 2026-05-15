@@ -119,6 +119,13 @@ const en = {
   'history.subtitle': 'Last 20 hands at this table.',
   'history.empty': 'No hands have been played here yet.',
 
+  // Result banner
+  'history.banner.handLabel': 'HAND RESULT',
+  'history.banner.title': '{name} wins {amount}',
+  'history.banner.titleNoWinner': 'Hand ended',
+  'history.banner.lost': 'Lost',
+  'history.banner.nextIn': 'Next hand in {seconds} s',
+
   // Chat
   'chat.title': 'Table chat',
   'chat.empty': 'Quiet so far.',
@@ -311,6 +318,11 @@ const de: Record<keyof typeof en, string> = {
   'history.title': 'Hand-Historie',
   'history.subtitle': 'Letzte 20 Hände an diesem Tisch.',
   'history.empty': 'Hier wurde noch keine Hand gespielt.',
+  'history.banner.handLabel': 'HAND-ERGEBNIS',
+  'history.banner.title': '{name} gewinnt {amount}',
+  'history.banner.titleNoWinner': 'Hand beendet',
+  'history.banner.lost': 'Verloren',
+  'history.banner.nextIn': 'Nächste Hand in {seconds} s',
 
   'chat.title': 'Tisch-Chat',
   'chat.empty': 'Noch ruhig hier.',
@@ -500,6 +512,11 @@ const pl: Record<keyof typeof en, string> = {
   'history.title': 'Historia rozdań',
   'history.subtitle': 'Ostatnich 20 rozdań przy tym stole.',
   'history.empty': 'Tu jeszcze nie zagrano żadnego rozdania.',
+  'history.banner.handLabel': 'WYNIK ROZDANIA',
+  'history.banner.title': '{name} wygrywa {amount}',
+  'history.banner.titleNoWinner': 'Rozdanie zakończone',
+  'history.banner.lost': 'Przegrana',
+  'history.banner.nextIn': 'Następne rozdanie za {seconds} s',
 
   'chat.title': 'Czat przy stole',
   'chat.empty': 'Cicho na razie.',

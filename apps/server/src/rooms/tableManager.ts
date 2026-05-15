@@ -437,7 +437,7 @@ export class TableManager {
       logger.error({ err, tableId }, 'resolveShowdown failed — recovering');
       table.finishHand();
       this.onStateChange(tableId);
-      setTimeout(() => this.maybeStartHand(tableId), 5000);
+      setTimeout(() => this.maybeStartHand(tableId), 8000);
       return;
     }
 
@@ -494,6 +494,6 @@ export class TableManager {
     // Prepare next hand
     table.finishHand();
     this.onStateChange(tableId);
-    setTimeout(() => this.maybeStartHand(tableId), 5000);
+    setTimeout(() => this.maybeStartHand(tableId), 8000);
   }
 }

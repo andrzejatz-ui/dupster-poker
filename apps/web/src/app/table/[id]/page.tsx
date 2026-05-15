@@ -81,14 +81,14 @@ export default function TablePage() {
     });
     socket.on('server:table:error', (e) => alert(e.message));
     // Hand finished — keep the winner + revealed cards on screen for
-    // the 5-second pause the server takes before dealing the next hand.
+    // the 8-second pause the server takes before dealing the next hand.
     socket.on('server:table:hand:result', (payload) => {
       if (payload.tableId !== id) return;
       setResult({ winners: payload.winners, revealed: payload.revealed });
       playChipPlink();
-      // safety self-clear in case the next hand never comes (e.g. table
-      // closed) — server normally re-deals after 5s.
-      setTimeout(() => setResult(null), 5500);
+      // Safety self-clear in case the next hand never comes (table
+      // closed, server crashed). Server normally re-deals after 8s.
+      setTimeout(() => setResult(null), 8500);
     });
     // Admin kicked us or closed the table — bounce to lobby.
     socket.on('server:account:left_table', (payload) => {
