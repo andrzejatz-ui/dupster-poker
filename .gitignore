@@ -1,0 +1,18 @@
+node_modules
+.pnpm-store
+dist
+build
+.next
+.turbo
+
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+coverage
+
+# Local dev artifacts
+.tmp
+.cache

@@ -1,0 +1,39 @@
+# Render Blueprint — one-click deploy of the backend
+# After connecting this repo on Render, choose "New Blueprint Instance"
+# and Render reads this file. Env vars marked sync:false must be filled
+# in the Render dashboard after the blueprint is created.
+
+services:
+  - type: web
+    name: neon-poker-server
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: .
+    buildCommand: npm install
+    startCommand: npm run start:server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: LOG_LEVEL
+        value: info
+      - key: TURN_TIMER_MS
+        value: "25000"
+      - key: RECONNECT_GRACE_MS
+        value: "30000"
+      - key: MIN_BUY_IN_MULTIPLIER
+        value: "20"
+      # ---- These you fill in the Render dashboard after blueprint creation:
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: BOOTSTRAP_ADMIN_USERNAME
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

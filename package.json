@@ -1,0 +1,21 @@
+{
+  "name": "neon-poker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone multiplayer Texas Hold'em web app. No production infra dependencies.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@neon-poker/server",
+    "dev:web": "npm run dev --workspace=@neon-poker/web",
+    "build:web": "npm run build --workspace=@neon-poker/web",
+    "start:server": "npm run start --workspace=@neon-poker/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm test --workspace=@neon-poker/server"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

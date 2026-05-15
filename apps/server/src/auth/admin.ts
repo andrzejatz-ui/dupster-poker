@@ -1,0 +1,71 @@
+import argon2 from 'argon2';
+import { pool } from '../db/client.js';
+import { logger } from '../utils/logger.js';
+import { config } from '../config.js';
+
+export async function bootstrapAdmin(): Promise<void> {
+  const r = await pool.query('select count(*)::int as n from admins');
+  const existing = r.rows[0]!.n as number;
+  if (existing > 0) {
+    logger.info({ existing }, 'admins present, skipping bootstrap');
+    return;
+  }
+  const passwordHash = await argon2.hash(config.BOOTSTRAP_ADMIN_PASSWORD, {
+    type: argon2.argon2id,
+  });
+  await pool.query(
+    'insert into admins (username, password_hash) values ($1, $2)',
+    [config.BOOTSTRAP_ADMIN_USERNAME, passwordHash],
+  );
+  logger.warn(
+    { username: config.BOOTSTRAP_ADMIN_USERNAME },
+    'bootstrap admin created — change password ASAP',
+  );
+}
+
+export async function verifyAdminLogin(
+  username: string,
+  password: string,
+): Promise<{ id: string; username: string } | null> {
+  const r = await pool.query(
+    'select id, password_hash from admins where username = $1',
+    [username],
+  );
+  if (r.rowCount === 0) {
+    // constant-time fake check to avoid user-enumeration
+    await argon2.verify(
+      '$argon2id$v=19$m=65536,t=3,p=4$YWFhYWFhYWFhYWFhYWFhYQ$' +
+        'zZJ4aDk6T1qF3F6m3VOFRO4kSPiM5cYZ+w6JxDU3MOI',
+      password,
+    ).catch(() => false);
+    return null;
+  }
+  const row = r.rows[0]!;
+  const ok = await argon2.verify(row.password_hash, password).catch(() => false);
+  if (!ok) return null;
+  await pool.query('update admins set last_login_at = now() where id = $1', [row.id]);
+  return { id: row.id, username };
+}
+
+export async function logAdminAction(args: {
+  adminId: string;
+  action: string;
+  targetPlayerId?: string | null;
+  targetTableId?: string | null;
+  payload?: unknown;
+  reason?: string | null;
+}): Promise<void> {
+  await pool.query(
+    `insert into admin_log
+       (admin_id, action, target_player_id, target_table_id, payload, reason)
+     values ($1, $2, $3, $4, $5::jsonb, $6)`,
+    [
+      args.adminId,
+      args.action,
+      args.targetPlayerId ?? null,
+      args.targetTableId ?? null,
+      args.payload ? JSON.stringify(args.payload) : null,
+      args.reason ?? null,
+    ],
+  );
+}

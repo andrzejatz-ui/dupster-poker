@@ -1,0 +1,196 @@
+import type { Card, PlayerAction, PlayerActionType, Street } from './poker.js';
+
+/* ============================================================
+ * Public view-models — exactly what the server is allowed to
+ * send to a specific client. Hole cards of other players are
+ * NEVER part of any public type.
+ * ============================================================ */
+
+export interface PublicSeat {
+  seatIndex: number;
+  playerId: string;
+  displayName: string;
+  stack: number;
+  currentBet: number;
+  hasFolded: boolean;
+  isAllIn: boolean;
+  isSittingOut: boolean;
+  /** Eigene Hole Cards. Bei fremden Sitzen IMMER undefined. */
+  holeCards?: [Card, Card];
+  /** Bei Showdown gerevealte Karten anderer Spieler. */
+  revealedCards?: [Card, Card];
+  isToAct: boolean;
+  /** Reconnect-Grace läuft. UI zeigt Spinner. */
+  isReconnecting: boolean;
+}
+
+export interface PublicSidePot {
+  amount: number;
+  eligibleSeatIndexes: number[];
+}
+
+export interface PublicTableState {
+  tableId: string;
+  name: string;
+  smallBlind: number;
+  bigBlind: number;
+  buyIn: number;
+  maxPlayers: number;
+  phase: 'waiting' | Street;
+  handId: string | null;
+  handNumber: number;
+  buttonSeat: number | null;
+  toActSeat: number | null;
+  /** Epoch ms; UI rendert Countdown daraus. */
+  toActDeadline: number | null;
+  board: Card[];
+  pot: number;
+  sidePots: PublicSidePot[];
+  seats: PublicSeat[];
+  legalActionsForMe: LegalActions | null;
+  /** Mein Sitz, falls ich sitze. */
+  mySeatIndex: number | null;
+}
+
+export interface LegalActions {
+  canCheck: boolean;
+  canFold: boolean;
+  canCall: boolean;
+  callAmount: number;
+  canBet: boolean;
+  minBet: number;
+  canRaise: boolean;
+  minRaise: number;
+  maxRaise: number;
+  canAllIn: boolean;
+}
+
+export interface TableSummary {
+  id: string;
+  name: string;
+  smallBlind: number;
+  bigBlind: number;
+  buyIn: number;
+  seated: number;
+  maxPlayers: number;
+  inHand: boolean;
+}
+
+export interface PendingHello {
+  status: 'pending';
+}
+
+export interface BannedHello {
+  status: 'banned';
+  reason: string | null;
+}
+
+export interface ApprovedHello {
+  status: 'approved';
+  playerId: string;
+  displayName: string;
+  chips: number;
+  isAdmin: boolean;
+}
+
+export type Hello = PendingHello | BannedHello | ApprovedHello;
+
+/* ============================================================
+ * Event maps for Socket.IO typing.
+ * ============================================================ */
+
+export interface Ack<T> {
+  (ack: { ok: true } & T): void;
+  (ack: { ok: false; error: string; code?: string }): void;
+}
+
+export interface ClientToServerEvents {
+  'client:lobby:list': (ack: (res: { tables: TableSummary[] }) => void) => void;
+  'client:lobby:join': (
+    payload: { tableId: string; seatIndex: number },
+    ack: (res: { ok: true } | { ok: false; error: string }) => void,
+  ) => void;
+  'client:table:leave': (
+    payload: { tableId: string },
+    ack: (res: { ok: true } | { ok: false; error: string }) => void,
+  ) => void;
+  'client:table:action': (
+    payload: {
+      tableId: string;
+      action: PlayerAction;
+      clientActionId: string;
+    },
+    ack: (
+      res:
+        | { ok: true; deduped?: boolean }
+        | { ok: false; error: string; code?: string },
+    ) => void,
+  ) => void;
+  'client:table:chat': (payload: { tableId: string; body: string }) => void;
+}
+
+export interface ServerToClientEvents {
+  'server:hello': (hello: Hello) => void;
+  'server:lobby:tables': (payload: { tables: TableSummary[] }) => void;
+  'server:table:state': (payload: PublicTableState) => void;
+  'server:table:hand:start': (payload: {
+    tableId: string;
+    handId: string;
+    handNumber: number;
+    buttonSeat: number;
+    smallBlind: number;
+    bigBlind: number;
+  }) => void;
+  'server:table:deal': (payload: {
+    tableId: string;
+    phase: Street;
+    board?: Card[];
+  }) => void;
+  'server:table:turn': (payload: {
+    tableId: string;
+    seatIndex: number;
+    deadline: number;
+    legalActions: LegalActions;
+  }) => void;
+  'server:table:action': (payload: {
+    tableId: string;
+    seatIndex: number;
+    action: PlayerActionType;
+    amount: number;
+    potAfter: number;
+  }) => void;
+  'server:table:hand:result': (payload: {
+    tableId: string;
+    handId: string;
+    sidePots: PublicSidePot[];
+    winners: Array<{
+      seatIndex: number;
+      amount: number;
+      handLabel: string | null;
+    }>;
+    revealed: Array<{ seatIndex: number; holeCards: [Card, Card]; handLabel: string }>;
+    board: Card[];
+  }) => void;
+  'server:table:chat': (payload: {
+    tableId: string;
+    seatIndex: number | null;
+    from: string;
+    body: string;
+    at: number;
+  }) => void;
+  'server:table:error': (payload: { code: string; message: string }) => void;
+  'server:account:approved': (payload: { chips: number }) => void;
+  'server:account:banned': (payload: { reason: string | null }) => void;
+  'server:account:chip_update': (payload: {
+    chips: number;
+    delta: number;
+    reason: string;
+  }) => void;
+  'server:account:session_revoked': (payload: { reason: string }) => void;
+}
+
+export interface SocketData {
+  sessionId: string;
+  playerId: string;
+  isAdmin: boolean;
+}
