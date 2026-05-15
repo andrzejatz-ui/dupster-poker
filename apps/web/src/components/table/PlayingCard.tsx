@@ -15,10 +15,17 @@ const SUIT_GLYPHS: Record<string, { glyph: string; red: boolean }> = {
   d: { glyph: '♦', red: true },
 };
 
+// Sizes are responsive: smaller on mobile, full size from sm: breakpoint on.
 const sizes = {
-  sm: 'w-9 h-14 text-[10px]',
-  md: 'w-14 h-20 text-base',
-  lg: 'w-20 h-28 text-xl',
+  sm: 'w-7 h-10 text-[9px] sm:w-9 sm:h-14 sm:text-[10px]',
+  md: 'w-10 h-14 text-xs sm:w-14 sm:h-20 sm:text-base',
+  lg: 'w-12 h-16 text-sm sm:w-20 sm:h-28 sm:text-xl',
+};
+
+const suitSize = {
+  sm: 'text-base sm:text-2xl',
+  md: 'text-lg sm:text-2xl',
+  lg: 'text-2xl sm:text-3xl',
 };
 
 export function PlayingCard({ card, size = 'md', faceDown = false, className }: Props) {
@@ -49,7 +56,7 @@ export function PlayingCard({ card, size = 'md', faceDown = false, className }: 
       )}
     >
       <div className="leading-none">{rank === 'T' ? '10' : rank}</div>
-      <div className="text-center text-2xl leading-none">{suit.glyph}</div>
+      <div className={clsx('text-center leading-none', suitSize[size])}>{suit.glyph}</div>
       <div className="leading-none text-right rotate-180">
         {rank === 'T' ? '10' : rank}
       </div>

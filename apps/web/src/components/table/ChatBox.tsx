@@ -36,7 +36,7 @@ export function ChatBox({ lines, onSend }: Props) {
   }
 
   return (
-    <div className="glass rounded-2xl flex flex-col h-72 w-72">
+    <div className="glass rounded-2xl flex flex-col h-56 sm:h-72 w-full lg:w-72">
       <div className="px-3 py-2 border-b border-white/10 font-display text-xs uppercase tracking-widest text-white/60">
         {t('chat.title')}
       </div>

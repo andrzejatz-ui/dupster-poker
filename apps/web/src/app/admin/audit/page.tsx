@@ -33,8 +33,8 @@ export default function AuditPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-6">
+    <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto">
+      <header className="flex items-center justify-between mb-6 pr-24 sm:pr-36">
         <h1 className="font-display text-3xl text-glow-violet text-neon-violet">{t('audit.title')}</h1>
         <Link href="/admin"><NeonButton variant="ghost" size="sm">← {t('common.back')}</NeonButton></Link>
       </header>

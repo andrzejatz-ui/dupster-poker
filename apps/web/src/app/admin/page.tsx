@@ -127,8 +127,8 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto space-y-6">
-      <header className="flex items-center justify-between">
+    <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto space-y-6">
+      <header className="flex items-center justify-between pr-24 sm:pr-36">
         <div>
           <h1 className="font-display text-3xl text-glow-violet text-neon-violet">
             {t('admin.title')}

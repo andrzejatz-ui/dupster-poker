@@ -49,8 +49,8 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto">
-      <header className="flex items-center justify-between mb-10">
+    <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto">
+      <header className="flex items-center justify-between mb-8 sm:mb-10 pr-24 sm:pr-36">
         <div>
           <h1 className="font-display text-3xl text-glow-cyan text-neon-cyan">{t('lobby.title')}</h1>
           <p className="text-white/50 text-sm">

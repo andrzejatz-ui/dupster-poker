@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
@@ -29,6 +29,38 @@ function JoinForm() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'submitting' | 'pending' | 'banned'>('idle');
+
+  // Latest values, so the polling effect uses fresh input without restarting.
+  const handleRef = useRef(handle);
+  const nameRef = useRef(displayName);
+  useEffect(() => { handleRef.current = handle; }, [handle]);
+  useEffect(() => { nameRef.current = displayName; }, [displayName]);
+
+  // While the user is waiting for admin approval, poll the join endpoint
+  // every 5s. As soon as the admin flips the player to "approved", the
+  // next call returns 200 with a session token and we jump to the lobby.
+  // The endpoint is idempotent — repeated calls with the same handle do
+  // not create duplicate pending rows.
+  useEffect(() => {
+    if (phase !== 'pending') return;
+    let cancelled = false;
+    const id = setInterval(async () => {
+      const h = handleRef.current.trim();
+      if (!h) return;
+      const { status, body } = await joinAsPlayer(h, nameRef.current.trim() || undefined);
+      if (cancelled) return;
+      if (status === 200 && body.token) {
+        setSession(body.token, body.profile);
+        router.replace('/lobby');
+        return;
+      }
+      if (status === 403) setPhase('banned');
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [phase, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,7 +95,11 @@ function JoinForm() {
           <h1 className="font-display text-2xl text-glow-cyan text-neon-cyan mb-3">
             {t('join.pending.title')}
           </h1>
-          <p className="text-white/60 text-sm mb-6">{t('join.pending.body')}</p>
+          <p className="text-white/60 text-sm mb-3">{t('join.pending.body')}</p>
+          <div className="flex items-center justify-center gap-2 text-[11px] uppercase tracking-widest text-white/40 mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse-soft" />
+            auto
+          </div>
           <NeonButton variant="ghost" onClick={() => setPhase('idle')}>
             {t('common.back')}
           </NeonButton>

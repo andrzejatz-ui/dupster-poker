@@ -20,10 +20,10 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
   if (!seat) {
     return (
       <div className="flex flex-col items-center gap-1 opacity-50">
-        <div className="w-24 h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
-          <span className="text-xs text-white/30 font-mono">#{seatIndex}</span>
+        <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
+          <span className="text-[10px] sm:text-xs text-white/30 font-mono">#{seatIndex}</span>
         </div>
-        <span className="text-[10px] text-white/30 uppercase tracking-widest font-display">{t('table.empty.seat')}</span>
+        <span className="text-[9px] sm:text-[10px] text-white/30 uppercase tracking-widest font-display">{t('table.empty.seat')}</span>
       </div>
     );
   }
@@ -34,7 +34,7 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
     <div className="flex flex-col items-center gap-1.5 relative">
       {/* Dealer button */}
       {isButton && (
-        <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white text-ink-900 text-xs font-display font-bold flex items-center justify-center shadow-lg z-10">
+        <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-white text-ink-900 text-[10px] sm:text-xs font-display font-bold flex items-center justify-center shadow-lg z-10">
           D
         </div>
       )}
@@ -42,13 +42,13 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
       {/* Avatar disc */}
       <div
         className={clsx(
-          'relative w-24 h-24 rounded-full glass-strong flex items-center justify-center',
+          'relative w-14 h-14 sm:w-24 sm:h-24 rounded-full glass-strong flex items-center justify-center',
           'transition-shadow duration-200',
           seat.isToAct && 'ring-toact',
           seat.hasFolded && 'opacity-40 grayscale',
         )}
       >
-        <div className="font-display text-lg">
+        <div className="font-display text-xs sm:text-lg">
           {seat.displayName.slice(0, 2).toUpperCase()}
         </div>
         {seat.isReconnecting && (
@@ -65,10 +65,10 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
 
       {/* Name + stack */}
       <div className="text-center">
-        <div className="text-sm font-display truncate max-w-[7rem]">{seat.displayName}</div>
-        <div className="text-xs text-neon-gold font-mono">
+        <div className="text-[10px] sm:text-sm font-display truncate max-w-[4.5rem] sm:max-w-[7rem]">{seat.displayName}</div>
+        <div className="text-[10px] sm:text-xs text-neon-gold font-mono">
           {seat.stack.toLocaleString()}
-          <span className="text-white/30 ml-1">({stackInBB})</span>
+          <span className="text-white/30 ml-1 hidden sm:inline">({stackInBB})</span>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
 
       {/* Current bet */}
       {seat.currentBet > 0 && (
-        <div className="mt-1 px-2 py-0.5 rounded-full bg-neon-cyan/15 border border-neon-cyan/40 text-neon-cyan text-xs font-mono animate-chip-pop">
+        <div className="mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-neon-cyan/15 border border-neon-cyan/40 text-neon-cyan text-[10px] sm:text-xs font-mono animate-chip-pop">
           {seat.currentBet.toLocaleString()}
         </div>
       )}
