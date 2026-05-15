@@ -17,17 +17,19 @@ const SUIT_GLYPHS: Record<string, { glyph: string; red: boolean }> = {
   d: { glyph: '♦', red: true },
 };
 
-// Sizes are responsive: smaller on mobile, full size from sm: breakpoint on.
+// Sizes — slightly bigger across the board so suits + ranks read at a
+// glance on both phone and desktop. Mobile values stay touch-safe, sm:
+// breakpoints scale up to the full premium presentation.
 const sizes = {
-  sm: 'w-7 h-10 text-[9px] sm:w-9 sm:h-14 sm:text-[10px]',
-  md: 'w-10 h-14 text-xs sm:w-14 sm:h-20 sm:text-base',
-  lg: 'w-12 h-16 text-sm sm:w-20 sm:h-28 sm:text-xl',
+  sm: 'w-9 h-12 text-[10px] sm:w-11 sm:h-16 sm:text-xs',
+  md: 'w-12 h-16 text-sm sm:w-16 sm:h-20 sm:text-lg',
+  lg: 'w-14 h-20 text-base sm:w-24 sm:h-32 sm:text-2xl',
 };
 
 const suitSize = {
-  sm: 'text-base sm:text-2xl',
-  md: 'text-lg sm:text-2xl',
-  lg: 'text-2xl sm:text-3xl',
+  sm: 'text-lg sm:text-2xl',
+  md: 'text-xl sm:text-3xl',
+  lg: 'text-3xl sm:text-4xl',
 };
 
 export function PlayingCard({ card, size = 'md', faceDown = false, hoverable = false, className }: Props) {

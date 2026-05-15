@@ -12,6 +12,7 @@ import { ActionBar } from '@/components/table/ActionBar';
 import { ChatBox, type ChatLine } from '@/components/table/ChatBox';
 import { HandResultBanner } from '@/components/table/HandResultBanner';
 import { HistoryModal } from '@/components/table/HistoryModal';
+import { ChipTransferOverlay } from '@/components/table/ChipTransferOverlay';
 import { fetchChatHistory } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { playChatDing, playChipPlink } from '@/lib/sounds';
@@ -212,7 +213,19 @@ export default function TablePage() {
               );
             })}
 
-            {/* Hand-result banner (5s after every finished hand). */}
+            {/* Chip-transfer laser beams: Eye grabs chips from each
+                showdown loser (red), then the croupier "drops" them on
+                the winner (gold). Pure SVG above the felt, behind the
+                banner. Only fires on real showdowns. */}
+            {result && (
+              <ChipTransferOverlay
+                winners={result.winners}
+                revealed={result.revealed}
+                seatPositions={seatPositions}
+              />
+            )}
+
+            {/* Hand-result banner (8s after every finished hand). */}
             {result && (
               <HandResultBanner
                 winners={result.winners}

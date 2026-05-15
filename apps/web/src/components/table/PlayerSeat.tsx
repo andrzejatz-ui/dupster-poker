@@ -3,6 +3,7 @@
 import clsx from 'clsx';
 import type { PublicSeat } from '@neon-poker/shared/events';
 import { PlayingCard } from './PlayingCard';
+import { ChipStack } from './ChipStack';
 import { useT } from '@/i18n/context';
 
 interface Props {
@@ -106,11 +107,13 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
         ) : null}
       </div>
 
-      {/* Current bet — gold chip + amount */}
+      {/* Live chip stack — visible chips pushed into the pot */}
       {seat.currentBet > 0 && (
-        <div className="chip-bet mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-[10px] sm:text-xs font-mono animate-chip-pop">
-          {seat.currentBet.toLocaleString()}
-        </div>
+        <ChipStack
+          amount={seat.currentBet}
+          bigBlind={bigBlindAmount}
+          className="mt-1"
+        />
       )}
     </div>
   );

@@ -104,25 +104,54 @@ export function playChatDing(): void {
 }
 
 /**
- * Soft warm chip-stack thunk — for a winning hand or major event.
+ * Soft warm major-third arpeggio for hand-result. Three sine notes
+ * (C5–E5–G5) staggered by ~100 ms, each with a gentle 250 ms decay
+ * envelope. Together they form a warm, classy "win" chord that
+ * doesn't feel like a slot machine. Total energy is well under the
+ * old triangle-wave plink so neither player feels nagged.
+ *
+ * Old name kept as alias so existing imports don't break.
  */
-export function playChipPlink(): void {
+export function playWinChord(): void {
   if (isMuted()) return;
   const audio = getCtx();
   if (!audio) return;
   const now = audio.currentTime;
 
-  const osc = audio.createOscillator();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(880, now);
-  osc.frequency.exponentialRampToValueAtTime(560, now + 0.18);
+  // C major arpeggio — warm + resolved + universally pleasant.
+  const notes: Array<{ freq: number; start: number }> = [
+    { freq: 523.25, start: 0 },     // C5
+    { freq: 659.25, start: 0.090 }, // E5
+    { freq: 783.99, start: 0.180 }, // G5
+  ];
 
-  const gain = audio.createGain();
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+  for (const n of notes) {
+    const osc = audio.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = n.freq;
 
-  osc.connect(gain).connect(audio.destination);
-  osc.start(now);
-  osc.stop(now + 0.25);
+    // A subtle 2-cent detune sibling for body. Disabled if too heavy.
+    const detune = audio.createOscillator();
+    detune.type = 'sine';
+    detune.frequency.value = n.freq * 1.002;
+
+    const gain = audio.createGain();
+    const startAt = now + n.start;
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.055, startAt + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.42);
+
+    const detuneGain = audio.createGain();
+    detuneGain.gain.value = 0.4;
+
+    osc.connect(gain).connect(audio.destination);
+    detune.connect(detuneGain).connect(gain);
+    osc.start(startAt);
+    detune.start(startAt);
+    osc.stop(startAt + 0.46);
+    detune.stop(startAt + 0.46);
+  }
 }
+
+/** @deprecated old triangle-wave plink — alias kept for back-compat. */
+export const playChipPlink = playWinChord;

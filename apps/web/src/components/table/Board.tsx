@@ -61,7 +61,7 @@ export function Board({ board, pot, handToken = null }: Props) {
           ) : (
             <div
               key={i}
-              className="w-12 h-16 sm:w-20 sm:h-28 rounded-lg border border-white/10 border-dashed opacity-40"
+              className="w-14 h-20 sm:w-24 sm:h-32 rounded-lg border border-white/10 border-dashed opacity-40"
             />
           );
         })}
