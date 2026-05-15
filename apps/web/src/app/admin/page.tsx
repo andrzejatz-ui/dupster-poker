@@ -20,9 +20,17 @@ interface PlayerRow {
   status: 'pending' | 'approved' | 'banned';
   chips: string;
   created_at: string;
+  last_login_at: string | null;
   seat_table_id: string | null;
   seat_index: number | null;
   seat_stack: string | null;
+}
+
+interface AdminProfile {
+  id: string;
+  username: string;
+  playHandle: string | null;
+  playChips: number;
 }
 
 interface TableRow {
@@ -41,11 +49,12 @@ interface TableRow {
 
 type Dialog =
   | null
-  | { kind: 'play' }
+  | { kind: 'settings' }
   | { kind: 'approve'; player: PlayerRow }
   | { kind: 'chips'; player: PlayerRow }
   | { kind: 'ban'; player: PlayerRow }
   | { kind: 'reject'; player: PlayerRow }
+  | { kind: 'delete'; player: PlayerRow }
   | { kind: 'password'; player: PlayerRow }
   | { kind: 'createTable' }
   | { kind: 'closeTable'; table: TableRow };
@@ -58,6 +67,7 @@ export default function AdminDashboard() {
   const [banned, setBanned] = useState<PlayerRow[]>([]);
   const [tables, setTables] = useState<TableRow[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [me, setMe] = useState<AdminProfile | null>(null);
 
   useEffect(() => {
     if (!getAdminToken()) router.replace('/admin/login');
@@ -70,21 +80,47 @@ export default function AdminDashboard() {
 
   async function refresh() {
     try {
-      const a = await adminCall('/players?status=pending');
-      const b = await adminCall('/players?status=approved');
-      const c = await adminCall('/players?status=banned');
-      const ts = await adminCall('/tables');
+      const [a, b, c, ts, meRes] = await Promise.all([
+        adminCall('/players?status=pending'),
+        adminCall('/players?status=approved'),
+        adminCall('/players?status=banned'),
+        adminCall('/tables'),
+        adminCall('/me'),
+      ]);
       if (a.status === 401) { clearAdminToken(); router.replace('/admin/login'); return; }
       setPending(a.body.players ?? []);
       setApproved(b.body.players ?? []);
       setBanned(c.body.players ?? []);
       setTables(ts.body.tables ?? []);
+      if (meRes.status === 200) setMe(meRes.body);
     } catch {/* ignore */}
   }
 
   function logout() {
     clearAdminToken();
     router.replace('/admin/login');
+  }
+
+  /**
+   * Play shortcut. If the admin has stored a play_handle in /admin/me,
+   * call /admin/play with no body — the server falls back to the stored
+   * defaults and we route straight to the lobby. Otherwise pop the
+   * Settings dialog so they can set one.
+   */
+  async function startPlaying() {
+    if (!me?.playHandle) {
+      setDialog({ kind: 'settings' });
+      return;
+    }
+    const r = await adminCall('/play', { method: 'POST', body: JSON.stringify({}) });
+    if (r.status === 200 && r.body.token) {
+      setSession(r.body.token, r.body.profile);
+      router.push('/lobby');
+    } else if (r.body.error === 'no_handle_configured') {
+      setDialog({ kind: 'settings' });
+    } else {
+      alert(r.body.error ?? 'failed');
+    }
   }
 
   async function pauseToggle(table: TableRow) {
@@ -110,8 +146,11 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
-            <NeonButton variant="gold" size="sm" onClick={() => setDialog({ kind: 'play' })}>
-              ▶ {t('admin.play')}
+            <NeonButton variant="gold" size="sm" onClick={startPlaying}>
+              ▶ {me?.playHandle ? `${t('admin.play')} · ${me.playHandle}` : t('admin.play')}
+            </NeonButton>
+            <NeonButton variant="ghost" size="sm" onClick={() => setDialog({ kind: 'settings' })}>
+              ⚙ {t('admin.settings')}
             </NeonButton>
             <Link href="/admin/audit">
               <NeonButton variant="ghost" size="sm">{t('admin.auditButton')}</NeonButton>
@@ -166,6 +205,7 @@ export default function AdminDashboard() {
                   <th className="py-2">{t('admin.col.handle')}</th>
                   <th>{t('admin.col.status')}</th>
                   <th>{t('admin.col.password')}</th>
+                  <th>{t('admin.col.lastLogin')}</th>
                   <th className="text-right">{t('admin.col.chips')}</th>
                   <th className="text-right">{t('admin.col.actions')}</th>
                 </tr>
@@ -186,6 +226,9 @@ export default function AdminDashboard() {
                     </td>
                     <td>
                       <PasswordCell value={p.password} />
+                    </td>
+                    <td className="font-mono text-[11px] text-ink-muted whitespace-nowrap">
+                      {p.last_login_at ? new Date(p.last_login_at).toLocaleString() : '—'}
                     </td>
                     <td className="text-right font-mono text-gold">
                       {Number(p.chips).toLocaleString()}
@@ -222,6 +265,9 @@ export default function AdminDashboard() {
                         }}
                       >
                         {p.status === 'banned' ? t('admin.unban') : t('admin.ban')}
+                      </NeonButton>
+                      <NeonButton size="sm" variant="danger" onClick={() => setDialog({ kind: 'delete', player: p })}>
+                        {t('admin.delete')}
                       </NeonButton>
                     </td>
                   </tr>
@@ -294,12 +340,23 @@ export default function AdminDashboard() {
       </main>
 
       {/* ---- Dialogs ---- */}
-      {dialog?.kind === 'play' && (
-        <PlayDialog
+      {dialog?.kind === 'settings' && (
+        <SettingsDialog
+          initial={me}
           onClose={() => setDialog(null)}
-          onDone={(profile, token) => {
-            setSession(token, profile);
-            router.push('/lobby');
+          onSaved={() => { setDialog(null); refresh(); }}
+        />
+      )}
+      {dialog?.kind === 'delete' && (
+        <ConfirmDialog
+          title={t('admin.prompt.confirmDelete', { handle: dialog.player.player_handle })}
+          subtitle={t('admin.prompt.confirmDeleteBody')}
+          confirmLabel={t('admin.delete')}
+          variant="danger"
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            await adminCall(`/players/${dialog.player.id}`, { method: 'DELETE' });
+            setDialog(null); refresh();
           }}
         />
       )}
@@ -459,33 +516,37 @@ function DialogFooter({ onCancel, onSubmit, busy, submitLabel, variant = 'gold' 
   );
 }
 
-function PlayDialog({ onClose, onDone }: {
+function SettingsDialog({ initial, onClose, onSaved }: {
+  initial: AdminProfile | null;
   onClose: () => void;
-  onDone: (profile: { id: string; handle: string; displayName: string | null; chips: number }, token: string) => void;
+  onSaved: () => void;
 }) {
   const t = useT();
-  const [handle, setHandle] = useState('admin');
-  const [chips, setChips] = useState(10000);
+  const [handle, setHandle] = useState(initial?.playHandle ?? 'admin');
+  const [chips, setChips] = useState(initial?.playChips ?? 10000);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function submit() {
     setError(null); setBusy(true);
-    const r = await adminCall('/play', {
+    const r = await adminCall('/me', {
       method: 'POST',
-      body: JSON.stringify({ playerHandle: handle.trim(), displayName: handle.trim(), initialChips: chips }),
+      body: JSON.stringify({ playHandle: handle.trim(), playChips: chips }),
     });
     setBusy(false);
-    if (r.status === 200 && r.body.token) onDone(r.body.profile, r.body.token);
+    if (r.status === 200) onSaved();
     else setError(r.body.error ?? 'failed');
   }
   return (
-    <Modal open onClose={onClose} title={t('admin.play')} subtitle={t('admin.prompt.playHandle')}
-           footer={<DialogFooter onCancel={onClose} onSubmit={submit} busy={busy} submitLabel={t('admin.play')} />}>
-      <NeonInput id="play-handle" label={t('join.idLabel')} value={handle}
-                 onChange={(e) => setHandle(e.target.value)} autoFocus error={error} />
-      <NeonInput id="play-chips" label={t('admin.col.chips')} type="number" inputMode="numeric"
+    <Modal open onClose={onClose}
+           title={t('admin.settings')}
+           subtitle={t('admin.settingsBody')}
+           footer={<DialogFooter onCancel={onClose} onSubmit={submit} busy={busy} submitLabel={t('common.confirm')} />}>
+      <NeonInput id="set-handle" label={t('admin.settingsHandle')} value={handle}
+                 onChange={(e) => setHandle(e.target.value)} autoFocus error={error}
+                 hint={t('admin.settingsHandleHint')} />
+      <NeonInput id="set-chips" label={t('admin.settingsChips')} type="number" inputMode="numeric"
                  value={String(chips)} onChange={(e) => setChips(Number(e.target.value) || 0)}
-                 hint={t('admin.prompt.playChips')} />
+                 hint={t('admin.settingsChipsHint')} />
     </Modal>
   );
 }

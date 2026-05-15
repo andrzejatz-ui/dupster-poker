@@ -17,6 +17,7 @@ export interface PublicSeat {
   hasFolded: boolean;
   isAllIn: boolean;
   isSittingOut: boolean;
+  isPaused: boolean;
   /** Eigene Hole Cards. Bei fremden Sitzen IMMER undefined. */
   holeCards?: [Card, Card];
   /** Bei Showdown gerevealte Karten anderer Spieler. */
@@ -130,6 +131,14 @@ export interface ClientToServerEvents {
     ) => void,
   ) => void;
   'client:table:chat': (payload: { tableId: string; body: string }) => void;
+  /** Player asks to be paused — folded out of the running hand if any
+   *  and skipped on every future deal until they resume. */
+  'client:player:pause': (
+    ack: (res: { ok: true } | { ok: false; error: string }) => void,
+  ) => void;
+  'client:player:resume': (
+    ack: (res: { ok: true } | { ok: false; error: string }) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {

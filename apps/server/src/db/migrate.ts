@@ -18,6 +18,22 @@ export async function runMigrations(): Promise<void> {
       name: 'players.avatar_url column',
       sql: 'alter table players add column if not exists avatar_url text',
     },
+    {
+      name: 'players.deleted_at column (soft-delete)',
+      sql: 'alter table players add column if not exists deleted_at timestamptz',
+    },
+    {
+      name: 'players.last_login_at column',
+      sql: 'alter table players add column if not exists last_login_at timestamptz',
+    },
+    {
+      name: 'admins.play_handle column',
+      sql: 'alter table admins add column if not exists play_handle text',
+    },
+    {
+      name: 'admins.play_chips column',
+      sql: 'alter table admins add column if not exists play_chips bigint default 10000',
+    },
     // future: add more idempotent migrations here
   ];
 

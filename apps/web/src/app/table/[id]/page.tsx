@@ -73,6 +73,17 @@ export default function TablePage() {
     socket.emit('client:table:leave', { tableId: id }, () => router.push('/lobby'));
   }
 
+  function togglePause() {
+    if (!socket) return;
+    const mySeat = state?.mySeatIndex !== null && state?.mySeatIndex !== undefined
+      ? state.seats.find((s) => s.seatIndex === state.mySeatIndex)
+      : null;
+    const ev = mySeat?.isPaused ? 'client:player:resume' : 'client:player:pause';
+    socket.emit(ev, (res) => {
+      if (!res.ok) alert(res.error);
+    });
+  }
+
   if (!state) {
     return (
       <main className="min-h-screen flex items-center justify-center text-white/40">
@@ -94,7 +105,16 @@ export default function TablePage() {
           <h1 className="font-display text-lg sm:text-2xl truncate">{state.name}</h1>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <span className="hidden sm:inline text-xs font-mono text-white/40">{t('table.handNumber')}{state.handNumber}</span>
+          <span className="hidden sm:inline text-xs font-mono text-ink-muted">{t('table.handNumber')}{state.handNumber}</span>
+          {state.mySeatIndex !== null && (() => {
+            const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
+            const paused = mySeat?.isPaused ?? false;
+            return (
+              <NeonButton size="sm" variant={paused ? 'gold' : 'ghost'} onClick={togglePause}>
+                {paused ? t('action.resume') : t('action.pause')}
+              </NeonButton>
+            );
+          })()}
           <NeonButton size="sm" variant="ghost" onClick={leave}>
             {t('table.leave')}
           </NeonButton>
@@ -107,7 +127,7 @@ export default function TablePage() {
           <div className="felt rounded-[60px] sm:rounded-[140px] aspect-[4/3] sm:aspect-[16/9] relative">
             {/* Board */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <Board board={state.board} pot={state.pot} />
+              <Board board={state.board} pot={state.pot} handToken={state.handId} />
             </div>
 
             {/* Seats */}

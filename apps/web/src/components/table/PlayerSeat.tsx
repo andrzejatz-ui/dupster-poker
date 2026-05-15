@@ -70,6 +70,11 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
             {t('seat.allIn')}
           </span>
         )}
+        {seat.isPaused && (
+          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-status-warning/85 text-obsidian-bg text-[9px] font-display tracking-widest">
+            {t('seat.paused')}
+          </span>
+        )}
       </div>
 
       {/* Name + stack */}

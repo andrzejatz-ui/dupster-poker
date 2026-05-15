@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
@@ -145,6 +146,14 @@ function JoinForm() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+      <div className="max-w-md w-full mb-3 flex justify-start">
+        <Link
+          href="/"
+          className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
+        >
+          ← {t('common.back')}
+        </Link>
+      </div>
       <NeonCard glow="gold" strong className="max-w-md w-full">
         <div className="mb-6">
           <span className="text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">

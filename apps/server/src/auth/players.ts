@@ -4,7 +4,7 @@ import type { PlayerProfile } from '@neon-poker/shared/types';
 export async function findPlayerByHandle(handle: string): Promise<PlayerProfile | null> {
   const r = await pool.query(
     `select id, player_handle, display_name, avatar_url, status, chips, allow_concurrent_sessions
-       from players where player_handle = $1`,
+       from players where player_handle = $1 and deleted_at is null`,
     [handle],
   );
   if (r.rowCount === 0) return null;
@@ -23,7 +23,7 @@ export async function findPlayerByHandle(handle: string): Promise<PlayerProfile 
 export async function findPlayerById(id: string): Promise<PlayerProfile | null> {
   const r = await pool.query(
     `select id, player_handle, display_name, avatar_url, status, chips, allow_concurrent_sessions
-       from players where id = $1`,
+       from players where id = $1 and deleted_at is null`,
     [id],
   );
   if (r.rowCount === 0) return null;
@@ -53,7 +53,7 @@ export async function findPlayerByHandleWithPassword(
   const r = await pool.query(
     `select id, player_handle, display_name, password, status, chips,
             allow_concurrent_sessions
-       from players where player_handle = $1`,
+       from players where player_handle = $1 and deleted_at is null`,
     [handle],
   );
   if (r.rowCount === 0) return null;

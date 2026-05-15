@@ -83,6 +83,11 @@ export async function createSession(args: {
      values ($1, $2, $3, $4) returning id`,
     [args.playerId, tokenHash, args.ip, args.userAgent],
   );
+  // Track players.last_login_at so the admin dashboard can show it.
+  await pool.query(
+    'update players set last_login_at = now() where id = $1',
+    [args.playerId],
+  );
   return insert.rows[0]!.id;
 }
 

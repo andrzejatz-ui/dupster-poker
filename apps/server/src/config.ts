@@ -19,7 +19,7 @@ const Env = z.object({
   // admin. Use to recover lockouts when BOOTSTRAP_ADMIN_PASSWORD on the
   // host drifted from what you remember. Set to something long.
   MASTER_KEY: z.string().min(16).optional(),
-  TURN_TIMER_MS: z.coerce.number().int().positive().default(25_000),
+  TURN_TIMER_MS: z.coerce.number().int().positive().default(30_000),
   RECONNECT_GRACE_MS: z.coerce.number().int().positive().default(30_000),
   MIN_BUY_IN_MULTIPLIER: z.coerce.number().int().positive().default(20),
   LOG_LEVEL: z

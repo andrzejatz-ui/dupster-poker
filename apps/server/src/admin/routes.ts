@@ -67,6 +67,61 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     res.json({ token, admin: { id: result.id, username: result.username } });
   });
 
+  /* ---- Admin profile / settings ---------------------------------- */
+
+  r.get('/me', requireAdmin, async (req: AdminRequest, res) => {
+    const q = await pool.query<{
+      id: string;
+      username: string;
+      play_handle: string | null;
+      play_chips: string;
+    }>(
+      'select id, username, play_handle, play_chips from admins where id = $1',
+      [req.adminId],
+    );
+    if (q.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    const row = q.rows[0]!;
+    res.json({
+      id: row.id,
+      username: row.username,
+      playHandle: row.play_handle,
+      playChips: Number(row.play_chips ?? 10000),
+    });
+  });
+
+  /**
+   * Updates the admin's own play preferences. Once set, the Play
+   * shortcut goes straight to the lobby without asking for a handle
+   * each time. Stored on the admins row so it follows the admin across
+   * browsers.
+   */
+  r.post('/me', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({
+      playHandle: z.string().min(2).max(40).nullable().optional(),
+      playChips: z.number().int().min(0).max(10_000_000).optional(),
+    });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    if (parsed.data.playHandle !== undefined) {
+      updates.push(`play_handle = $${updates.length + 2}`);
+      params.push(parsed.data.playHandle);
+    }
+    if (parsed.data.playChips !== undefined) {
+      updates.push(`play_chips = $${updates.length + 2}`);
+      params.push(parsed.data.playChips);
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+
+    await pool.query(
+      `update admins set ${updates.join(', ')} where id = $1`,
+      [req.adminId, ...params],
+    );
+    res.json({ ok: true });
+  });
+
   /* ---- Admin "play" shortcut ------------------------------------- */
   /**
    * Issues a player session for the admin so they can join a table from
@@ -79,14 +134,31 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
    */
   r.post('/play', requireAdmin, async (req: AdminRequest, res) => {
     const Body = z.object({
-      playerHandle: z.string().min(2).max(40).trim(),
+      playerHandle: z.string().min(2).max(40).trim().optional(),
       displayName: z.string().max(40).optional(),
       initialChips: z.number().int().min(0).max(10_000_000).optional(),
     });
-    const parsed = Body.safeParse(req.body);
+    const parsed = Body.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
 
-    const handle = parsed.data.playerHandle;
+    // Fall back to the admin's saved defaults so the front-end can hit
+    // /admin/play with an empty body once the admin has stored a play
+    // handle in /admin/me.
+    let handle = parsed.data.playerHandle;
+    let initialChips = parsed.data.initialChips;
+    if (!handle || initialChips === undefined) {
+      const me = await pool.query<{ play_handle: string | null; play_chips: string | null }>(
+        'select play_handle, play_chips from admins where id = $1',
+        [req.adminId],
+      );
+      if ((me.rowCount ?? 0) > 0) {
+        handle = handle || (me.rows[0]!.play_handle ?? undefined);
+        if (initialChips === undefined) {
+          initialChips = Number(me.rows[0]!.play_chips ?? 10000);
+        }
+      }
+    }
+    if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
     let player = await findPlayerByHandle(handle);
     let created = false;
 
@@ -109,12 +181,13 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       if (!player) return res.status(500).json({ error: 'reapprove_failed' });
     }
 
-    // Only grant chips when explicitly requested AND balance is empty,
-    // to avoid accidental repeated top-ups when admin clicks Play twice.
-    if (parsed.data.initialChips && player.chips === 0) {
+    // Only grant chips when a positive amount was requested AND the
+    // balance is empty, to avoid accidental repeated top-ups when admin
+    // clicks Play twice.
+    if (initialChips && initialChips > 0 && player.chips === 0) {
       await moveChips({
         playerId: player.id,
-        delta: parsed.data.initialChips,
+        delta: initialChips,
         reason: 'admin_grant',
         adminId: req.adminId,
         note: 'admin self-grant via /admin/play',
@@ -138,7 +211,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       adminId: req.adminId!,
       action: 'admin_play',
       targetPlayerId: player.id,
-      payload: { handle, created, initialChips: parsed.data.initialChips ?? 0 },
+      payload: { handle, created, initialChips: initialChips ?? 0 },
     });
 
     res.json({
@@ -159,21 +232,22 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const q = status
       ? await pool.query(
           `select p.id, p.player_handle, p.display_name, p.password, p.status, p.chips,
-                  p.created_at, p.approved_at, p.banned_at,
+                  p.created_at, p.approved_at, p.banned_at, p.last_login_at,
                   s.table_id as seat_table_id, s.seat_index, s.stack as seat_stack
              from players p
              left join table_seats s on s.player_id = p.id
-            where p.status = $1
+            where p.status = $1 and p.deleted_at is null
             order by p.created_at desc
             limit 200`,
           [status],
         )
       : await pool.query(
           `select p.id, p.player_handle, p.display_name, p.password, p.status, p.chips,
-                  p.created_at, p.approved_at, p.banned_at,
+                  p.created_at, p.approved_at, p.banned_at, p.last_login_at,
                   s.table_id as seat_table_id, s.seat_index, s.stack as seat_stack
              from players p
              left join table_seats s on s.player_id = p.id
+            where p.deleted_at is null
             order by p.created_at desc
             limit 200`,
         );
@@ -266,6 +340,45 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       action: 'ban_player',
       targetPlayerId: req.params.id,
       reason: parsed.data.reason ?? null,
+    });
+    res.json({ ok: true });
+  });
+
+  /**
+   * Soft-deletes a player. We can't hard-delete: chip_ledger,
+   * hand_results and audit rows reference them and we want the history
+   * intact. Sets players.deleted_at, revokes every session and kicks
+   * the player off any table they're on. Player-list queries already
+   * filter on deleted_at IS NULL so they vanish from the dashboard.
+   */
+  r.delete('/players/:id', requireAdmin, async (req: AdminRequest, res) => {
+    // If they're seated, leave the table first so their stack is
+    // cashed out via the normal path.
+    const seatRow = await pool.query<{ table_id: string; seat_index: number }>(
+      'select table_id, seat_index from table_seats where player_id = $1',
+      [req.params.id],
+    );
+    if ((seatRow.rowCount ?? 0) > 0) {
+      const { table_id, seat_index } = seatRow.rows[0]!;
+      try {
+        await tables.leavePlayer({
+          tableId: table_id,
+          seatIndex: seat_index,
+          playerId: req.params.id!,
+        });
+      } catch { /* best-effort */ }
+    }
+    const upd = await pool.query(
+      'update players set deleted_at = now() where id = $1 and deleted_at is null',
+      [req.params.id],
+    );
+    if (upd.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    await revokeAllPlayerSessions(req.params.id!);
+    disconnectPlayer(io, req.params.id!, 'account_removed');
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'delete_player',
+      targetPlayerId: req.params.id,
     });
     res.json({ ok: true });
   });

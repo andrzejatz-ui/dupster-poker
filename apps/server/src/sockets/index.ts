@@ -192,6 +192,16 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       });
     });
 
+    // ---- Pause / resume -----------------------------------------
+    socket.on('client:player:pause', (ack) => {
+      const ok = tables.pausePlayer(socket.data.playerId);
+      ack(ok ? { ok: true } : { ok: false, error: 'not_seated' });
+    });
+    socket.on('client:player:resume', (ack) => {
+      const ok = tables.resumePlayer(socket.data.playerId);
+      ack(ok ? { ok: true } : { ok: false, error: 'not_seated' });
+    });
+
     // ---- Reconnect markers --------------------------------------
     socket.on('disconnect', () => {
       // mark `isReconnecting` on the player's current seat

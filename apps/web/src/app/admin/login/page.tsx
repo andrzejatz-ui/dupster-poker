@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
@@ -36,6 +37,14 @@ export default function AdminLoginPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+      <div className="max-w-md w-full mb-3 flex justify-start">
+        <Link
+          href="/"
+          className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
+        >
+          ← {t('common.back')}
+        </Link>
+      </div>
       <NeonCard glow="gold" strong className="max-w-md w-full">
         <div className="flex justify-center mb-4 opacity-80">
           <Mask size={56} />

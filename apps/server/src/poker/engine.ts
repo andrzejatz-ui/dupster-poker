@@ -24,6 +24,9 @@ export interface Seat {
   hasFolded: boolean;
   isAllIn: boolean;
   isSittingOut: boolean;
+  /** Explicit "I'm taking a break" — set by client:player:pause, excludes
+   *  the seat from new hands until the player resumes. */
+  isPaused: boolean;
   hasActedThisStreet: boolean;
   isReconnecting: boolean;
 }
@@ -117,6 +120,7 @@ export class PokerTable {
       hasFolded: false,
       isAllIn: false,
       isSittingOut: this.phase !== 'waiting', // joins mid-hand sit out current
+      isPaused: false,
       hasActedThisStreet: false,
       isReconnecting: false,
     });
@@ -614,8 +618,51 @@ export class PokerTable {
 
   activeSeats(): Seat[] {
     return [...this.seats.values()]
-      .filter((s) => !s.isSittingOut && s.stack > 0)
+      .filter((s) => !s.isSittingOut && !s.isPaused && s.stack > 0)
       .sort((a, b) => a.seatIndex - b.seatIndex);
+  }
+
+  /**
+   * Mark a seat as paused. If they're currently to-act, auto-fold them
+   * out of the running hand so play can move on. The seat stays at the
+   * table; they just don't participate until they resume.
+   */
+  pause(seatIndex: number): { advanced: boolean } {
+    const seat = this.seats.get(seatIndex);
+    if (!seat) throw new Error('seat_not_found');
+    if (seat.isPaused) return { advanced: false };
+    seat.isPaused = true;
+    if (this.phase !== 'waiting' && !seat.hasFolded) {
+      // mid-hand pause = same as fold + sit-out for the rest of the hand
+      seat.hasFolded = true;
+      seat.hasActedThisStreet = true;
+      this.log({
+        seatIndex,
+        playerId: seat.playerId,
+        street: this.phase as Street,
+        action: 'fold_paused',
+        amount: null,
+      });
+      if (this.toActSeat === seatIndex) {
+        this.advance();
+        return { advanced: true };
+      }
+    }
+    return { advanced: false };
+  }
+
+  /**
+   * Take a paused seat back in. They sit out the current hand if one
+   * is running and re-join from the next deal.
+   */
+  resume(seatIndex: number): void {
+    const seat = this.seats.get(seatIndex);
+    if (!seat) throw new Error('seat_not_found');
+    seat.isPaused = false;
+    if (this.phase !== 'waiting') {
+      // still wait for the current hand to finish
+      seat.isSittingOut = true;
+    }
   }
 
   /** Returns the next seat that's part of the supplied ready list. */
@@ -656,6 +703,7 @@ export class PokerTable {
         hasFolded: s.hasFolded,
         isAllIn: s.isAllIn,
         isSittingOut: s.isSittingOut,
+        isPaused: s.isPaused,
         holeCards:
           viewerSeat !== null && s.seatIndex === viewerSeat && s.holeCards
             ? (s.holeCards as [Card, Card])

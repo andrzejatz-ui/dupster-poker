@@ -273,6 +273,42 @@ export class TableManager {
   }
 
   /**
+   * Player-requested pause: marks the seat paused, optionally folds
+   * them out of the running hand, and broadcasts the new state.
+   * Returns false if the player isn't seated anywhere.
+   */
+  pausePlayer(playerId: string): boolean {
+    for (const table of this.tables.values()) {
+      for (const seat of table.seats.values()) {
+        if (seat.playerId === playerId) {
+          table.pause(seat.seatIndex);
+          this.scheduleTurnTimer(table.cfg.tableId);
+          this.onStateChange(table.cfg.tableId);
+          if (table.phase === 'showdown') {
+            void this.finalizeHand(table.cfg.tableId);
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  resumePlayer(playerId: string): boolean {
+    for (const table of this.tables.values()) {
+      for (const seat of table.seats.values()) {
+        if (seat.playerId === playerId) {
+          table.resume(seat.seatIndex);
+          this.onStateChange(table.cfg.tableId);
+          this.maybeStartHand(table.cfg.tableId);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * If the player happens to be sitting at any table, update the
    * in-memory seat avatar and trigger a state broadcast so the other
    * seats see the new picture immediately.
