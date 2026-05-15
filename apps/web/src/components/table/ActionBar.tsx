@@ -25,7 +25,7 @@ export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
     );
   }
 
-  const target = raiseAmount ?? legal.minRaise || legal.minBet;
+  const target = raiseAmount ?? (legal.minRaise || legal.minBet);
   const send = (action: PlayerAction) => onAction(action, ulid());
 
   return (
