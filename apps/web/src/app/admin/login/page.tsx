@@ -6,6 +6,7 @@ import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Mask } from '@/components/brand/Mask';
+import { Signature } from '@/components/ui/Signature';
 import { adminLogin } from '@/lib/api';
 import { useT } from '@/i18n/context';
 
@@ -34,7 +35,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
       <NeonCard glow="gold" strong className="max-w-md w-full">
         <div className="flex justify-center mb-4 opacity-80">
           <Mask size={56} />
@@ -66,6 +67,7 @@ export default function AdminLoginPage() {
           </NeonButton>
         </form>
       </NeonCard>
+      <Signature className="mt-8" />
     </main>
   );
 }

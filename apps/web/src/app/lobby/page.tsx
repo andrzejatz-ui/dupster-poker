@@ -6,6 +6,7 @@ import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { useSocket } from '@/hooks/useSocket';
 import { getProfile, clearSession } from '@/lib/session';
+import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
 
@@ -135,6 +136,7 @@ export default function LobbyPage() {
           ))}
         </div>
       )}
+      <Signature className="mt-10 pb-6" />
     </main>
   );
 }

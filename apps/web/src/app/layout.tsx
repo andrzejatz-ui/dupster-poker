@@ -3,8 +3,10 @@ import '@/styles/globals.css';
 import { I18nShell } from '@/components/ui/I18nShell';
 
 export const metadata: Metadata = {
-  title: 'Dupster',
-  description: 'Private Texas Hold’em — invite only, play-money chips',
+  title: 'DUPSTER · filipOS.arch',
+  description: 'Private Texas Hold’em — invite only, play-money chips · filipOS.arch',
+  authors: [{ name: 'filipOS.arch' }],
+  applicationName: 'DUPSTER',
 };
 
 export default function RootLayout({

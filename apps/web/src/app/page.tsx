@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { Mask } from '@/components/brand/Mask';
+import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 
 export default function Landing() {
@@ -47,6 +48,7 @@ export default function Landing() {
         <p className="text-center text-[10px] uppercase tracking-[0.3em] text-ink-muted mt-8 font-mono">
           {t('landing.build')}
         </p>
+        <Signature className="mt-3" />
       </div>
     </main>
   );

@@ -7,6 +7,7 @@ import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Signature } from '@/components/ui/Signature';
 import { adminCall, clearAdminToken, getAdminToken } from '@/lib/admin';
 import { setSession } from '@/lib/session';
 import { useT } from '@/i18n/context';
@@ -289,6 +290,7 @@ export default function AdminDashboard() {
             </div>
           )}
         </NeonCard>
+        <Signature className="mt-8 pb-6" />
       </main>
 
       {/* ---- Dialogs ---- */}

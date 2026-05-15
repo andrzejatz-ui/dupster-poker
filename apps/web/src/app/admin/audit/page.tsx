@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { adminCall, getAdminToken } from '@/lib/admin';
+import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 
 interface AuditRow {
@@ -68,6 +69,7 @@ export default function AuditPage() {
           </tbody>
         </table>
       </NeonCard>
+      <Signature className="mt-8 pb-6" />
     </main>
   );
 }

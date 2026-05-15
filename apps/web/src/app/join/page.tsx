@@ -6,6 +6,7 @@ import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Mask } from '@/components/brand/Mask';
+import { Signature } from '@/components/ui/Signature';
 import { joinAsPlayer } from '@/lib/api';
 import { setSession } from '@/lib/session';
 import { useT } from '@/i18n/context';
@@ -110,7 +111,7 @@ function JoinForm() {
 
   if (phase === 'pending') {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6 py-12">
+      <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
         <NeonCard glow="gold" strong className="max-w-md w-full text-center">
           <div className="flex justify-center mb-4 opacity-80">
             <Mask size={64} />
@@ -143,7 +144,7 @@ function JoinForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
       <NeonCard glow="gold" strong className="max-w-md w-full">
         <div className="mb-6">
           <span className="text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
@@ -196,6 +197,7 @@ function JoinForm() {
           </NeonButton>
         </form>
       </NeonCard>
+      <Signature className="mt-6" />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import cors from 'cors';
 import { config } from './config.js';
 import { logger } from './utils/logger.js';
 import { pool } from './db/client.js';
+import { runMigrations } from './db/migrate.js';
 import { bootstrapAdmin } from './auth/admin.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
@@ -14,6 +15,10 @@ async function main() {
   // Sanity-check DB
   await pool.query('select 1');
   logger.info('database reachable');
+
+  // Apply idempotent schema migrations BEFORE anything that selects
+  // columns those migrations create (e.g. /auth/join needs players.password).
+  await runMigrations();
 
   await bootstrapAdmin();
 
