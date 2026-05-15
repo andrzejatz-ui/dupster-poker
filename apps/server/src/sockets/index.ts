@@ -41,8 +41,20 @@ const ActionSchema = z.object({
 });
 
 export function attachSocketServer(http: HttpServer, tables: TableManager): IOType {
+  // Same dynamic CORS rule as the express app: wildcard means "echo the
+  // request origin"; otherwise match the explicit allow-list.
+  const allowList = new Set(config.allowedOrigins);
+  const allowAny = allowList.has('*');
   const io = new IOServer(http, {
-    cors: { origin: config.allowedOrigins, credentials: true },
+    cors: {
+      origin(origin, cb) {
+        if (!origin) return cb(null, true);
+        if (allowAny) return cb(null, origin);
+        if (allowList.has(origin)) return cb(null, origin);
+        return cb(new Error(`cors_block:${origin}`));
+      },
+      credentials: true,
+    },
   }) as IOType;
 
   // ---- Auth gate -------------------------------------------------
