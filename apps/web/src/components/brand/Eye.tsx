@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
 
 interface Props {
@@ -6,14 +9,79 @@ interface Props {
 }
 
 /**
- * Almond-shaped sentinel eye. Flat SVG, monochrome gold and obsidian,
- * slightly Egyptian. Iris uses a radial gradient core→rim so the gold
- * reads as material, not flat colour. A subtle drop-shadow gives the
- * eye an antique-gold halo.
+ * Almond-shaped sentinel eye that tracks the user's pointer (mouse on
+ * desktop, finger on touch). The iris + pupil + catchlight live inside
+ * a single <g> wrapped with a CSS transition; a global pointermove
+ * listener feeds a rAF-throttled translate so the pupil glides toward
+ * whichever direction the user is, without jitter or layout cost.
+ *
+ * Offset is capped so the iris never escapes the almond shell, no
+ * matter how far the pointer is.
  */
 export function Eye({ size = 32, className }: Props) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const groupRef = useRef<SVGGElement>(null);
+
+  useEffect(() => {
+    let raf: number | null = null;
+    let targetX = 0;
+    let targetY = 0;
+
+    function apply() {
+      raf = null;
+      const g = groupRef.current;
+      if (!g) return;
+      g.setAttribute('transform', `translate(${targetX.toFixed(2)} ${targetY.toFixed(2)})`);
+    }
+
+    function onMove(clientX: number, clientY: number) {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const r = svg.getBoundingClientRect();
+      if (r.width === 0) return;
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      // Soft-saturate: pointer ~220 px away already gives full deflection.
+      const cap = Math.min(1, dist / 220);
+      // Max deflection in SVG units (viewBox is 100×60). Anything bigger
+      // and the iris pokes through the almond outline at extreme angles.
+      const maxX = 6;
+      const maxY = 3;
+      if (dist > 0) {
+        targetX = (dx / dist) * cap * maxX;
+        targetY = (dy / dist) * cap * maxY;
+      } else {
+        targetX = 0;
+        targetY = 0;
+      }
+      if (raf == null) raf = requestAnimationFrame(apply);
+    }
+
+    function onPointer(e: PointerEvent) {
+      onMove(e.clientX, e.clientY);
+    }
+    // touchmove for browsers/devices that don't bubble pointermove
+    // during drag (mostly older Android webviews).
+    function onTouch(e: TouchEvent) {
+      const t = e.touches[0];
+      if (t) onMove(t.clientX, t.clientY);
+    }
+
+    window.addEventListener('pointermove', onPointer, { passive: true });
+    window.addEventListener('touchmove', onTouch, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('touchmove', onTouch);
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
     <svg
+      ref={svgRef}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 100 60"
       width={size}
@@ -34,9 +102,14 @@ export function Eye({ size = 32, className }: Props) {
           <stop offset="80%" stopColor="#050402" />
           <stop offset="100%" stopColor="#0c0a07" />
         </radialGradient>
+        {/* Clip the gaze group to the almond shape so any sub-pixel
+            overshoot at extreme angles still gets cropped. */}
+        <clipPath id="almondClip">
+          <path d="M 4 30 Q 25 8 50 8 Q 75 8 96 30 Q 75 52 50 52 Q 25 52 4 30 Z" />
+        </clipPath>
       </defs>
 
-      {/* Almond shell */}
+      {/* Almond shell — stationary */}
       <path
         d="M 4 30 Q 25 8 50 8 Q 75 8 96 30 Q 75 52 50 52 Q 25 52 4 30 Z"
         fill="rgba(8,6,3,0.92)"
@@ -44,14 +117,18 @@ export function Eye({ size = 32, className }: Props) {
         strokeWidth="0.8"
       />
 
-      {/* Iris */}
-      <circle cx="50" cy="30" r="14" fill="url(#iris)" />
-
-      {/* Pupil */}
-      <circle cx="50" cy="30" r="5.5" fill="url(#pupil)" />
-
-      {/* Catchlight */}
-      <circle cx="47.5" cy="27.5" r="1.1" fill="rgba(255,232,170,0.9)" />
+      {/* Gaze group — iris + pupil + catchlight move together toward
+          the pointer. clip-path keeps them inside the almond. CSS
+          transition smooths the rAF setAttribute updates. */}
+      <g
+        ref={groupRef}
+        clipPath="url(#almondClip)"
+        style={{ transition: 'transform 120ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+      >
+        <circle cx="50" cy="30" r="14" fill="url(#iris)" />
+        <circle cx="50" cy="30" r="5.5" fill="url(#pupil)" />
+        <circle cx="47.5" cy="27.5" r="1.1" fill="rgba(255,232,170,0.9)" />
+      </g>
     </svg>
   );
 }
