@@ -52,7 +52,7 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
           {seat.displayName.slice(0, 2).toUpperCase()}
         </div>
         {seat.isReconnecting && (
-          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-rose-500/80 text-[9px] font-display tracking-widest">
+          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-status-alert/85 text-[9px] font-display tracking-widest">
             {t('seat.recon')}
           </span>
         )}

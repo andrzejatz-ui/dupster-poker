@@ -185,7 +185,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto space-y-6">
       <header className="flex items-center justify-between pr-24 sm:pr-36">
         <div>
-          <h1 className="font-display text-3xl text-glow-violet text-neon-violet">
+          <h1 className="font-display text-3xl text-gold text-glow-gold">
             {t('admin.title')}
           </h1>
           <p className="text-white/50 text-xs">
@@ -209,7 +209,7 @@ export default function AdminDashboard() {
       {/* Pending */}
       <NeonCard glow="cyan">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl text-glow-cyan text-neon-cyan">{t('admin.pendingTitle')}</h2>
+          <h2 className="font-display text-xl text-gold text-glow-gold">{t('admin.pendingTitle')}</h2>
           <span className="text-xs text-white/40 font-mono">{pending.length}</span>
         </div>
         {pending.length === 0 ? (
@@ -342,13 +342,13 @@ export default function AdminDashboard() {
                 <tr key={tbl.id} className="border-t border-white/5">
                   <td className="py-2">{tbl.name}</td>
                   <td className="font-mono">{tbl.small_blind}/{tbl.big_blind}</td>
-                  <td className="font-mono text-neon-gold">{Number(tbl.buy_in).toLocaleString()}</td>
+                  <td className="font-mono text-gold">{Number(tbl.buy_in).toLocaleString()}</td>
                   <td className="font-mono">{tbl.max_players}</td>
                   <td>
                     <span className={`text-[10px] uppercase font-display tracking-widest px-2 py-1 rounded ${
                       tbl.archived_at
-                        ? 'bg-white/5 text-white/50 border border-white/15'
-                        : 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30'
+                        ? 'bg-obsidian-soft text-ink-muted border border-rim-faint'
+                        : 'bg-status-success/10 text-status-success border border-status-success/30'
                     }`}>
                       {tbl.archived_at ? t('admin.tableStatus.archived') : t('admin.tableStatus.active')}
                     </span>

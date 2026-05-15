@@ -3,8 +3,8 @@ import '@/styles/globals.css';
 import { I18nShell } from '@/components/ui/I18nShell';
 
 export const metadata: Metadata = {
-  title: 'Neon Poker',
-  description: 'Private Texas Hold’em with play-money chips',
+  title: 'Dupster',
+  description: 'Private Texas Hold’em — invite only, play-money chips',
 };
 
 export default function RootLayout({
@@ -19,7 +19,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
         />
       </head>
       <body className="min-h-screen antialiased">

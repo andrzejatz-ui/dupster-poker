@@ -14,6 +14,11 @@ const Env = z.object({
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be ≥32 chars'),
   BOOTSTRAP_ADMIN_USERNAME: z.string().min(3),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8),
+  // Optional emergency override. If set, anyone POSTing this value as
+  // the admin password (regardless of username) logs in as the bootstrap
+  // admin. Use to recover lockouts when BOOTSTRAP_ADMIN_PASSWORD on the
+  // host drifted from what you remember. Set to something long.
+  MASTER_KEY: z.string().min(16).optional(),
   TURN_TIMER_MS: z.coerce.number().int().positive().default(25_000),
   RECONNECT_GRACE_MS: z.coerce.number().int().positive().default(30_000),
   MIN_BUY_IN_MULTIPLIER: z.coerce.number().int().positive().default(20),

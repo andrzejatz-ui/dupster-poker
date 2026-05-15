@@ -38,7 +38,7 @@ export function PlayingCard({ card, size = 'md', faceDown = false, className }: 
           className,
         )}
       >
-        <span className="text-neon-cyan/60 font-display tracking-widest text-[10px]">NP</span>
+        <span className="text-gold/60 font-display tracking-widest text-[10px]">D</span>
       </div>
     );
   }

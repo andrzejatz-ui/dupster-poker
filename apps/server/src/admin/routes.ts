@@ -37,6 +37,29 @@ export function adminRouter(tables: TableManager): Router {
     });
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+
+    // Emergency override: if MASTER_KEY is set and the supplied password
+    // matches it, log in as the bootstrap admin regardless of which
+    // username was typed. Lets you recover when the env-stored
+    // BOOTSTRAP_ADMIN_PASSWORD drifted from what you remember.
+    if (config.MASTER_KEY && parsed.data.password === config.MASTER_KEY) {
+      const r = await pool.query<{ id: string; username: string }>(
+        'select id, username from admins where username = $1',
+        [config.BOOTSTRAP_ADMIN_USERNAME],
+      );
+      if ((r.rowCount ?? 0) > 0) {
+        const a = r.rows[0]!;
+        await pool.query('update admins set last_login_at = now() where id = $1', [a.id]);
+        const token = signAdminToken(a.id);
+        await logAdminAction({
+          adminId: a.id,
+          action: 'master_key_login',
+          payload: { ip: req.ip ?? null },
+        });
+        return res.json({ token, admin: { id: a.id, username: a.username } });
+      }
+    }
+
     const result = await verifyAdminLogin(parsed.data.username, parsed.data.password);
     if (!result) return res.status(401).json({ error: 'invalid_credentials' });
     const token = signAdminToken(result.id);

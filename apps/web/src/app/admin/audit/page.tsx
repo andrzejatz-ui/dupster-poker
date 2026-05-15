@@ -35,7 +35,7 @@ export default function AuditPage() {
   return (
     <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto">
       <header className="flex items-center justify-between mb-6 pr-24 sm:pr-36">
-        <h1 className="font-display text-3xl text-glow-violet text-neon-violet">{t('audit.title')}</h1>
+        <h1 className="font-display text-3xl text-gold text-glow-gold">{t('audit.title')}</h1>
         <Link href="/admin"><NeonButton variant="ghost" size="sm">← {t('common.back')}</NeonButton></Link>
       </header>
       <NeonCard>
@@ -56,7 +56,7 @@ export default function AuditPage() {
                 <td className="py-2 text-white/40 whitespace-nowrap">
                   {new Date(r.created_at).toLocaleString()}
                 </td>
-                <td className="text-neon-cyan">{r.action}</td>
+                <td className="text-gold">{r.action}</td>
                 <td className="text-white/60">{r.target_player_id?.slice(0, 8) ?? '—'}</td>
                 <td className="text-white/60">{r.target_table_id?.slice(0, 8) ?? '—'}</td>
                 <td className="text-white/60">{r.reason ?? '—'}</td>

@@ -144,8 +144,8 @@ export default function TablePage() {
                   {t('table.blinds')}
                 </div>
                 <div className="font-mono text-sm">
-                  SB <span className="text-neon-cyan">{state.smallBlind}</span> /
-                  BB <span className="text-neon-cyan ml-1">{state.bigBlind}</span>
+                  SB <span className="text-gold">{state.smallBlind}</span> /
+                  BB <span className="text-gold ml-1">{state.bigBlind}</span>
                 </div>
               </div>
               <div className="lg:hidden">

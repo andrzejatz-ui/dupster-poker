@@ -20,8 +20,9 @@ export default function Landing() {
           <span className="inline-block text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
             {t('landing.tagline')}
           </span>
-          <h1 className="mt-4 font-display text-5xl md:text-6xl font-extrabold tracking-tight text-gold text-glow-gold">
-            {t('landing.titleA')} {t('landing.titleB')}
+          <h1 className="mt-4 font-display text-5xl md:text-6xl font-extrabold tracking-[0.18em] text-gold text-glow-gold">
+            {t('landing.titleA')}
+            {t('landing.titleB') ? <> {t('landing.titleB')}</> : null}
           </h1>
           <p className="mt-4 text-ink-secondary max-w-xl mx-auto">{t('landing.intro')}</p>
         </div>

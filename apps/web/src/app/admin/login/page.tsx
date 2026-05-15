@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
+import { Mask } from '@/components/brand/Mask';
 import { adminLogin } from '@/lib/api';
 import { useT } from '@/i18n/context';
 
@@ -34,11 +35,14 @@ export default function AdminLoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-6 py-12">
-      <NeonCard glow="violet" strong className="max-w-md w-full">
-        <h1 className="font-display text-3xl text-glow-violet text-neon-violet mb-2">
+      <NeonCard glow="gold" strong className="max-w-md w-full">
+        <div className="flex justify-center mb-4 opacity-80">
+          <Mask size={56} />
+        </div>
+        <h1 className="font-display text-3xl text-gold text-glow-gold mb-2 text-center">
           {t('admin.login.title')}
         </h1>
-        <p className="text-white/55 text-sm mb-6">{t('admin.login.body')}</p>
+        <p className="text-ink-secondary text-sm mb-6 text-center">{t('admin.login.body')}</p>
         <form onSubmit={onSubmit} className="space-y-5">
           <NeonInput
             id="admin-user"

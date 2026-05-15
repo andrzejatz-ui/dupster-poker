@@ -52,12 +52,12 @@ export default function LobbyPage() {
     <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto">
       <header className="flex items-center justify-between mb-8 sm:mb-10 pr-24 sm:pr-36">
         <div>
-          <h1 className="font-display text-3xl text-glow-cyan text-neon-cyan">{t('lobby.title')}</h1>
+          <h1 className="font-display text-3xl text-gold text-glow-gold">{t('lobby.title')}</h1>
           <p className="text-white/50 text-sm">
             {t('lobby.signedInAs')} <span className="font-mono text-white/80">{profile?.handle}</span>
             {profile?.chips != null && (
               <>
-                {' '}· <span className="text-neon-gold">
+                {' '}· <span className="text-gold">
                   {profile.chips.toLocaleString()} {t('lobby.chipsSuffix')}
                 </span>
               </>
@@ -93,8 +93,8 @@ export default function LobbyPage() {
                 <span
                   className={`text-[10px] uppercase tracking-widest font-display px-2 py-1 rounded-md border ${
                     tbl.inHand
-                      ? 'text-neon-pink border-neon-pink/40 bg-neon-pink/10'
-                      : 'text-neon-green border-neon-green/40 bg-neon-green/10'
+                      ? 'text-status-alert border-status-alert/40 bg-status-alert/10'
+                      : 'text-status-success border-status-success/40 bg-status-success/10'
                   }`}
                 >
                   {tbl.inHand ? t('lobby.inHand') : t('lobby.waiting')}
