@@ -33,10 +33,10 @@ export default function TablePage() {
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [result, setResult] = useState<ResultSnapshot | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [unreadChat, setUnreadChat] = useState(0);
   const [, force] = useState(0);
 
-  // Replay the last 50 chat messages from the server on mount so a
-  // page reload doesn't wipe the conversation.
   useEffect(() => {
     if (!id) return;
     const token = getToken();
@@ -56,7 +56,6 @@ export default function TablePage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  // tick once per 250ms so the turn timer keeps refreshing
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 250);
     return () => clearInterval(t);
@@ -67,7 +66,6 @@ export default function TablePage() {
     socket.on('server:table:state', (s) => {
       if (s.tableId === id) {
         setState(s);
-        // A new hand started → drop any lingering result snapshot.
         if (s.handNumber > 0 && s.phase !== 'showdown' && s.phase !== 'waiting') {
           setResult(null);
         }
@@ -76,22 +74,20 @@ export default function TablePage() {
     socket.on('server:table:chat', (msg) => {
       if (msg.tableId !== id) return;
       setChat((c) => [...c, msg]);
-      // Don't ding for our own messages.
       const myName = state?.seats.find((s) => s.seatIndex === state.mySeatIndex)?.displayName;
-      if (msg.from !== myName) playChatDing();
+      if (msg.from !== myName) {
+        playChatDing();
+        // Mobile-only: bump the unread badge if the drawer is closed.
+        setUnreadChat((n) => (chatOpen ? n : n + 1));
+      }
     });
     socket.on('server:table:error', (e) => alert(e.message));
-    // Hand finished — keep the winner + revealed cards on screen for
-    // the 8-second pause the server takes before dealing the next hand.
     socket.on('server:table:hand:result', (payload) => {
       if (payload.tableId !== id) return;
       setResult({ winners: payload.winners, revealed: payload.revealed });
       playChipPlink();
-      // Safety self-clear in case the next hand never comes (table
-      // closed, server crashed). Server normally re-deals after 8s.
       setTimeout(() => setResult(null), 8500);
     });
-    // Admin kicked us or closed the table — bounce to lobby.
     socket.on('server:account:left_table', (payload) => {
       if (payload.tableId !== id) return;
       router.replace(`/lobby?leftReason=${encodeURIComponent(payload.reason)}`);
@@ -139,9 +135,16 @@ export default function TablePage() {
     });
   }
 
+  function toggleChat() {
+    setChatOpen((open) => {
+      if (!open) setUnreadChat(0);
+      return !open;
+    });
+  }
+
   if (!state) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-white/40">
+      <main className="viewport-fit flex items-center justify-center text-white/40">
         <span className="font-mono">{t('table.connecting')}  ({status})</span>
       </main>
     );
@@ -150,16 +153,16 @@ export default function TablePage() {
   const isMyTurn = state.mySeatIndex !== null && state.toActSeat === state.mySeatIndex;
 
   return (
-    <main className="min-h-screen flex flex-col pb-32 lg:pb-0">
+    <main className="viewport-fit flex flex-col">
       {/* Header — extra right padding leaves room for the floating language switcher */}
-      <div className="pl-3 pr-24 sm:pl-6 sm:pr-36 py-3 sm:py-4 flex items-center justify-between border-b border-white/5">
+      <div className="shrink-0 pl-3 pr-24 sm:pl-6 sm:pr-36 py-2 sm:py-3 flex items-center justify-between border-b border-white/5">
         <div className="min-w-0">
           <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display truncate">
             {t('table.phaseLabel')} · {state.phase.toUpperCase()}
           </div>
-          <h1 className="font-display text-lg sm:text-2xl truncate">{state.name}</h1>
+          <h1 className="font-display text-base sm:text-2xl truncate">{state.name}</h1>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <span className="hidden sm:inline text-xs font-mono text-ink-muted">{t('table.handNumber')}{state.handNumber}</span>
           {state.mySeatIndex !== null && (() => {
             const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
@@ -170,6 +173,21 @@ export default function TablePage() {
               </NeonButton>
             );
           })()}
+          {/* Chat toggle — mobile only. Desktop has it permanently
+              in the side panel so the button stays hidden via lg:hidden. */}
+          <button
+            type="button"
+            onClick={toggleChat}
+            className="relative lg:hidden px-2.5 py-1.5 rounded-md border border-rim-bright text-[10px] uppercase tracking-[0.22em] text-ink-secondary font-display hover:border-gold/50"
+            aria-label={t('chat.title')}
+          >
+            {t('chat.title')}
+            {unreadChat > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-gold text-obsidian-bg text-[9px] font-bold flex items-center justify-center">
+                {unreadChat > 9 ? '9+' : unreadChat}
+              </span>
+            )}
+          </button>
           <NeonButton size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
             {t('history.button')}
           </NeonButton>
@@ -179,20 +197,17 @@ export default function TablePage() {
         </div>
       </div>
 
-      {/* Felt + side panel */}
-      <div className="flex-1 px-2 sm:px-6 py-3 sm:py-8 grid grid-cols-12 gap-3 sm:gap-6">
-        <div className="col-span-12 lg:col-span-9 relative">
-          <div className="felt rounded-[60px] sm:rounded-[140px] aspect-[4/3] sm:aspect-[16/9] relative">
-            {/* Board */}
+      {/* Felt + side panel — flex-1 + min-h-0 lets the felt shrink to
+          fit the viewport instead of pushing the action bar offscreen. */}
+      <div className="flex-1 min-h-0 px-2 sm:px-6 py-2 sm:py-4 grid grid-cols-12 gap-3 sm:gap-5">
+        <div className="col-span-12 lg:col-span-9 flex flex-col min-h-0">
+          <div className="felt rounded-[40px] sm:rounded-[110px] relative flex-1 min-h-0">
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <Board board={state.board} pot={state.pot} handToken={state.handId} />
             </div>
 
-            {/* Seats */}
             {seatPositions.map((pos, idx) => {
               const base = seatsByIndex.get(idx) ?? null;
-              // While the result banner is up, splice in opponents' hole
-              // cards so the seats reveal what the banner is summarising.
               const reveal = result?.revealed.find((r) => r.seatIndex === idx);
               const seat = base && reveal && !base.holeCards
                 ? { ...base, revealedCards: reveal.holeCards }
@@ -213,10 +228,6 @@ export default function TablePage() {
               );
             })}
 
-            {/* Chip-transfer laser beams: Eye grabs chips from each
-                showdown loser (red), then the croupier "drops" them on
-                the winner (gold). Pure SVG above the felt, behind the
-                banner. Only fires on real showdowns. */}
             {result && (
               <ChipTransferOverlay
                 winners={result.winners}
@@ -225,7 +236,6 @@ export default function TablePage() {
               />
             )}
 
-            {/* Hand-result banner (8s after every finished hand). */}
             {result && (
               <HandResultBanner
                 winners={result.winners}
@@ -237,32 +247,31 @@ export default function TablePage() {
             )}
           </div>
 
-          {/* Action bar — sticky bottom on mobile so it's always reachable */}
-          <div className="fixed bottom-0 left-0 right-0 z-30 px-3 py-3 bg-ink-950/95 backdrop-blur border-t border-white/10 lg:relative lg:bottom-auto lg:mt-6 lg:px-0 lg:py-0 lg:bg-transparent lg:border-0 lg:backdrop-blur-0">
-            <div className="lg:glass-strong lg:rounded-2xl lg:p-4">
-              <ActionBar
-                legal={state.legalActionsForMe}
-                isMyTurn={isMyTurn}
-                deadline={state.toActDeadline}
-                pot={state.pot}
-                bigBlind={state.bigBlind}
-                waitingFor={
-                  state.toActSeat !== null
-                    ? state.seats.find((s) => s.seatIndex === state.toActSeat)?.displayName ?? null
-                    : null
-                }
-                onAction={sendAction}
-              />
-            </div>
+          {/* Action bar — inline at the bottom of the felt column, no
+              longer fixed/floating. Keeps the viewport free of scroll. */}
+          <div className="shrink-0 mt-2 sm:mt-3 px-2 py-2 sm:p-3 surface rounded-xl lg:glass-strong lg:rounded-2xl">
+            <ActionBar
+              legal={state.legalActionsForMe}
+              isMyTurn={isMyTurn}
+              deadline={state.toActDeadline}
+              pot={state.pot}
+              bigBlind={state.bigBlind}
+              waitingFor={
+                state.toActSeat !== null
+                  ? state.seats.find((s) => s.seatIndex === state.toActSeat)?.displayName ?? null
+                  : null
+              }
+              onAction={sendAction}
+            />
           </div>
         </div>
 
-        {/* Side panel */}
-        <aside className="col-span-12 lg:col-span-3 flex flex-col gap-3 sm:gap-4">
-          <div className="glass rounded-2xl p-3 sm:p-4">
+        {/* Side panel — only visible on lg+. Mobile uses the drawer below. */}
+        <aside className="hidden lg:flex col-span-3 flex-col gap-3 min-h-0">
+          <div className="glass rounded-2xl p-3 shrink-0">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
               <div>
-                <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display mb-1">
+                <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 font-display mb-1">
                   {t('table.blinds')}
                 </div>
                 <div className="font-mono text-sm">
@@ -270,16 +279,10 @@ export default function TablePage() {
                   BB <span className="text-gold ml-1">{state.bigBlind}</span>
                 </div>
               </div>
-              <div className="lg:hidden">
-                <div className="text-[9px] uppercase tracking-[0.4em] text-white/40 font-display mb-1">
-                  {t('table.handNumber').trim()}
-                </div>
-                <div className="font-mono text-sm">{state.handNumber}</div>
-              </div>
             </div>
             {state.sidePots.length > 0 && (
               <>
-                <div className="mt-3 text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display mb-1">
+                <div className="mt-3 text-[10px] uppercase tracking-[0.4em] text-white/40 font-display mb-1">
                   {t('table.sidePots')}
                 </div>
                 {state.sidePots.map((p, i) => (
@@ -291,9 +294,38 @@ export default function TablePage() {
             )}
           </div>
 
-          <ChatBox lines={chat} onSend={sendChat} />
+          <div className="flex-1 min-h-0">
+            <ChatBox lines={chat} onSend={sendChat} />
+          </div>
         </aside>
       </div>
+
+      {/* Mobile chat drawer — slides up from the right, dismissable. */}
+      {chatOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 flex" onClick={() => setChatOpen(false)}>
+          <div className="flex-1 bg-black/40 backdrop-blur-sm" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm h-full bg-ink-950/95 border-l border-rim-bright shadow-2xl flex flex-col"
+          >
+            <div className="flex items-center justify-between px-3 py-2 border-b border-rim-faint shrink-0">
+              <span className="font-display text-[11px] uppercase tracking-[0.3em] text-gold">
+                {t('chat.title')}
+              </span>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-ink-muted text-lg leading-none px-2 hover:text-gold"
+                aria-label="close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 p-2">
+              <ChatBox lines={chat} onSend={sendChat} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {historyOpen && id && (
         <HistoryModal tableId={id} onClose={() => setHistoryOpen(false)} />
@@ -309,7 +341,6 @@ export default function TablePage() {
 function computeSeatPositions(n: number): Array<{ x: number; y: number }> {
   const positions: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < n; i++) {
-    // angle starts at -90deg (bottom) and goes counter-clockwise
     const angle = (Math.PI / 2) + (i * 2 * Math.PI) / n;
     const x = 50 + 42 * Math.cos(angle);
     const y = 50 + 38 * Math.sin(angle);

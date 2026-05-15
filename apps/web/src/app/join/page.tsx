@@ -1,15 +1,16 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Mask } from '@/components/brand/Mask';
+import { Snake } from '@/components/brand/Snake';
 import { Signature } from '@/components/ui/Signature';
 import { joinAsPlayer } from '@/lib/api';
-import { setSession } from '@/lib/session';
+import { setSession, recallAvatar } from '@/lib/session';
 import { useT } from '@/i18n/context';
 
 // `useSearchParams` triggers a CSR bail during static export unless it
@@ -34,6 +35,13 @@ function JoinForm() {
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'submitting' | 'pending' | 'banned'>('idle');
 
+  // Show the player's saved avatar as soon as they type their handle —
+  // gives the "yes this is your account" cue before login completes.
+  const cachedAvatar = useMemo(
+    () => (handle.trim().length >= 2 ? recallAvatar(handle) : null),
+    [handle],
+  );
+
   // Latest values, so the polling effect uses fresh input without restarting.
   const handleRef = useRef(handle);
   const passwordRef = useRef(password);
@@ -42,10 +50,6 @@ function JoinForm() {
   useEffect(() => { passwordRef.current = password; }, [password]);
   useEffect(() => { nameRef.current = displayName; }, [displayName]);
 
-  // While the user is waiting for admin approval, poll the join endpoint
-  // every 5s. As soon as the admin flips the player to "approved", the
-  // next call returns 200 with a session token and we jump to the lobby.
-  // Password must accompany every poll — the server rejects without it.
   useEffect(() => {
     if (phase !== 'pending') return;
     let cancelled = false;
@@ -112,8 +116,9 @@ function JoinForm() {
 
   if (phase === 'pending') {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-        <NeonCard glow="gold" strong className="max-w-md w-full text-center">
+      <main className="viewport-fit flex flex-col items-center justify-center px-6">
+        <Snake />
+        <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full text-center">
           <div className="flex justify-center mb-4 opacity-80">
             <Mask size={64} />
           </div>
@@ -135,8 +140,9 @@ function JoinForm() {
 
   if (phase === 'banned') {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6 py-12">
-        <NeonCard glow={null} strong className="max-w-md w-full text-center">
+      <main className="viewport-fit flex items-center justify-center px-6">
+        <Snake />
+        <NeonCard glow={null} strong className="relative z-10 max-w-md w-full text-center">
           <h1 className="font-display text-2xl text-status-alert mb-3">{t('join.banned.title')}</h1>
           <p className="text-ink-secondary text-sm">{t('join.banned.body')}</p>
         </NeonCard>
@@ -145,8 +151,9 @@ function JoinForm() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
-      <div className="max-w-md w-full mb-3 flex justify-start">
+    <main className="viewport-fit flex flex-col items-center justify-center px-4 py-4 sm:py-6">
+      <Snake />
+      <div className="relative z-10 max-w-md w-full mb-2 flex justify-start">
         <Link
           href="/"
           className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
@@ -154,18 +161,34 @@ function JoinForm() {
           ← {t('common.back')}
         </Link>
       </div>
-      <NeonCard glow="gold" strong className="max-w-md w-full">
-        <div className="mb-6">
-          <span className="text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
-            {inviteCode ? `${t('join.invitePrefix')} · ${inviteCode}` : t('join.privateAccess')}
-          </span>
-          <h1 className="font-display text-3xl mt-2 text-gold text-glow-gold">
-            {t('join.title')}
-          </h1>
-          <p className="text-ink-secondary text-sm mt-2">{t('join.body')}</p>
+      <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full">
+        <div className="mb-4 sm:mb-5 flex items-start gap-3">
+          {/* Cached avatar appears as soon as the handle matches a known
+              player — visual confirmation that the picture survived
+              their last sign-out. */}
+          {cachedAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cachedAvatar}
+              alt=""
+              className="shrink-0 w-12 h-12 rounded-full object-cover border border-rim-bright"
+            />
+          ) : (
+            <div className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center surface-strong">
+              <Mask size={32} />
+            </div>
+          )}
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
+              {inviteCode ? `${t('join.invitePrefix')} · ${inviteCode}` : t('join.privateAccess')}
+            </span>
+            <h1 className="font-display text-2xl sm:text-3xl mt-1 text-gold text-glow-gold leading-tight">
+              {t('join.title')}
+            </h1>
+          </div>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4">
           <NeonInput
             id="player-handle"
             label={t('join.idLabel')}
@@ -206,7 +229,7 @@ function JoinForm() {
           </NeonButton>
         </form>
       </NeonCard>
-      <Signature className="mt-6" />
+      <Signature className="relative z-10 mt-3" />
     </main>
   );
 }
