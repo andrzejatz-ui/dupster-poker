@@ -2,25 +2,31 @@ import clsx from 'clsx';
 import type { HTMLAttributes, ReactNode } from 'react';
 
 interface Props extends HTMLAttributes<HTMLDivElement> {
-  glow?: 'blue' | 'cyan' | 'violet' | null;
+  /** Kept for backward-compat with old neon variants — all map to gold. */
+  glow?: 'blue' | 'cyan' | 'violet' | 'gold' | null;
   strong?: boolean;
   children: ReactNode;
 }
 
+/**
+ * Obsidian surface with a refined gold rim. The `glow` prop is still
+ * accepted for back-compat with pages that pass `glow="cyan"` etc., but
+ * the rendering is always the same single gold accent — strict
+ * monochrome shell is the design rule.
+ */
 export function NeonCard({ glow = null, strong = false, className, children, ...rest }: Props) {
   return (
     <div
       {...rest}
       className={clsx(
-        strong ? 'glass-strong' : 'glass',
-        'rounded-2xl shadow-glass-lg p-6 relative overflow-hidden',
-        glow === 'blue' && 'shadow-neon-blue',
-        glow === 'cyan' && 'shadow-neon-cyan',
-        glow === 'violet' && 'shadow-neon-violet',
+        strong ? 'surface-strong' : 'surface',
+        'rounded-2xl p-6 relative overflow-hidden',
+        glow && 'shadow-gold-soft',
         className,
       )}
     >
-      <div className="absolute inset-0 pointer-events-none opacity-50 bg-gradient-to-br from-white/5 via-transparent to-transparent" />
+      {/* faint top-edge highlight */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
       <div className="relative">{children}</div>
     </div>
   );

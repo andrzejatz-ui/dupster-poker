@@ -58,7 +58,7 @@ export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
               max={legal.canBet ? undefined : legal.maxRaise}
               value={target}
               onChange={(e) => setRaiseAmount(Number(e.target.value))}
-              className="w-20 sm:w-28 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-ink-900/80 border border-white/10 text-neon-gold font-mono text-sm focus:border-neon-gold/60 focus:shadow-[0_0_18px_rgba(255,209,102,0.35)] outline-none"
+              className="w-20 sm:w-28 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md bg-obsidian-soft border border-rim-bright text-gold font-mono text-sm focus:border-gold focus:shadow-gold-soft outline-none"
             />
             <NeonButton
               size="sm"
@@ -89,9 +89,9 @@ function Countdown({ deadline }: { deadline: number | null }) {
   const remaining = deadline ? Math.max(0, deadline - Date.now()) : 0;
   const pct = deadline ? Math.min(1, remaining / 25_000) : 0;
   return (
-    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+    <div className="w-full h-px bg-rim-cool overflow-hidden">
       <div
-        className="h-full bg-gradient-to-r from-neon-cyan to-neon-violet transition-[width] duration-300"
+        className="h-full bg-gradient-to-r from-gold-dim via-gold to-gold-dim transition-[width] duration-300"
         style={{ width: `${pct * 100}%` }}
       />
     </div>

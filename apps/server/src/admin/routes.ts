@@ -134,12 +134,12 @@ export function adminRouter(tables: TableManager): Router {
     const status = (req.query.status as string | undefined) ?? null;
     const q = status
       ? await pool.query(
-          `select id, player_handle, display_name, status, chips, created_at, approved_at, banned_at
+          `select id, player_handle, display_name, password, status, chips, created_at, approved_at, banned_at
              from players where status = $1 order by created_at desc limit 200`,
           [status],
         )
       : await pool.query(
-          `select id, player_handle, display_name, status, chips, created_at, approved_at, banned_at
+          `select id, player_handle, display_name, password, status, chips, created_at, approved_at, banned_at
              from players order by created_at desc limit 200`,
         );
     res.json({ players: q.rows });
@@ -295,6 +295,25 @@ export function adminRouter(tables: TableManager): Router {
       payload: parsed.data,
     });
     res.json({ balance: after.toString() });
+  });
+
+  r.post('/players/:id/password', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({ password: z.string().min(4).max(128) });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const upd = await pool.query(
+      'update players set password = $2 where id = $1',
+      [req.params.id, parsed.data.password],
+    );
+    if (upd.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'set_password',
+      targetPlayerId: req.params.id,
+      // Do NOT log the password itself, only that it was changed.
+      payload: { length: parsed.data.password.length },
+    });
+    res.json({ ok: true });
   });
 
   r.post('/players/:id/concurrency', requireAdmin, async (req: AdminRequest, res) => {

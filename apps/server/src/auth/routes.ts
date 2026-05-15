@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import {
-  findPlayerByHandle,
-  getOrCreatePendingPlayer,
+  createPendingPlayer,
+  findPlayerByHandleWithPassword,
 } from './players.js';
 import { createSession, signPlayerToken } from './sessions.js';
 
@@ -18,61 +18,77 @@ export function authRouter(): Router {
   });
 
   /**
-   * Player attempts to enter the app.
+   * Combined login + registration. Player submits handle + password:
    *
-   * Behavior:
-   *  - existing approved → session token returned
-   *  - existing pending  → 202 + status pending
-   *  - existing banned   → 403
-   *  - unknown handle    → creates pending row, returns 202 pending
+   *  - Handle does not exist           → create pending row with this password (202 pending)
+   *  - Handle exists, no password yet  → 409 'password_not_set' (admin must set it via /admin)
+   *  - Handle exists, password mismatch → 401 'invalid_credentials'
+   *  - Handle exists, password matches:
+   *      banned   → 403
+   *      pending  → 202 pending
+   *      approved → 200 + session token
    */
   r.post('/join', joinLimiter, async (req, res) => {
     const Body = z.object({
       playerHandle: z.string().min(2).max(40).trim(),
+      password: z.string().min(4).max(128),
       displayName: z.string().max(40).optional(),
     });
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
 
-    let profile = await findPlayerByHandle(parsed.data.playerHandle);
-    if (!profile) {
-      profile = await getOrCreatePendingPlayer({
+    let row = await findPlayerByHandleWithPassword(parsed.data.playerHandle);
+
+    if (!row) {
+      // First time this handle is used → create pending with chosen password.
+      const created = await createPendingPlayer({
         handle: parsed.data.playerHandle,
+        password: parsed.data.password,
         displayName: parsed.data.displayName ?? null,
+      });
+      return res
+        .status(202)
+        .json({ status: 'pending', handle: created.handle });
+    }
+
+    if (row.password === null) {
+      // Legacy row (pre-password column) or admin-created without password.
+      return res.status(409).json({
+        status: 'password_not_set',
+        message: 'Ask the admin to set a password for this Player ID.',
       });
     }
 
-    if (profile.status === 'banned') {
+    if (row.password !== parsed.data.password) {
+      return res.status(401).json({ status: 'invalid_credentials' });
+    }
+
+    if (row.status === 'banned') {
       return res.status(403).json({ status: 'banned' });
     }
-    if (profile.status === 'pending') {
-      return res.status(202).json({ status: 'pending', handle: profile.handle });
+    if (row.status === 'pending') {
+      return res.status(202).json({ status: 'pending', handle: row.handle });
     }
 
     // approved → mint session
     const ip = req.ip ?? null;
     const ua = req.header('user-agent') ?? null;
-
-    // We need the sessionId baked into the JWT — issue temp, persist, then re-sign
-    // using the actual sessionId. Simplest: persist first with a placeholder token,
-    // get sessionId, sign final token with it, then update the token_hash.
-    // For brevity here we sign with a generated sessionId via createSession returning it.
-    const tempToken = signPlayerToken(profile.id, 'pending');
+    const tempToken = signPlayerToken(row.id, 'pending');
     const sessionId = await createSession({
-      playerId: profile.id,
+      playerId: row.id,
       token: tempToken,
       ip,
       userAgent: ua,
     });
-    const token = signPlayerToken(profile.id, sessionId);
+    const token = signPlayerToken(row.id, sessionId);
     res.json({
       status: 'approved',
       token,
       profile: {
-        id: profile.id,
-        handle: profile.handle,
-        displayName: profile.displayName,
-        chips: profile.chips,
+        id: row.id,
+        handle: row.handle,
+        displayName: row.displayName,
+        chips: row.chips,
       },
     });
   });

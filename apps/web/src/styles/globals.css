@@ -3,85 +3,177 @@
 @tailwind utilities;
 
 :root {
-  --font-display: 'Sora', system-ui, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  --color-bg:          #09090b;
+  --color-bg-soft:     #0c0c0f;
+  --color-surface:     #0e0e12;
+  --color-surface-hov: rgba(20, 20, 26, 0.9);
+
+  --color-ink:         #e4e4e7;
+  --color-ink-mute:    #a1a1aa;
+  --color-ink-dim:     #52525b;
+
+  --color-gold:        #d4af37;
+  --color-gold-dim:    #b8962e;
+  --color-gold-deep:   #2a2005;
+  --color-gold-glow:   rgba(212, 175, 55, 0.12);
+
+  --rim-faint:         rgba(212, 175, 55, 0.08);
+  --rim-bright:        rgba(212, 175, 55, 0.18);
+  --rim-cool:          rgba(255, 255, 255, 0.04);
+
   color-scheme: dark;
 }
 
 html, body {
-  background: #05070d;
-  color: #e6ecff;
+  background: var(--color-bg);
+  color: var(--color-ink);
   font-family: var(--font-body);
+  font-feature-settings: 'cv11', 'ss01';
   min-height: 100vh;
 }
 
 body {
   background-image:
-    radial-gradient(circle at 18% 12%, rgba(58,166,255,0.16), transparent 38%),
-    radial-gradient(circle at 82% 18%, rgba(180,117,255,0.18), transparent 42%),
-    radial-gradient(circle at 50% 96%, rgba(61,240,227,0.14), transparent 50%),
-    linear-gradient(180deg, #05070d 0%, #060a14 50%, #050811 100%);
+    radial-gradient(ellipse at 18% 12%, rgba(212,175,55,0.06), transparent 38%),
+    radial-gradient(ellipse at 82% 80%, rgba(212,175,55,0.04), transparent 50%),
+    linear-gradient(180deg, #09090b 0%, #0c0c0f 100%);
   background-attachment: fixed;
+  position: relative;
 }
 
-/* Glass panel preset (used by NeonCard). */
-.glass {
-  background: linear-gradient(160deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%);
-  border: 1px solid rgba(255,255,255,0.07);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+/* ---- Film grain overlay ---------------------------------------- */
+/*
+ * Static 3.5% opacity grain across the entire viewport. The SVG noise
+ * is generated once via fractal turbulence and tiled. `pointer-events:
+ * none` keeps clicks intact. The slight `grainJitter` animation breaks
+ * the perfectly-static feel without being distracting.
+ */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -2px;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 200px 200px;
+  mix-blend-mode: overlay;
+  animation: grainJitter 0.6s steps(2) infinite;
 }
 
-.glass-strong {
-  background: linear-gradient(160deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-  border: 1px solid rgba(255,255,255,0.09);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+/* ---- Surface primitives (gold-on-obsidian) --------------------- */
+.surface {
+  background: linear-gradient(180deg, rgba(255,255,255,0.014), rgba(0,0,0,0.0)) ,
+              var(--color-surface);
+  border: 1px solid var(--rim-faint);
+  box-shadow: 0 30px 90px -30px rgba(0,0,0,0.7);
 }
+.surface-strong {
+  background: var(--color-surface);
+  border: 1px solid var(--rim-bright);
+  box-shadow:
+    0 30px 90px -30px rgba(0,0,0,0.85),
+    0 0 0 1px rgba(212,175,55,0.06) inset;
+}
+.surface-hover:hover { background: var(--color-surface-hov); }
 
-/* Neon text */
-.text-glow-blue { text-shadow: 0 0 14px rgba(58,166,255,0.55); }
-.text-glow-cyan { text-shadow: 0 0 14px rgba(61,240,227,0.6); }
-.text-glow-violet { text-shadow: 0 0 18px rgba(180,117,255,0.65); }
+/* Back-compat: any code still referencing .glass / .glass-strong gets
+   the new obsidian look automatically. */
+.glass        { @apply surface; }
+.glass-strong { @apply surface-strong; }
 
-/* Scrollbar */
+/* ---- Type accents ---------------------------------------------- */
+.text-gold       { color: var(--color-gold); }
+.text-gold-dim   { color: var(--color-gold-dim); }
+.text-ink-mute   { color: var(--color-ink-mute); }
+.text-ink-dim    { color: var(--color-ink-dim); }
+.text-glow-gold  { text-shadow: 0 0 18px rgba(212,175,55,0.45); }
+
+/* Legacy class names mapped to gold so existing components keep working. */
+.text-glow-cyan,
+.text-glow-blue,
+.text-glow-violet { color: var(--color-gold); text-shadow: 0 0 18px rgba(212,175,55,0.45); }
+.text-neon-cyan,
+.text-neon-violet,
+.text-neon-blue,
+.text-neon-gold,
+.text-neon-pink,
+.text-neon-green { color: var(--color-gold); }
+
+/* ---- Scrollbar ------------------------------------------------- */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #2a3552, #1a2236);
+  background: linear-gradient(180deg, #1a1a20, #0c0c0f);
+  border: 1px solid rgba(212,175,55,0.08);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* Card */
+/* ---- Playing cards --------------------------------------------- */
 .card-face {
-  background: linear-gradient(160deg, #ffffff 0%, #e9eef7 100%);
-  color: #0a0d18;
+  background: linear-gradient(160deg, #f4f1ea 0%, #d9d3c2 100%);
+  color: #0c0c0f;
+  border: 1px solid rgba(212,175,55,0.35);
+  box-shadow: 0 6px 18px -6px rgba(0,0,0,0.7);
 }
+.card-face-red { color: #b03a2e; }   /* hearts/diamonds */
+
 .card-back {
   background:
-    repeating-linear-gradient(45deg, #1a2640 0 6px, #0e1730 6px 12px),
-    linear-gradient(135deg, #142046, #0a0f1e);
-  border: 1px solid rgba(58,166,255,0.4);
-  box-shadow: 0 0 14px rgba(58,166,255,0.35);
-}
-
-/* Felt */
-.felt {
-  background: radial-gradient(ellipse at center, #1a4944 0%, #0c1e1c 50%, #03100f 95%);
-  border: 1px solid rgba(61,240,227,0.18);
+    repeating-linear-gradient(45deg,
+      rgba(212,175,55,0.18) 0 4px,
+      rgba(212,175,55,0.04) 4px 8px),
+    linear-gradient(135deg, #14110a, #0a0805);
+  border: 1px solid rgba(212,175,55,0.30);
   box-shadow:
-    inset 0 0 80px rgba(0,0,0,0.6),
-    inset 0 0 0 6px rgba(0,0,0,0.4),
-    inset 0 0 0 7px rgba(61,240,227,0.18),
-    0 30px 120px -30px rgba(61,240,227,0.18);
+    0 0 12px rgba(212,175,55,0.18),
+    inset 0 0 0 1px rgba(212,175,55,0.10);
+}
+.card-back::after {
+  /* tiny centered emblem hint on the back */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(212,175,55,0.16), transparent 60%);
+  mix-blend-mode: overlay;
 }
 
-/* Pulse for to-act seat */
+/* ---- Felt: deep obsidian table top ----------------------------- */
+.felt {
+  background: radial-gradient(ellipse at center, #14110a 0%, #0c0a07 55%, #050402 95%);
+  border: 1px solid rgba(212,175,55,0.16);
+  box-shadow:
+    inset 0 0 80px rgba(0,0,0,0.7),
+    inset 0 0 0 6px rgba(0,0,0,0.6),
+    inset 0 0 0 7px rgba(212,175,55,0.12),
+    0 30px 120px -30px rgba(212,175,55,0.10);
+  position: relative;
+}
+.felt::after {
+  /* subtle gold ring breathing */
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 60px rgba(212,175,55,0.08);
+  animation: amberPulse 6s ease-in-out infinite;
+}
+
+/* ---- To-act indicator (gold) ----------------------------------- */
 .ring-toact {
   box-shadow:
-    0 0 0 2px rgba(61,240,227,0.7),
-    0 0 24px rgba(61,240,227,0.55),
-    inset 0 0 24px rgba(61,240,227,0.18);
-  animation: pulseSoft 1.8s ease-in-out infinite;
+    0 0 0 2px rgba(212,175,55,0.65),
+    0 0 24px rgba(212,175,55,0.45),
+    inset 0 0 24px rgba(212,175,55,0.12);
+  animation: amberPulse 2.6s ease-in-out infinite;
+}
+
+/* ---- Mask emblem helper ---------------------------------------- */
+.sigil-glow {
+  filter: drop-shadow(0 0 12px rgba(212,175,55,0.30));
 }

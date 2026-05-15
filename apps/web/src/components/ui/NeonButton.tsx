@@ -9,24 +9,31 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
+/**
+ * Obsidian + antique-gold button. Variants:
+ *   primary | gold  → gold accent (primary CTAs)
+ *   ghost           → quiet, cool border
+ *   danger          → status alert red
+ */
 const variants: Record<Variant, string> = {
   primary:
-    'bg-gradient-to-br from-neon-blue/20 via-transparent to-neon-violet/20 ' +
-    'border-neon-blue/60 text-neon-blue text-glow-blue ' +
-    'hover:shadow-neon-blue hover:border-neon-blue active:translate-y-px',
-  ghost:
-    'bg-white/5 border-white/15 text-white/80 hover:bg-white/10 hover:border-white/30',
-  danger:
-    'bg-rose-500/10 border-rose-400/50 text-rose-300 hover:border-rose-300 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)]',
+    'bg-gold/[0.06] border-gold/40 text-gold ' +
+    'hover:bg-gold/[0.10] hover:border-gold/60 hover:shadow-gold-soft active:translate-y-px',
   gold:
-    'bg-gradient-to-br from-neon-gold/20 via-transparent to-neon-pink/20 border-neon-gold/60 ' +
-    'text-neon-gold hover:shadow-[0_0_22px_rgba(255,209,102,0.45)]',
+    'bg-gold/[0.08] border-gold/55 text-gold ' +
+    'hover:bg-gold/[0.14] hover:border-gold hover:shadow-gold-strong active:translate-y-px',
+  ghost:
+    'bg-white/[0.02] border-white/10 text-ink-secondary ' +
+    'hover:bg-white/[0.06] hover:text-ink-primary hover:border-white/25',
+  danger:
+    'bg-status-alert/10 border-status-alert/45 text-status-alert ' +
+    'hover:bg-status-alert/15 hover:border-status-alert/70',
 };
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm rounded-lg',
-  md: 'px-5 py-2.5 text-sm rounded-xl',
-  lg: 'px-7 py-3.5 text-base rounded-xl',
+  sm: 'px-3 py-1.5 text-xs rounded-md tracking-wider',
+  md: 'px-5 py-2.5 text-sm rounded-lg tracking-wider',
+  lg: 'px-7 py-3.5 text-sm rounded-lg tracking-[0.18em]',
 };
 
 export function NeonButton({ variant = 'primary', size = 'md', className, children, ...rest }: Props) {
@@ -34,7 +41,7 @@ export function NeonButton({ variant = 'primary', size = 'md', className, childr
     <button
       {...rest}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 border font-display font-semibold tracking-wide',
+        'inline-flex items-center justify-center gap-2 font-display font-medium uppercase border',
         'transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],

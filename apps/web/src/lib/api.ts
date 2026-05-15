@@ -11,10 +11,14 @@ async function rawFetch(path: string, init: RequestInit = {}) {
   return res;
 }
 
-export async function joinAsPlayer(playerHandle: string, displayName?: string) {
+export async function joinAsPlayer(
+  playerHandle: string,
+  password: string,
+  displayName?: string,
+) {
   const res = await rawFetch('/auth/join', {
     method: 'POST',
-    body: JSON.stringify({ playerHandle, displayName }),
+    body: JSON.stringify({ playerHandle, password, displayName }),
   });
   const body = await res.json().catch(() => ({}));
   return { status: res.status, body } as const;

@@ -57,7 +57,7 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
           </span>
         )}
         {seat.isAllIn && (
-          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-neon-gold/85 text-ink-900 text-[9px] font-display tracking-widest">
+          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-gold text-obsidian-bg text-[9px] font-display tracking-widest">
             {t('seat.allIn')}
           </span>
         )}
@@ -66,9 +66,9 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
       {/* Name + stack */}
       <div className="text-center">
         <div className="text-[10px] sm:text-sm font-display truncate max-w-[4.5rem] sm:max-w-[7rem]">{seat.displayName}</div>
-        <div className="text-[10px] sm:text-xs text-neon-gold font-mono">
+        <div className="text-[10px] sm:text-xs text-gold font-mono">
           {seat.stack.toLocaleString()}
-          <span className="text-white/30 ml-1 hidden sm:inline">({stackInBB})</span>
+          <span className="text-ink-muted ml-1 hidden sm:inline">({stackInBB})</span>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
 
       {/* Current bet */}
       {seat.currentBet > 0 && (
-        <div className="mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-neon-cyan/15 border border-neon-cyan/40 text-neon-cyan text-[10px] sm:text-xs font-mono animate-chip-pop">
+        <div className="mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-[10px] sm:text-xs font-mono animate-chip-pop">
           {seat.currentBet.toLocaleString()}
         </div>
       )}

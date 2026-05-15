@@ -13,6 +13,7 @@ interface PlayerRow {
   id: string;
   player_handle: string;
   display_name: string | null;
+  password: string | null;
   status: 'pending' | 'approved' | 'banned';
   chips: string;
   created_at: string;
@@ -85,6 +86,31 @@ export default function AdminDashboard() {
       }),
     });
     refresh();
+  }
+
+  async function setPlayerPassword(p: PlayerRow) {
+    const newPw = prompt(t('admin.prompt.passwordSet'), p.password ?? '') ?? '';
+    if (newPw.length < 4) return;
+    const r = await adminCall(`/players/${p.id}/password`, {
+      method: 'POST',
+      body: JSON.stringify({ password: newPw }),
+    });
+    if (r.status !== 200) alert(r.body.error ?? 'failed');
+    refresh();
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // older browsers / non-secure contexts: fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
   }
 
   async function toggleBan(p: PlayerRow) {
@@ -226,30 +252,59 @@ export default function AdminDashboard() {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-white/40 text-xs uppercase tracking-widest">
+            <tr className="text-left text-ink-muted text-xs uppercase tracking-widest">
               <th className="py-2">{t('admin.col.handle')}</th>
               <th>{t('admin.col.status')}</th>
+              <th>{t('admin.col.password')}</th>
               <th className="text-right">{t('admin.col.chips')}</th>
               <th className="text-right">{t('admin.col.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {[...approved, ...banned].map((p) => (
-              <tr key={p.id} className="border-t border-white/5">
+              <tr key={p.id} className="border-t border-rim-cool">
                 <td className="py-2 font-mono">{p.player_handle}</td>
                 <td>
                   <span
                     className={`text-[10px] uppercase font-display tracking-widest px-2 py-1 rounded ${
                       p.status === 'approved'
-                        ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-400/30'
-                        : 'bg-rose-500/10 text-rose-300 border border-rose-400/30'
+                        ? 'bg-status-success/10 text-status-success border border-status-success/30'
+                        : 'bg-status-alert/10 text-status-alert border border-status-alert/30'
                     }`}
                   >
                     {p.status}
                   </span>
                 </td>
-                <td className="text-right font-mono text-neon-gold">{Number(p.chips).toLocaleString()}</td>
-                <td className="text-right space-x-2">
+                <td>
+                  {p.password ? (
+                    <div className="inline-flex items-center gap-1.5">
+                      <code className="px-2 py-0.5 rounded bg-obsidian-soft border border-rim-faint text-gold font-mono text-xs">
+                        {p.password}
+                      </code>
+                      <button
+                        type="button"
+                        title={t('admin.passwordCopy')}
+                        onClick={(e) => {
+                          copyToClipboard(p.password!);
+                          const btn = e.currentTarget;
+                          const orig = btn.textContent;
+                          btn.textContent = '✓';
+                          setTimeout(() => { btn.textContent = orig; }, 1200);
+                        }}
+                        className="px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-ink-muted hover:text-gold"
+                      >
+                        ⧉
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-ink-muted text-xs">{t('admin.passwordNone')}</span>
+                  )}
+                </td>
+                <td className="text-right font-mono text-gold">{Number(p.chips).toLocaleString()}</td>
+                <td className="text-right space-x-2 whitespace-nowrap">
+                  <NeonButton size="sm" variant="ghost" onClick={() => setPlayerPassword(p)}>
+                    {p.password ? t('admin.passwordReset') : t('admin.passwordSet')}
+                  </NeonButton>
                   <NeonButton size="sm" variant="ghost" onClick={() => adjustChips(p.id, p.chips)}>
                     {t('admin.chipsAdjust')}
                   </NeonButton>

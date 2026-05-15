@@ -14,10 +14,10 @@ export function Board({ board, pot }: Props) {
   const slots = [0, 1, 2, 3, 4];
   return (
     <div className="flex flex-col items-center gap-2 sm:gap-3">
-      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display">
+      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
         {t('table.pot')}
       </div>
-      <div className="text-xl sm:text-3xl font-display text-neon-gold text-glow-blue">
+      <div className="text-xl sm:text-3xl font-display text-gold text-glow-gold">
         {pot.toLocaleString()}
       </div>
       <div className="flex gap-1 sm:gap-2 mt-1 sm:mt-2">

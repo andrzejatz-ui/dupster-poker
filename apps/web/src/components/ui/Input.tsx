@@ -12,7 +12,7 @@ export const NeonInput = forwardRef<HTMLInputElement, Props>(
     return (
       <label htmlFor={id} className="block">
         {label && (
-          <span className="block mb-2 text-xs uppercase tracking-[0.18em] text-white/60 font-display">
+          <span className="block mb-2 text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display">
             {label}
           </span>
         )}
@@ -21,18 +21,18 @@ export const NeonInput = forwardRef<HTMLInputElement, Props>(
           ref={ref}
           {...rest}
           className={clsx(
-            'w-full px-4 py-3 rounded-xl bg-ink-900/80 border text-white placeholder-white/30',
+            'w-full px-4 py-3 rounded-md bg-obsidian-soft border text-ink-primary placeholder-ink-muted',
             'focus:outline-none transition-all duration-150',
             error
-              ? 'border-rose-400/60 focus:shadow-[0_0_18px_rgba(244,63,94,0.45)]'
-              : 'border-white/10 focus:border-neon-cyan/60 focus:shadow-neon-cyan',
+              ? 'border-status-alert/50 focus:border-status-alert focus:shadow-[0_0_18px_rgba(192,57,43,0.30)]'
+              : 'border-rim-bright focus:border-gold focus:shadow-gold-soft',
             className,
           )}
         />
         {error ? (
-          <span className="block mt-2 text-xs text-rose-300">{error}</span>
+          <span className="block mt-2 text-xs text-status-alert">{error}</span>
         ) : hint ? (
-          <span className="block mt-2 text-xs text-white/40">{hint}</span>
+          <span className="block mt-2 text-xs text-ink-muted">{hint}</span>
         ) : null}
       </label>
     );

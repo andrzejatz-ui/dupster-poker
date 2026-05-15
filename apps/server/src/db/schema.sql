@@ -17,6 +17,11 @@ create table if not exists players (
   id                        uuid primary key default gen_random_uuid(),
   player_handle             text unique not null,
   display_name              text,
+  -- Players choose their own password on /join. Stored in PLAINTEXT so the
+  -- admin can read it back from the dashboard and resend it if a player
+  -- forgets. This is a deliberate trust trade-off in a private play-money
+  -- context; passwords here MUST NOT be reused from other services.
+  password                  text,
   status                    text not null default 'pending'
                             check (status in ('pending','approved','banned')),
   chips                     bigint not null default 0 check (chips >= 0),
@@ -27,6 +32,8 @@ create table if not exists players (
   banned_at                 timestamptz,
   banned_reason             text
 );
+-- For existing installs:
+alter table players add column if not exists password text;
 create index if not exists players_status_idx on players(status);
 
 create table if not exists sessions (
