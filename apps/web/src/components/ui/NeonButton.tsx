@@ -17,16 +17,16 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 const variants: Record<Variant, string> = {
   primary:
-    'bg-gold/[0.06] border-gold/40 text-gold ' +
-    'hover:bg-gold/[0.10] hover:border-gold/60 hover:shadow-gold-soft active:translate-y-px',
+    'btn-press bg-gold/[0.06] border-gold/40 text-gold ' +
+    'hover:bg-gold/[0.12] hover:border-gold/70 hover:shadow-gold-soft',
   gold:
-    'bg-gold/[0.08] border-gold/55 text-gold ' +
-    'hover:bg-gold/[0.14] hover:border-gold hover:shadow-gold-strong active:translate-y-px',
+    'btn-press btn-breathe bg-gold/[0.10] border-gold/60 text-gold ' +
+    'hover:bg-gold/[0.18] hover:border-gold hover:shadow-gold-strong',
   ghost:
-    'bg-white/[0.02] border-white/10 text-ink-secondary ' +
+    'btn-press bg-white/[0.02] border-white/10 text-ink-secondary ' +
     'hover:bg-white/[0.06] hover:text-ink-primary hover:border-white/25',
   danger:
-    'bg-status-alert/10 border-status-alert/45 text-status-alert ' +
+    'btn-press bg-status-alert/10 border-status-alert/45 text-status-alert ' +
     'hover:bg-status-alert/15 hover:border-status-alert/70',
 };
 

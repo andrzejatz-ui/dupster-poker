@@ -90,8 +90,8 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
       <div className="flex gap-1 mt-1">
         {seat.holeCards ? (
           <>
-            <PlayingCard card={seat.holeCards[0]} size="sm" />
-            <PlayingCard card={seat.holeCards[1]} size="sm" />
+            <PlayingCard card={seat.holeCards[0]} size="sm" hoverable />
+            <PlayingCard card={seat.holeCards[1]} size="sm" hoverable />
           </>
         ) : seat.revealedCards ? (
           <>

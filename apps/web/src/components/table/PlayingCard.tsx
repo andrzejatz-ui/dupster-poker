@@ -5,6 +5,8 @@ interface Props {
   card?: Card | null;
   size?: 'sm' | 'md' | 'lg';
   faceDown?: boolean;
+  /** Add a subtle hover lift — set on the viewer's own hole cards. */
+  hoverable?: boolean;
   className?: string;
 }
 
@@ -28,17 +30,17 @@ const suitSize = {
   lg: 'text-2xl sm:text-3xl',
 };
 
-export function PlayingCard({ card, size = 'md', faceDown = false, className }: Props) {
+export function PlayingCard({ card, size = 'md', faceDown = false, hoverable = false, className }: Props) {
   if (faceDown || !card) {
     return (
       <div
         className={clsx(
-          'card-back rounded-lg flex items-center justify-center',
+          'card-back rounded-lg flex items-center justify-center card-deal-in',
           sizes[size],
           className,
         )}
       >
-        <span className="text-gold/60 font-display tracking-widest text-[10px]">D</span>
+        <span className="text-gold/70 font-display tracking-[0.3em] text-[10px]">D</span>
       </div>
     );
   }
@@ -48,16 +50,16 @@ export function PlayingCard({ card, size = 'md', faceDown = false, className }: 
     <div
       className={clsx(
         'card-face rounded-lg flex flex-col justify-between p-1.5 font-display font-bold',
-        'shadow-[0_6px_18px_-6px_rgba(0,0,0,0.6),0_0_0_1px_rgba(0,0,0,0.18)]',
         suit.red ? 'text-rose-600' : 'text-slate-900',
         'animate-card-flip',
+        hoverable && 'card-hoverable',
         sizes[size],
         className,
       )}
     >
-      <div className="leading-none">{rank === 'T' ? '10' : rank}</div>
-      <div className={clsx('text-center leading-none', suitSize[size])}>{suit.glyph}</div>
-      <div className="leading-none text-right rotate-180">
+      <div className="leading-none relative z-10">{rank === 'T' ? '10' : rank}</div>
+      <div className={clsx('text-center leading-none relative z-10', suitSize[size])}>{suit.glyph}</div>
+      <div className="leading-none text-right rotate-180 relative z-10">
         {rank === 'T' ? '10' : rank}
       </div>
     </div>

@@ -117,87 +117,155 @@ body::after {
 /*
  * IMPORTANT: don't set `color` here. The suit colour (red / black) is
  * a Tailwind text-* utility applied on the same element from React.
- * Because globals.css is loaded after @tailwind utilities, setting
- * `color` here would win on equal specificity and turn every suit
- * black. The off-white parchment fill stays, the rank + glyph colour
- * stays under React's control.
+ * Setting `color` would override that and turn every suit black.
  */
 .card-face {
-  background: linear-gradient(160deg, #f4f1ea 0%, #d9d3c2 100%);
-  border: 1px solid rgba(212,175,55,0.35);
-  box-shadow: 0 6px 18px -6px rgba(0,0,0,0.7);
-}
-
-.card-back {
+  position: relative;
   background:
-    repeating-linear-gradient(45deg,
-      rgba(212,175,55,0.18) 0 4px,
-      rgba(212,175,55,0.04) 4px 8px),
-    linear-gradient(135deg, #14110a, #0a0805);
-  border: 1px solid rgba(212,175,55,0.30);
+    /* top-left specular highlight — light hits from above */
+    radial-gradient(ellipse 80% 60% at 15% 5%, rgba(255,255,255,0.55), transparent 55%),
+    /* main parchment with subtle warm gradient */
+    linear-gradient(155deg, #fbf8f0 0%, #efe9da 55%, #d9d3c2 100%);
+  border: 1px solid rgba(212,175,55,0.35);
   box-shadow:
-    0 0 12px rgba(212,175,55,0.18),
-    inset 0 0 0 1px rgba(212,175,55,0.10);
+    0 8px 22px -6px rgba(0,0,0,0.75),
+    0 2px 4px -1px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    inset 0 -1px 0 rgba(0,0,0,0.08);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.card-back::after {
-  /* tiny centered emblem hint on the back */
+.card-face::after {
+  /* thin gold edge gleam */
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(212,175,55,0.16), transparent 60%);
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(212,175,55,0.18) 0%, transparent 30%, transparent 70%, rgba(212,175,55,0.10) 100%);
   mix-blend-mode: overlay;
 }
 
-/* ---- Felt: classic emerald-on-obsidian poker top --------------- */
+.card-back {
+  position: relative;
+  background:
+    /* corner specular */
+    radial-gradient(ellipse 60% 40% at 18% 12%, rgba(255,232,170,0.18), transparent 60%),
+    /* fine gold cross-hatch */
+    repeating-linear-gradient(45deg,
+      rgba(212,175,55,0.22) 0 1px,
+      rgba(212,175,55,0.04) 1px 6px),
+    repeating-linear-gradient(-45deg,
+      rgba(212,175,55,0.18) 0 1px,
+      transparent 1px 6px),
+    /* deep base */
+    linear-gradient(135deg, #1a1408 0%, #0a0805 100%);
+  border: 1px solid rgba(212,175,55,0.45);
+  box-shadow:
+    0 0 14px rgba(212,175,55,0.22),
+    0 6px 18px -4px rgba(0,0,0,0.75),
+    inset 0 0 0 1px rgba(212,175,55,0.18),
+    inset 0 0 14px rgba(0,0,0,0.5);
+}
+.card-back::after {
+  /* central gold emblem hint */
+  content: '';
+  position: absolute;
+  inset: 14%;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at center, rgba(212,175,55,0.28), transparent 70%);
+  border: 1px solid rgba(212,175,55,0.20);
+}
+
+/* Cards entering the table (deal-in) — buttery cubic-bezier rise */
+@keyframes cardDealIn {
+  0%   { opacity: 0; transform: translateY(-14px) scale(0.92); filter: blur(2px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { transform: translateY(0) scale(1); }
+}
+.card-deal-in { animation: cardDealIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Hole-card hover lift (only on viewer's own cards via JSX class). */
+.card-hoverable:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 16px 30px -8px rgba(0,0,0,0.80),
+    0 0 22px rgba(212,175,55,0.30),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+/* ---- Felt: cinematic emerald-on-obsidian poker top ------------- */
 /*
- * Center stays mostly obsidian so the action reads. Mid-band picks up a
- * deep-emerald tint that evokes traditional casino felt. Edges fall to
- * near-black, framed by a thin gold inner rule. A second layer (::before)
- * adds a faint, slowly-breathing gold ring just inside the rim.
+ * Three layers stacked:
+ *  1. Base radial: obsidian center → emerald midband → near-black edge.
+ *  2. ::before — subtle deep-emerald spotlight (10s breath) for ambient
+ *     casino-light feel; second inset gold rule.
+ *  3. ::after — gold rim halo that breathes; thinner, brighter than the
+ *     emerald spot so the eye still tracks the action.
+ * A heavy vignette in the outer shadow keeps focus on the centre.
  */
 .felt {
   background:
     radial-gradient(ellipse at center,
-      rgba(20,17,10,1) 0%,
-      rgba(10,30,22,0.85) 40%,
-      rgba(7,18,14,0.95) 70%,
-      rgba(3,8,6,1) 95%);
-  border: 1px solid rgba(212,175,55,0.22);
+      rgba(28,24,15,1) 0%,
+      rgba(14,42,30,0.92) 35%,
+      rgba(8,22,16,0.96) 68%,
+      rgba(2,6,4,1) 96%);
+  border: 1px solid rgba(212,175,55,0.28);
   box-shadow:
-    inset 0 0 80px rgba(0,0,0,0.7),
-    inset 0 0 0 6px rgba(0,0,0,0.6),
-    inset 0 0 0 7px rgba(212,175,55,0.14),
-    0 30px 120px -30px rgba(0,0,0,0.85),
-    0 0 0 1px rgba(212,175,55,0.08);
+    /* deep vignette outside the felt */
+    0 60px 140px -40px rgba(0,0,0,0.95),
+    0 0 0 1px rgba(212,175,55,0.10),
+    /* recessed inner edge */
+    inset 0 0 90px rgba(0,0,0,0.80),
+    inset 0 0 0 6px rgba(0,0,0,0.65),
+    inset 0 0 0 7px rgba(212,175,55,0.18),
+    /* warm top-down light */
+    inset 0 60px 80px -40px rgba(255,200,90,0.10);
   position: relative;
+  overflow: hidden;
 }
 .felt::before {
+  /* emerald spotlight that gently breathes — barely visible until you sit */
   content: '';
   position: absolute;
-  inset: 12px;
-  border-radius: inherit;
+  inset: 8%;
+  border-radius: 50%;
   pointer-events: none;
-  border: 1px solid rgba(212,175,55,0.10);
-  box-shadow: inset 0 0 60px rgba(20,80,55,0.10);
+  background: radial-gradient(ellipse at center,
+    rgba(34,120,80,0.16) 0%,
+    rgba(34,120,80,0.06) 40%,
+    transparent 70%);
+  filter: blur(8px);
+  animation: feltBreath 9s ease-in-out infinite;
 }
 .felt::after {
+  /* inner gold ring + faint pulse */
   content: '';
   position: absolute;
   inset: 6px;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow: inset 0 0 60px rgba(212,175,55,0.10);
+  box-shadow:
+    inset 0 0 70px rgba(212,175,55,0.12),
+    inset 0 0 0 1px rgba(212,175,55,0.10);
   animation: amberPulse 6s ease-in-out infinite;
+}
+
+@keyframes feltBreath {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.04); }
 }
 
 /* ---- To-act indicator: layered gold halo with a slow pulse ----- */
 .ring-toact {
   box-shadow:
-    0 0 0 2px rgba(212,175,55,0.85),
-    0 0 0 4px rgba(212,175,55,0.18),
-    0 0 28px rgba(212,175,55,0.55),
-    inset 0 0 26px rgba(212,175,55,0.15);
-  animation: amberPulse 2.2s ease-in-out infinite;
+    0 0 0 2px rgba(212,175,55,0.95),
+    0 0 0 5px rgba(212,175,55,0.20),
+    0 0 32px rgba(212,175,55,0.65),
+    inset 0 0 28px rgba(212,175,55,0.18);
+  animation: amberPulse 2.0s ease-in-out infinite;
 }
 
 /* ---- Mask emblem helper ---------------------------------------- */
@@ -242,18 +310,47 @@ body::after {
 .chip-bet {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 .chip-bet::before {
+  /* a tiny bevelled poker chip — top-left specular, inner ridge,
+   * gold rim. Reads as a coin/chip at any size from 8 to 16px. */
   content: '';
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 30%, #f5e08c, #b8962e 60%, #6a4f10 100%);
+    radial-gradient(circle at 28% 28%, #fff3b8 0%, #e0c265 28%, #b8962e 60%, #6a4f10 100%);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.5),
-    inset 0 0 0 1px rgba(255,255,255,0.25);
+    0 0 0 1px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.30),
+    inset 0 -1px 1px rgba(0,0,0,0.40),
+    0 1px 2px rgba(0,0,0,0.45);
+}
+
+/* ---- Breathing CTA — opt-in via the .btn-breathe class --------- */
+@keyframes btnBreathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.0); }
+  50%      { box-shadow: 0 0 22px 2px rgba(212,175,55,0.22); }
+}
+.btn-breathe { animation: btnBreathe 4.5s ease-in-out infinite; }
+
+/* Hover/active fine-tuning for premium buttons. */
+.btn-press { transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+                         box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+                         background-color 180ms ease-out,
+                         border-color 180ms ease-out; }
+.btn-press:hover { transform: translateY(-1px); }
+.btn-press:active { transform: translateY(0.5px) scale(0.985); }
+
+/* ---- Ambient drift: lazy gradient pan on the page background -- */
+@keyframes ambientDrift {
+  0%   { background-position: 0% 0%, 100% 100%, 0% 0%; }
+  50%  { background-position: 2% 4%, 98% 96%, 0% 0%; }
+  100% { background-position: 0% 0%, 100% 100%, 0% 0%; }
+}
+body {
+  animation: ambientDrift 40s ease-in-out infinite;
 }
 
 /* ---- Ornamental gold rule (art-deco section divider) ----------- */
