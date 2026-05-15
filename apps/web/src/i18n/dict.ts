@@ -107,6 +107,7 @@ const en = {
   'action.raise': 'Raise',
   'action.allIn': 'All-in',
   'action.waiting': 'Waiting…',
+  'action.waitingFor': 'Waiting for {name}…',
 
   // Seat badges
   'seat.allIn': 'ALL-IN',
@@ -282,6 +283,7 @@ const de: Record<keyof typeof en, string> = {
   'action.raise': 'Raise',
   'action.allIn': 'All-in',
   'action.waiting': 'Warten …',
+  'action.waitingFor': 'Warten auf {name} …',
 
   'seat.allIn': 'ALL-IN',
   'seat.recon': 'RECON',
@@ -452,6 +454,7 @@ const pl: Record<keyof typeof en, string> = {
   'action.raise': 'Raise',
   'action.allIn': 'All-in',
   'action.waiting': 'Czekam…',
+  'action.waitingFor': 'Czekam na {name}…',
 
   'seat.allIn': 'ALL-IN',
   'seat.recon': 'RECON',

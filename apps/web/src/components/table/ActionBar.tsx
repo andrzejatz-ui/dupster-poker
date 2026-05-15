@@ -11,18 +11,22 @@ interface Props {
   legal: LegalActions | null;
   isMyTurn: boolean;
   deadline: number | null;
+  /** Name of the player currently to act (used in the waiting indicator). */
+  waitingFor?: string | null;
   onAction: (action: PlayerAction, clientActionId: string) => void;
 }
 
-export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
+export function ActionBar({ legal, isMyTurn, deadline, waitingFor, onAction }: Props) {
   const t = useT();
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
 
   if (!isMyTurn || !legal) {
     return (
-      <div className="flex items-center justify-center gap-2 text-white/40 text-sm font-display tracking-wider">
-        <span className="w-2 h-2 rounded-full bg-white/20 animate-pulse-soft" />
-        {t('action.waiting')}
+      <div className="flex items-center justify-center gap-2 text-ink-muted text-sm font-display tracking-wider">
+        <span className="w-2 h-2 rounded-full bg-gold/70 animate-pulse-soft" />
+        {waitingFor
+          ? t('action.waitingFor', { name: waitingFor })
+          : t('action.waiting')}
       </div>
     );
   }

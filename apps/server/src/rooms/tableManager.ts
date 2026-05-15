@@ -368,10 +368,18 @@ export class TableManager {
         // The hand may have moved on by now — bail if so
         if (table.handId !== handAtSchedule) return;
         if (table.toActSeat !== seatToTimeout) return;
-        table.applyTimeout(seatToTimeout);
-        this.scheduleTurnTimer(tableId);
-        this.onStateChange(tableId);
-        if (table.phase === 'showdown') this.finalizeHand(tableId);
+        try {
+          table.applyTimeout(seatToTimeout);
+          this.scheduleTurnTimer(tableId);
+          this.onStateChange(tableId);
+          if (table.phase === 'showdown') {
+            // Don't `await` here — setTimeout callback isn't async-aware.
+            // finalizeHand swallows its own errors.
+            void this.finalizeHand(tableId);
+          }
+        } catch (err) {
+          logger.error({ err, tableId }, 'turn-timer handler failed');
+        }
       }, delay),
     );
   }
@@ -379,7 +387,20 @@ export class TableManager {
   private async finalizeHand(tableId: string) {
     const table = this.tables.get(tableId);
     if (!table || table.phase !== 'showdown') return;
-    const result = table.resolveShowdown();
+
+    // Wrap resolveShowdown in try/catch so a single bad hand can't
+    // freeze the table forever: we still want finishHand + the next
+    // maybeStartHand to run even if persistence or evaluation fails.
+    let result: ReturnType<typeof table.resolveShowdown>;
+    try {
+      result = table.resolveShowdown();
+    } catch (err) {
+      logger.error({ err, tableId }, 'resolveShowdown failed — recovering');
+      table.finishHand();
+      this.onStateChange(tableId);
+      setTimeout(() => this.maybeStartHand(tableId), 3000);
+      return;
+    }
 
     // Persist hand + winnings to chip ledger
     try {

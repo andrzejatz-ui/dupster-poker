@@ -477,17 +477,35 @@ export class PokerTable {
     this.toActDeadline = null;
   }
 
+  /**
+   * Only one player still in. Transitions the hand to the showdown
+   * phase so the regular finalize-hand pipeline can pay them out via
+   * resolveShowdown — DO NOT credit the stack here, otherwise the
+   * winner gets paid twice (once here, once in resolveShowdown).
+   */
   private finishHandUncalled(winner: Seat) {
-    winner.stack += this.pot;
-    const pot = this.pot;
-    this.log({ seatIndex: winner.seatIndex, playerId: winner.playerId, street: 'showdown', action: 'win_uncalled', amount: pot });
-    this.pot = 0;
+    this.log({
+      seatIndex: winner.seatIndex,
+      playerId: winner.playerId,
+      street: 'showdown',
+      action: 'win_uncalled',
+      amount: null,
+    });
     this.phase = 'showdown';
     this.toActSeat = null;
     this.toActDeadline = null;
   }
 
-  /** Compute showdown winners and credit stacks. Must be called when phase==='showdown'. */
+  /**
+   * Compute showdown winners and credit stacks. Must be called when
+   * phase==='showdown'. Handles two cases cleanly:
+   *
+   *  1. Exactly one live seat (everyone else folded) — pay them every
+   *     side-pot they're eligible for. No hand evaluation: there may
+   *     not even be five cards on the board.
+   *  2. Two or more live seats — evaluate each one's best 5-of-7 and
+   *     award each side-pot to the highest-ranked eligible live seat.
+   */
   resolveShowdown(): HandResult {
     if (this.phase !== 'showdown') throw new Error('not_showdown');
     const handId = this.handId!;
@@ -507,46 +525,67 @@ export class PokerTable {
     const winners: HandResult['winners'] = [];
     const revealed: HandResult['revealed'] = [];
 
-    // Evaluate each live seat
-    const ranks = new Map<
-      number,
-      { score: number; label: string; cards: [Card, Card] }
-    >();
-    for (const s of live) {
-      const hr = evaluateBest([...board, ...s.holeCards!]);
-      ranks.set(s.seatIndex, {
-        score: hr.score,
-        label: describeHand(hr),
-        cards: s.holeCards!,
-      });
-      revealed.push({
-        seatIndex: s.seatIndex,
-        holeCards: s.holeCards!,
-        handLabel: describeHand(hr),
-      });
-    }
-
-    // Each pot goes to best live eligible seats
-    for (const pot of sidePots) {
-      const eligibleLive = pot.eligibleSeatIndexes.filter((i) => ranks.has(i));
-      if (eligibleLive.length === 0) continue;
-      const best = Math.max(...eligibleLive.map((i) => ranks.get(i)!.score));
-      const winnersHere = eligibleLive.filter((i) => ranks.get(i)!.score === best);
-      const share = Math.floor(pot.amount / winnersHere.length);
-      const remainder = pot.amount - share * winnersHere.length;
-      // Remainder by closest-to-left-of-button rule — kept simple: lowest seatIndex
-      const sortedWinners = [...winnersHere].sort((a, b) => a - b);
-      sortedWinners.forEach((seatIndex, idx) => {
-        const amt = share + (idx < remainder ? 1 : 0);
-        payouts.set(seatIndex, (payouts.get(seatIndex) ?? 0) + amt);
-        const seat = this.seats.get(seatIndex)!;
-        seat.stack += amt;
+    if (live.length <= 1) {
+      // Uncalled win — opponent folded, no hand evaluation. The lone
+      // live player gets every side pot they qualified for. (Theoretical
+      // "live.length === 0" never happens in a regular hand but we
+      // tolerate it by simply emitting no payouts.)
+      const winner = live[0];
+      if (winner) {
+        for (const pot of sidePots) {
+          if (!pot.eligibleSeatIndexes.includes(winner.seatIndex)) continue;
+          winner.stack += pot.amount;
+          payouts.set(
+            winner.seatIndex,
+            (payouts.get(winner.seatIndex) ?? 0) + pot.amount,
+          );
+        }
         winners.push({
-          seatIndex,
-          amount: amt,
-          handLabel: ranks.get(seatIndex)!.label,
+          seatIndex: winner.seatIndex,
+          amount: payouts.get(winner.seatIndex) ?? 0,
+          handLabel: null,
         });
-      });
+      }
+    } else {
+      // Showdown — evaluate every live seat's best 5-of-7.
+      const ranks = new Map<
+        number,
+        { score: number; label: string; cards: [Card, Card] }
+      >();
+      for (const s of live) {
+        const hr = evaluateBest([...board, ...s.holeCards!]);
+        ranks.set(s.seatIndex, {
+          score: hr.score,
+          label: describeHand(hr),
+          cards: s.holeCards!,
+        });
+        revealed.push({
+          seatIndex: s.seatIndex,
+          holeCards: s.holeCards!,
+          handLabel: describeHand(hr),
+        });
+      }
+
+      for (const pot of sidePots) {
+        const eligibleLive = pot.eligibleSeatIndexes.filter((i) => ranks.has(i));
+        if (eligibleLive.length === 0) continue;
+        const best = Math.max(...eligibleLive.map((i) => ranks.get(i)!.score));
+        const winnersHere = eligibleLive.filter((i) => ranks.get(i)!.score === best);
+        const share = Math.floor(pot.amount / winnersHere.length);
+        const remainder = pot.amount - share * winnersHere.length;
+        const sortedWinners = [...winnersHere].sort((a, b) => a - b);
+        sortedWinners.forEach((seatIndex, idx) => {
+          const amt = share + (idx < remainder ? 1 : 0);
+          payouts.set(seatIndex, (payouts.get(seatIndex) ?? 0) + amt);
+          const seat = this.seats.get(seatIndex)!;
+          seat.stack += amt;
+          winners.push({
+            seatIndex,
+            amount: amt,
+            handLabel: ranks.get(seatIndex)!.label,
+          });
+        });
+      }
     }
 
     this.pot = 0;

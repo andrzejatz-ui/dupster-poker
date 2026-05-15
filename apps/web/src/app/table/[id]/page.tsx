@@ -134,6 +134,11 @@ export default function TablePage() {
                 legal={state.legalActionsForMe}
                 isMyTurn={isMyTurn}
                 deadline={state.toActDeadline}
+                waitingFor={
+                  state.toActSeat !== null
+                    ? state.seats.find((s) => s.seatIndex === state.toActSeat)?.displayName ?? null
+                    : null
+                }
                 onAction={sendAction}
               />
             </div>
