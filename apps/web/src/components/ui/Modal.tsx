@@ -8,7 +8,8 @@ interface Props {
   onClose: () => void;
   title: string;
   subtitle?: string;
-  children: ReactNode;
+  /** Body content. Optional — confirm-style dialogs lean on title + subtitle alone. */
+  children?: ReactNode;
   footer?: ReactNode;
   width?: 'sm' | 'md' | 'lg';
 }
@@ -79,7 +80,7 @@ export function Modal({
           <p className="text-ink-secondary text-sm mt-1">{subtitle}</p>
         )}
 
-        <div className="mt-5 space-y-4">{children}</div>
+        {children && <div className="mt-5 space-y-4">{children}</div>}
 
         {footer && (
           <div className="flex flex-wrap justify-end gap-2 mt-6">{footer}</div>
