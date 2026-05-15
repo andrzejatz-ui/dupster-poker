@@ -433,50 +433,6 @@ body {
   animation: ambientDrift 40s ease-in-out infinite;
 }
 
-/* ---- Slithering serpent (login backdrop) ----------------------- */
-/*
- * Two SVG paths animate stroke-dashoffset to make a short bright dash
- * (the snake's body) glide along an invisible serpentine path. The
- * `alternate` direction gives a back-and-forth slither rather than a
- * one-way crawl, matching the brief. Each path has its own duration
- * + phase so the two snakes never sync up — feels alive, not robotic.
- */
-.snake-canvas {
-  z-index: 0;
-  opacity: 0.85;
-  mix-blend-mode: screen;
-}
-
-@keyframes snakeSlither {
-  0%   { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: -180; }
-}
-
-.snake-body--a {
-  stroke-dasharray: 14 240;
-  animation: snakeSlither 8.5s ease-in-out infinite alternate;
-}
-.snake-trail--a {
-  stroke-dasharray: 22 240;
-  animation: snakeSlither 8.5s ease-in-out infinite alternate;
-}
-.snake-body--b {
-  stroke-dasharray: 12 260;
-  animation: snakeSlither 11s ease-in-out infinite alternate-reverse;
-  animation-delay: 1.4s;
-}
-.snake-trail--b {
-  stroke-dasharray: 20 260;
-  animation: snakeSlither 11s ease-in-out infinite alternate-reverse;
-  animation-delay: 1.4s;
-}
-
-/* Tablet+ shows both serpents; very small screens drop the slower
- * one to keep the form readable on cramped viewports. */
-@media (max-width: 420px) {
-  .snake-body--b, .snake-trail--b { display: none; }
-}
-
 /* ---- Viewport-locked main containers --------------------------- */
 /*
  * Pages that should never scroll use h-dvh + overflow-hidden. dvh

@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
-import { Mask } from '@/components/brand/Mask';
-import { Snake } from '@/components/brand/Snake';
+import { Eye } from '@/components/brand/Eye';
 import { Signature } from '@/components/ui/Signature';
 import { joinAsPlayer } from '@/lib/api';
 import { setSession, recallAvatar } from '@/lib/session';
@@ -117,10 +116,9 @@ function JoinForm() {
   if (phase === 'pending') {
     return (
       <main className="viewport-fit flex flex-col items-center justify-center px-6">
-        <Snake />
         <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full text-center">
-          <div className="flex justify-center mb-4 opacity-80">
-            <Mask size={64} />
+          <div className="flex justify-center mb-4 opacity-90">
+            <Eye size={96} />
           </div>
           <h1 className="font-display text-2xl text-gold text-glow-gold mb-3">
             {t('join.pending.title')}
@@ -141,7 +139,6 @@ function JoinForm() {
   if (phase === 'banned') {
     return (
       <main className="viewport-fit flex items-center justify-center px-6">
-        <Snake />
         <NeonCard glow={null} strong className="relative z-10 max-w-md w-full text-center">
           <h1 className="font-display text-2xl text-status-alert mb-3">{t('join.banned.title')}</h1>
           <p className="text-ink-secondary text-sm">{t('join.banned.body')}</p>
@@ -152,7 +149,6 @@ function JoinForm() {
 
   return (
     <main className="viewport-fit flex flex-col items-center justify-center px-4 py-4 sm:py-6">
-      <Snake />
       <div className="relative z-10 max-w-md w-full mb-2 flex justify-start">
         <Link
           href="/"
@@ -175,7 +171,7 @@ function JoinForm() {
             />
           ) : (
             <div className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center surface-strong">
-              <Mask size={32} />
+              <Eye size={36} />
             </div>
           )}
           <div className="min-w-0">

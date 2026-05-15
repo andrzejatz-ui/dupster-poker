@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
-import { Mask } from '@/components/brand/Mask';
-import { Snake } from '@/components/brand/Snake';
+import { Eye } from '@/components/brand/Eye';
 import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 
@@ -12,10 +11,9 @@ export default function Landing() {
   const t = useT();
   return (
     <main className="viewport-fit flex items-center justify-center px-4 py-4 sm:py-6">
-      <Snake />
       <div className="relative z-10 max-w-3xl w-full">
         <div className="flex justify-center mb-3 sm:mb-5">
-          <Mask size={88} />
+          <Eye size={140} />
         </div>
 
         <div className="text-center mb-4 sm:mb-6">
