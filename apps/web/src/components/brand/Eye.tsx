@@ -44,12 +44,14 @@ export function Eye({ size = 32, className }: Props) {
       const dx = clientX - cx;
       const dy = clientY - cy;
       const dist = Math.hypot(dx, dy);
-      // Soft-saturate: pointer ~220 px away already gives full deflection.
-      const cap = Math.min(1, dist / 220);
-      // Max deflection in SVG units (viewBox is 100×60). Anything bigger
-      // and the iris pokes through the almond outline at extreme angles.
-      const maxX = 6;
-      const maxY = 3;
+      // Soft-saturate: pointer ~150 px away already gives full deflection
+      // — short reach so the gaze tracks responsively even at small sizes.
+      const cap = Math.min(1, dist / 150);
+      // Max deflection in SVG units (viewBox is 100×60). The almond clip
+      // crops any overshoot so we can push this hard for an obvious
+      // "looking at you" feel rather than a subtle twitch.
+      const maxX = 12;
+      const maxY = 6;
       if (dist > 0) {
         targetX = (dx / dist) * cap * maxX;
         targetY = (dy / dist) * cap * maxY;
