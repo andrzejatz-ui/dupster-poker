@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { pool } from '../db/client.js';
-import { moveChips } from '../db/chips.js';
+import { adminAddChipsToSeat, moveChips } from '../db/chips.js';
 import {
   logAdminAction,
   verifyAdminLogin,
@@ -158,13 +158,24 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const status = (req.query.status as string | undefined) ?? null;
     const q = status
       ? await pool.query(
-          `select id, player_handle, display_name, password, status, chips, created_at, approved_at, banned_at
-             from players where status = $1 order by created_at desc limit 200`,
+          `select p.id, p.player_handle, p.display_name, p.password, p.status, p.chips,
+                  p.created_at, p.approved_at, p.banned_at,
+                  s.table_id as seat_table_id, s.seat_index, s.stack as seat_stack
+             from players p
+             left join table_seats s on s.player_id = p.id
+            where p.status = $1
+            order by p.created_at desc
+            limit 200`,
           [status],
         )
       : await pool.query(
-          `select id, player_handle, display_name, password, status, chips, created_at, approved_at, banned_at
-             from players order by created_at desc limit 200`,
+          `select p.id, p.player_handle, p.display_name, p.password, p.status, p.chips,
+                  p.created_at, p.approved_at, p.banned_at,
+                  s.table_id as seat_table_id, s.seat_index, s.stack as seat_stack
+             from players p
+             left join table_seats s on s.player_id = p.id
+            order by p.created_at desc
+            limit 200`,
         );
     res.json({ players: q.rows });
   });
@@ -277,7 +288,46 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     });
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+
+    // If the player is currently seated, route the chips straight into
+    // their stack at the table — that's the "give me chips during the
+    // hand" admin flow. Otherwise, top up their off-table balance.
+    const seatRow = await pool.query<{ table_id: string; seat_index: number }>(
+      'select table_id, seat_index from table_seats where player_id = $1',
+      [req.params.id],
+    );
+
     try {
+      if ((seatRow.rowCount ?? 0) > 0) {
+        const { table_id, seat_index } = seatRow.rows[0]!;
+        const newStack = await adminAddChipsToSeat({
+          playerId: req.params.id!,
+          tableId: table_id,
+          seatIndex: seat_index,
+          delta: parsed.data.delta,
+          adminId: req.adminId!,
+          note: parsed.data.note ?? null,
+        });
+        // Reflect the new stack in the in-memory engine state so it
+        // propagates to every seat via the next state broadcast.
+        const t = tables.get(table_id);
+        if (t) {
+          const seat = t.seats.get(seat_index);
+          if (seat) seat.stack = newStack;
+          // Trigger a state push to all sockets at the table.
+          (tables as unknown as { onStateChange: (id: string) => void }).onStateChange(table_id);
+        }
+        await logAdminAction({
+          adminId: req.adminId!,
+          action: 'chip_move_seat',
+          targetPlayerId: req.params.id!,
+          targetTableId: table_id,
+          payload: { ...parsed.data, seatIndex: seat_index, newStack },
+        });
+        return res.json({ scope: 'seat', tableId: table_id, seatIndex: seat_index, stack: newStack });
+      }
+
+      // Not seated → regular balance flow.
       const after = await moveChips({
         playerId: req.params.id!,
         delta: parsed.data.delta,
@@ -291,14 +341,12 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         targetPlayerId: req.params.id!,
         payload: parsed.data,
       });
-      // Push the new balance to the player's open sockets so the chip
-      // counter in their UI updates without a refresh.
       emitToPlayer(io, req.params.id!, 'server:account:chip_update', {
         chips: Number(after),
         delta: parsed.data.delta,
         reason: parsed.data.reason,
       });
-      res.json({ balance: after.toString() });
+      res.json({ scope: 'balance', balance: after.toString() });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
       res.status(400).json({ error: msg });
@@ -393,7 +441,19 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
   r.get('/tables', requireAdmin, async (_req, res) => {
     const q = await pool.query(`select id, name, small_blind, big_blind, buy_in, max_players,
       allow_spectators, archived_at from tables order by created_at desc`);
-    res.json({ tables: q.rows });
+    // Decorate each row with live in-memory state (pause flag, current
+    // seat count, whether a hand is being played right now).
+    const decorated = q.rows.map((row) => {
+      const t = tables.get(row.id);
+      return {
+        ...row,
+        is_paused: t?.isPaused ?? false,
+        seated: t?.seats.size ?? 0,
+        in_hand: t ? t.phase !== 'waiting' : false,
+        hand_number: t?.handNumber ?? 0,
+      };
+    });
+    res.json({ tables: decorated });
   });
 
   r.post('/tables', requireAdmin, async (req: AdminRequest, res) => {
@@ -450,6 +510,35 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
   r.post('/tables/:id/archive', requireAdmin, async (req: AdminRequest, res) => {
     await pool.query('update tables set archived_at = now() where id = $1', [req.params.id]);
     await logAdminAction({ adminId: req.adminId!, action: 'archive_table', targetTableId: req.params.id });
+    res.json({ ok: true });
+  });
+
+  /** Pause auto-progression: no new hands deal, no turn timeouts fire. */
+  r.post('/tables/:id/pause', requireAdmin, async (req: AdminRequest, res) => {
+    const ok = tables.pauseTable(req.params.id!);
+    if (!ok) return res.status(404).json({ error: 'not_found' });
+    await logAdminAction({ adminId: req.adminId!, action: 'pause_table', targetTableId: req.params.id });
+    res.json({ ok: true });
+  });
+
+  r.post('/tables/:id/resume', requireAdmin, async (req: AdminRequest, res) => {
+    const ok = tables.resumeTable(req.params.id!);
+    if (!ok) return res.status(404).json({ error: 'not_found' });
+    await logAdminAction({ adminId: req.adminId!, action: 'resume_table', targetTableId: req.params.id });
+    res.json({ ok: true });
+  });
+
+  /**
+   * Close a table cleanly: cash out every seated player back to their
+   * off-table balance, archive the table, drop it from memory. Players
+   * stuck at the table get their stacks credited via the normal
+   * cash_out ledger path.
+   */
+  r.post('/tables/:id/close', requireAdmin, async (req: AdminRequest, res) => {
+    const closed = await tables.closeTable(req.params.id!);
+    if (!closed.ok) return res.status(404).json({ error: 'not_found' });
+    await pool.query('update tables set archived_at = now() where id = $1', [req.params.id]);
+    await logAdminAction({ adminId: req.adminId!, action: 'close_table', targetTableId: req.params.id });
     res.json({ ok: true });
   });
 

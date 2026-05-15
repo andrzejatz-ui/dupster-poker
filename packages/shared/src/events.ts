@@ -36,6 +36,7 @@ export interface PublicTableState {
   bigBlind: number;
   buyIn: number;
   maxPlayers: number;
+  isPaused: boolean;
   phase: 'waiting' | Street;
   handId: string | null;
   handNumber: number;

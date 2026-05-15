@@ -209,6 +209,7 @@ export class TableManager {
     const table = this.tables.get(tableId);
     if (!table) return;
     if (table.phase !== 'waiting') return;
+    if (table.isPaused) return; // paused tables don't auto-deal
     const ready = table.activeSeats();
     if (ready.length < 2) return;
     const started = table.startHand();
@@ -218,12 +219,74 @@ export class TableManager {
     }
   }
 
+  /** Public hooks for the admin endpoints. */
+  pauseTable(tableId: string): boolean {
+    const table = this.tables.get(tableId);
+    if (!table) return false;
+    table.isPaused = true;
+    const t = this.turnTimers.get(tableId);
+    if (t) {
+      clearTimeout(t);
+      this.turnTimers.delete(tableId);
+    }
+    // Freeze the deadline so the UI shows the pause cleanly.
+    table.toActDeadline = null;
+    this.onStateChange(tableId);
+    return true;
+  }
+  resumeTable(tableId: string): boolean {
+    const table = this.tables.get(tableId);
+    if (!table) return false;
+    table.isPaused = false;
+    // Reset the deadline so the current player has a full window again.
+    if (table.toActSeat !== null) {
+      table.toActDeadline = Date.now() + table.cfg.turnTimerMs;
+      this.scheduleTurnTimer(tableId);
+    } else {
+      this.maybeStartHand(tableId);
+    }
+    this.onStateChange(tableId);
+    return true;
+  }
+
+  /**
+   * Cleanly closes a table: cashes out every seated player back to their
+   * off-table balance, drops the table from memory, and tells the DB
+   * caller that it's safe to archive.
+   */
+  async closeTable(tableId: string): Promise<{ ok: boolean }> {
+    const table = this.tables.get(tableId);
+    if (!table) return { ok: false };
+    // Cancel any pending turn timer.
+    const t = this.turnTimers.get(tableId);
+    if (t) {
+      clearTimeout(t);
+      this.turnTimers.delete(tableId);
+    }
+    // Snapshot seats then call leavePlayer for each so the cash_out
+    // ledger row is written by the same path used in normal flow.
+    const seats = [...table.seats.values()].map((s) => ({
+      seatIndex: s.seatIndex,
+      playerId: s.playerId,
+    }));
+    for (const s of seats) {
+      try {
+        await this.leavePlayer({ tableId, seatIndex: s.seatIndex, playerId: s.playerId });
+      } catch (err) {
+        logger.error({ err, tableId, seatIndex: s.seatIndex }, 'leave failed during table close');
+      }
+    }
+    this.tables.delete(tableId);
+    return { ok: true };
+  }
+
   private scheduleTurnTimer(tableId: string) {
     const table = this.tables.get(tableId);
     if (!table) return;
     const old = this.turnTimers.get(tableId);
     if (old) clearTimeout(old);
 
+    if (table.isPaused) return;          // no auto-fold while paused
     if (table.toActSeat === null || table.toActDeadline === null) return;
     const delay = Math.max(0, table.toActDeadline - Date.now());
     const seatToTimeout = table.toActSeat;

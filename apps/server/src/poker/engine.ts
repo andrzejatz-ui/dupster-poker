@@ -62,6 +62,13 @@ export interface TableConfig {
 export class PokerTable {
   readonly cfg: TableConfig;
   phase: Phase = 'waiting';
+  /**
+   * When true, no new hands start automatically and the turn timer is
+   * suspended. Set by the admin pause endpoint. Actions on the current
+   * hand are still permitted so the in-flight hand can be finished
+   * cleanly; only auto-progression is frozen.
+   */
+  isPaused = false;
   seats: Map<number, Seat> = new Map();
   deck: Card[] = [];
   board: Card[] = [];
@@ -631,6 +638,7 @@ export class PokerTable {
       bigBlind: this.cfg.bigBlind,
       buyIn: this.cfg.buyIn,
       maxPlayers: this.cfg.maxPlayers,
+      isPaused: this.isPaused,
       phase: this.phase,
       handId: this.handId,
       handNumber: this.handNumber,
