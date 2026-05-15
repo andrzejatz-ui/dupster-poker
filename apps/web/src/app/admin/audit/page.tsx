@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { adminCall, getAdminToken } from '@/lib/admin';
+import { useT } from '@/i18n/context';
 
 interface AuditRow {
   id: number;
@@ -19,6 +20,7 @@ interface AuditRow {
 }
 
 export default function AuditPage() {
+  const t = useT();
   const router = useRouter();
   const [rows, setRows] = useState<AuditRow[]>([]);
 
@@ -33,19 +35,19 @@ export default function AuditPage() {
   return (
     <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto">
       <header className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-3xl text-glow-violet text-neon-violet">Audit-Log</h1>
-        <Link href="/admin"><NeonButton variant="ghost" size="sm">← Zurück</NeonButton></Link>
+        <h1 className="font-display text-3xl text-glow-violet text-neon-violet">{t('audit.title')}</h1>
+        <Link href="/admin"><NeonButton variant="ghost" size="sm">← {t('common.back')}</NeonButton></Link>
       </header>
       <NeonCard>
         <table className="w-full text-xs font-mono">
           <thead>
             <tr className="text-left text-white/40 uppercase tracking-widest">
-              <th className="py-2">Zeit</th>
-              <th>Action</th>
-              <th>Spieler</th>
-              <th>Tisch</th>
-              <th>Reason</th>
-              <th>Payload</th>
+              <th className="py-2">{t('audit.col.time')}</th>
+              <th>{t('audit.col.action')}</th>
+              <th>{t('audit.col.player')}</th>
+              <th>{t('audit.col.table')}</th>
+              <th>{t('audit.col.reason')}</th>
+              <th>{t('audit.col.payload')}</th>
             </tr>
           </thead>
           <tbody>

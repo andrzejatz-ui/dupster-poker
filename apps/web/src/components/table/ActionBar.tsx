@@ -5,6 +5,7 @@ import { ulid } from 'ulid';
 import type { LegalActions } from '@neon-poker/shared/events';
 import type { PlayerAction } from '@neon-poker/shared/poker';
 import { NeonButton } from '@/components/ui/NeonButton';
+import { useT } from '@/i18n/context';
 
 interface Props {
   legal: LegalActions | null;
@@ -14,13 +15,14 @@ interface Props {
 }
 
 export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
+  const t = useT();
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
 
   if (!isMyTurn || !legal) {
     return (
       <div className="flex items-center justify-center gap-2 text-white/40 text-sm font-display tracking-wider">
         <span className="w-2 h-2 rounded-full bg-white/20 animate-pulse-soft" />
-        Warten …
+        {t('action.waiting')}
       </div>
     );
   }
@@ -34,17 +36,17 @@ export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
       <div className="flex flex-wrap gap-3 mt-3 justify-center items-center">
         {legal.canFold && (
           <NeonButton variant="danger" onClick={() => send({ type: 'fold' })}>
-            Fold
+            {t('action.fold')}
           </NeonButton>
         )}
         {legal.canCheck && (
           <NeonButton variant="ghost" onClick={() => send({ type: 'check' })}>
-            Check
+            {t('action.check')}
           </NeonButton>
         )}
         {legal.canCall && (
           <NeonButton variant="primary" onClick={() => send({ type: 'call' })}>
-            Call {legal.callAmount.toLocaleString()}
+            {t('action.call')} {legal.callAmount.toLocaleString()}
           </NeonButton>
         )}
         {(legal.canBet || legal.canRaise) && (
@@ -67,13 +69,13 @@ export function ActionBar({ legal, isMyTurn, deadline, onAction }: Props) {
                 )
               }
             >
-              {legal.canBet ? 'Bet' : 'Raise'}
+              {legal.canBet ? t('action.bet') : t('action.raise')}
             </NeonButton>
           </div>
         )}
         {legal.canAllIn && (
           <NeonButton variant="gold" onClick={() => send({ type: 'all_in' })}>
-            All-in
+            {t('action.allIn')}
           </NeonButton>
         )}
       </div>

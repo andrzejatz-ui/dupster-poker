@@ -1,5 +1,8 @@
+'use client';
+
 import type { Card } from '@neon-poker/shared/poker';
 import { PlayingCard } from './PlayingCard';
+import { useT } from '@/i18n/context';
 
 interface Props {
   board: Card[];
@@ -7,11 +10,12 @@ interface Props {
 }
 
 export function Board({ board, pot }: Props) {
+  const t = useT();
   const slots = [0, 1, 2, 3, 4];
   return (
     <div className="flex flex-col items-center gap-3">
       <div className="text-[10px] uppercase tracking-[0.4em] text-white/40 font-display">
-        Pot
+        {t('table.pot')}
       </div>
       <div className="text-3xl font-display text-neon-gold text-glow-blue">
         {pot.toLocaleString()}

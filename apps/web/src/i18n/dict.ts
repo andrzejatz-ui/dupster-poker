@@ -1,0 +1,442 @@
+/**
+ * Source of truth for all UI strings. Add a new key here in all three
+ * languages — the type system will flag any locale missing it.
+ *
+ * Convention: keys are dot-notated paths grouped by feature area. Poker
+ * terminology (Fold, Call, Bet, Raise, All-in, Pot, Blinds, BB) stays
+ * English in every locale, since that's how the game is played
+ * internationally.
+ */
+
+export const LOCALES = ['en', 'de', 'pl'] as const;
+export type Locale = (typeof LOCALES)[number];
+export const DEFAULT_LOCALE: Locale = 'de';
+
+export const LOCALE_LABEL: Record<Locale, string> = {
+  en: 'EN',
+  de: 'DE',
+  pl: 'PL',
+};
+
+const en = {
+  // Common
+  'common.signOut': 'Sign out',
+  'common.cancel': 'Cancel',
+  'common.back': 'Back',
+  'common.confirm': 'Confirm',
+  'common.loading': 'Loading…',
+  'common.connecting': 'Connecting',
+
+  // Landing
+  'landing.tagline': 'Private Tables · Play Money · Own Infrastructure',
+  'landing.titleA': 'Neon',
+  'landing.titleB': 'Poker',
+  'landing.intro':
+    "Texas Hold'em in a private lobby. Access is invite-only and gated by an approved Player ID. Cards are dealt exclusively on the server.",
+  'landing.welcome': 'Welcome to the table',
+  'landing.welcomeBody':
+    'Enter your Player ID below — it is re-requested every session and never stored locally.',
+  'landing.primaryCta': 'Sign in with Player ID →',
+  'landing.adminCta': 'Admin login',
+  'landing.build': 'Build v0.1 · No real money · No external account binding',
+
+  // Join
+  'join.invitePrefix': 'Invite',
+  'join.privateAccess': 'Private access',
+  'join.title': 'Player ID',
+  'join.body':
+    'Enter your ID exactly as the admin gave it to you. It is not stored — required again on the next visit.',
+  'join.idLabel': 'Player ID',
+  'join.idPlaceholder': 'e.g. king_of_clubs',
+  'join.nameLabel': 'Display name (optional)',
+  'join.namePlaceholder': 'Shown at the table',
+  'join.nameHint': 'Leave empty to use the Player ID as your name.',
+  'join.submit': 'Enter',
+  'join.submitting': 'Checking…',
+  'join.errors.invalidId': 'Please enter a valid Player ID.',
+  'join.errors.unknown': 'Unknown error.',
+  'join.pending.title': 'Waiting for approval',
+  'join.pending.body':
+    'Your Player ID is now with the admin. Once it is approved you can sign in here again with the same ID.',
+  'join.banned.title': 'Access denied',
+  'join.banned.body': 'This Player ID is currently not allowed to play.',
+
+  // Lobby
+  'lobby.title': 'Lobby',
+  'lobby.signedInAs': 'Signed in as',
+  'lobby.chipsSuffix': 'chips',
+  'lobby.socketStatus': 'Socket',
+  'lobby.pending.title': 'Account awaiting approval',
+  'lobby.pending.body':
+    'Once the admin approves your Player ID, the tables will appear here.',
+  'lobby.empty': 'No open tables right now.',
+  'lobby.buyIn': 'Buy-in',
+  'lobby.playersCount': 'Players',
+  'lobby.inHand': 'Hand in progress',
+  'lobby.waiting': 'Waiting',
+  'lobby.join': 'Join',
+
+  // Table
+  'table.phaseLabel': 'Table',
+  'table.leave': 'Leave',
+  'table.handNumber': 'Hand #',
+  'table.pot': 'Pot',
+  'table.blinds': 'Blinds',
+  'table.sidePots': 'Side pots',
+  'table.empty': '—',
+  'table.empty.seat': 'Empty',
+  'table.connecting': 'Connecting…',
+  'table.bb': 'BB',
+
+  // Actions
+  'action.fold': 'Fold',
+  'action.check': 'Check',
+  'action.call': 'Call',
+  'action.bet': 'Bet',
+  'action.raise': 'Raise',
+  'action.allIn': 'All-in',
+  'action.waiting': 'Waiting…',
+
+  // Seat badges
+  'seat.allIn': 'ALL-IN',
+  'seat.recon': 'RECON',
+
+  // Chat
+  'chat.title': 'Table chat',
+  'chat.empty': 'Quiet so far.',
+  'chat.placeholder': 'Say something…',
+  'chat.send': 'Send',
+
+  // Admin login
+  'admin.login.title': 'Admin access',
+  'admin.login.body':
+    'For the project-specific main admin only. Login attempts are rate-limited.',
+  'admin.login.username': 'Username',
+  'admin.login.password': 'Password',
+  'admin.login.submit': 'Sign in',
+  'admin.login.submitting': 'Checking…',
+  'admin.login.errors.failed': 'Login failed.',
+
+  // Admin dashboard
+  'admin.title': 'Admin Dashboard',
+  'admin.counts': 'Pending {pending} · Approved {approved} · Banned {banned} · Tables {tables}',
+  'admin.auditButton': 'Audit log',
+  'admin.logout': 'Logout',
+  'admin.pendingTitle': 'Pending Approvals',
+  'admin.pendingEmpty': 'No open requests.',
+  'admin.col.handle': 'Handle',
+  'admin.col.display': 'Display',
+  'admin.col.joined': 'Joined',
+  'admin.col.actions': 'Actions',
+  'admin.col.status': 'Status',
+  'admin.col.chips': 'Chips',
+  'admin.approve': 'Approve',
+  'admin.reject': 'Reject',
+  'admin.players': 'Players',
+  'admin.chipsAdjust': 'Chips ±',
+  'admin.ban': 'Ban',
+  'admin.unban': 'Unban',
+  'admin.tables': 'Tables',
+  'admin.newTable': '+ New table',
+  'admin.tablesEmpty': 'No tables created yet.',
+  'admin.col.name': 'Name',
+  'admin.col.blinds': 'Blinds',
+  'admin.col.buyIn': 'Buy-in',
+  'admin.col.max': 'Max',
+  'admin.tableStatus.archived': 'Archived',
+  'admin.tableStatus.active': 'Active',
+  'admin.prompt.initialChips': 'Initial chips (0 for none):',
+  'admin.prompt.confirmReject': 'Reject this request?',
+  'admin.prompt.chipsAdjust': 'Current {chips} — delta (+/-):',
+  'admin.prompt.banReason': 'Reason:',
+  'admin.prompt.tableName': 'Table name:',
+  'admin.prompt.tableSb': 'Small blind:',
+  'admin.prompt.tableBb': 'Big blind:',
+  'admin.prompt.tableBuyIn': 'Buy-in:',
+  'admin.prompt.tableMax': 'Max players (2–9):',
+
+  // Audit
+  'audit.title': 'Audit log',
+  'audit.col.time': 'Time',
+  'audit.col.action': 'Action',
+  'audit.col.player': 'Player',
+  'audit.col.table': 'Table',
+  'audit.col.reason': 'Reason',
+  'audit.col.payload': 'Payload',
+} as const;
+
+const de: Record<keyof typeof en, string> = {
+  'common.signOut': 'Abmelden',
+  'common.cancel': 'Abbrechen',
+  'common.back': 'Zurück',
+  'common.confirm': 'Bestätigen',
+  'common.loading': 'Lade …',
+  'common.connecting': 'Verbinde',
+
+  'landing.tagline': 'Private Tische · Play Money · Eigene Infrastruktur',
+  'landing.titleA': 'Neon',
+  'landing.titleB': 'Poker',
+  'landing.intro':
+    'Texas Hold’em in einer privaten Lobby. Zugang nur per Invite-Link und genehmigter Player-ID. Karten werden ausschließlich serverseitig verteilt.',
+  'landing.welcome': 'Willkommen am Tisch',
+  'landing.welcomeBody':
+    'Tippe gleich deine Player-ID ein — sie wird bei jeder Session neu abgefragt und niemals lokal gespeichert.',
+  'landing.primaryCta': 'Mit Player-ID einsteigen →',
+  'landing.adminCta': 'Admin-Login',
+  'landing.build': 'Build v0.1 · No real money · No external account binding',
+
+  'join.invitePrefix': 'Invite',
+  'join.privateAccess': 'Privater Zugang',
+  'join.title': 'Player-ID',
+  'join.body':
+    'Tippe deine ID exakt so ein, wie der Admin sie dir genannt hat. Sie wird nicht gespeichert — bei nächstem Besuch erneut nötig.',
+  'join.idLabel': 'Player-ID',
+  'join.idPlaceholder': 'z.B. king_of_clubs',
+  'join.nameLabel': 'Anzeigename (optional)',
+  'join.namePlaceholder': 'Wird am Tisch gezeigt',
+  'join.nameHint': 'Leer lassen, um die Player-ID als Name zu nutzen.',
+  'join.submit': 'Eintreten',
+  'join.submitting': 'Prüfe …',
+  'join.errors.invalidId': 'Bitte gib eine gültige Player-ID ein.',
+  'join.errors.unknown': 'Unbekannter Fehler.',
+  'join.pending.title': 'Warten auf Freigabe',
+  'join.pending.body':
+    'Deine Player-ID liegt jetzt beim Admin. Sobald sie freigegeben ist, kannst du hier mit derselben ID erneut beitreten.',
+  'join.banned.title': 'Zugang gesperrt',
+  'join.banned.body': 'Diese Player-ID ist aktuell nicht spielberechtigt.',
+
+  'lobby.title': 'Lobby',
+  'lobby.signedInAs': 'Angemeldet als',
+  'lobby.chipsSuffix': 'Chips',
+  'lobby.socketStatus': 'Socket',
+  'lobby.pending.title': 'Account wartet auf Freigabe',
+  'lobby.pending.body':
+    'Sobald der Admin deine Player-ID genehmigt hat, erscheinen hier die Tische.',
+  'lobby.empty': 'Aktuell sind keine Tische offen.',
+  'lobby.buyIn': 'Buy-in',
+  'lobby.playersCount': 'Spieler',
+  'lobby.inHand': 'Hand läuft',
+  'lobby.waiting': 'Wartend',
+  'lobby.join': 'Beitreten',
+
+  'table.phaseLabel': 'Tisch',
+  'table.leave': 'Verlassen',
+  'table.handNumber': 'Hand #',
+  'table.pot': 'Pot',
+  'table.blinds': 'Blinds',
+  'table.sidePots': 'Side pots',
+  'table.empty': '—',
+  'table.empty.seat': 'Frei',
+  'table.connecting': 'Verbinde …',
+  'table.bb': 'BB',
+
+  'action.fold': 'Fold',
+  'action.check': 'Check',
+  'action.call': 'Call',
+  'action.bet': 'Bet',
+  'action.raise': 'Raise',
+  'action.allIn': 'All-in',
+  'action.waiting': 'Warten …',
+
+  'seat.allIn': 'ALL-IN',
+  'seat.recon': 'RECON',
+
+  'chat.title': 'Tisch-Chat',
+  'chat.empty': 'Noch ruhig hier.',
+  'chat.placeholder': 'Sag was …',
+  'chat.send': 'Senden',
+
+  'admin.login.title': 'Admin-Zugang',
+  'admin.login.body':
+    'Nur für den projektbezogenen Haupt-Admin. Login-Versuche werden rate-limited.',
+  'admin.login.username': 'Benutzername',
+  'admin.login.password': 'Passwort',
+  'admin.login.submit': 'Einloggen',
+  'admin.login.submitting': 'Prüfe …',
+  'admin.login.errors.failed': 'Login fehlgeschlagen.',
+
+  'admin.title': 'Admin Dashboard',
+  'admin.counts': 'Pending {pending} · Approved {approved} · Banned {banned} · Tische {tables}',
+  'admin.auditButton': 'Audit-Log',
+  'admin.logout': 'Logout',
+  'admin.pendingTitle': 'Pending Approvals',
+  'admin.pendingEmpty': 'Keine offenen Anfragen.',
+  'admin.col.handle': 'Handle',
+  'admin.col.display': 'Display',
+  'admin.col.joined': 'Beigetreten',
+  'admin.col.actions': 'Aktionen',
+  'admin.col.status': 'Status',
+  'admin.col.chips': 'Chips',
+  'admin.approve': 'Approve',
+  'admin.reject': 'Reject',
+  'admin.players': 'Spieler',
+  'admin.chipsAdjust': 'Chips ±',
+  'admin.ban': 'Ban',
+  'admin.unban': 'Unban',
+  'admin.tables': 'Tische',
+  'admin.newTable': '+ Neuer Tisch',
+  'admin.tablesEmpty': 'Noch keine Tische angelegt.',
+  'admin.col.name': 'Name',
+  'admin.col.blinds': 'Blinds',
+  'admin.col.buyIn': 'Buy-in',
+  'admin.col.max': 'Max',
+  'admin.tableStatus.archived': 'Archiviert',
+  'admin.tableStatus.active': 'Aktiv',
+  'admin.prompt.initialChips': 'Initiale Chips (0 für keine):',
+  'admin.prompt.confirmReject': 'Diese Anfrage ablehnen?',
+  'admin.prompt.chipsAdjust': 'Aktuell {chips} — Δ (+/-):',
+  'admin.prompt.banReason': 'Grund:',
+  'admin.prompt.tableName': 'Tischname:',
+  'admin.prompt.tableSb': 'Small blind:',
+  'admin.prompt.tableBb': 'Big blind:',
+  'admin.prompt.tableBuyIn': 'Buy-in:',
+  'admin.prompt.tableMax': 'Max Spieler (2–9):',
+
+  'audit.title': 'Audit-Log',
+  'audit.col.time': 'Zeit',
+  'audit.col.action': 'Action',
+  'audit.col.player': 'Spieler',
+  'audit.col.table': 'Tisch',
+  'audit.col.reason': 'Grund',
+  'audit.col.payload': 'Payload',
+};
+
+const pl: Record<keyof typeof en, string> = {
+  'common.signOut': 'Wyloguj',
+  'common.cancel': 'Anuluj',
+  'common.back': 'Wróć',
+  'common.confirm': 'Potwierdź',
+  'common.loading': 'Ładowanie…',
+  'common.connecting': 'Łączenie',
+
+  'landing.tagline': 'Prywatne stoły · Żetony bez wartości · Własna infrastruktura',
+  'landing.titleA': 'Neon',
+  'landing.titleB': 'Poker',
+  'landing.intro':
+    'Texas Hold’em w prywatnym lobby. Dostęp wyłącznie przez link z zaproszeniem i zatwierdzony Player ID. Karty są rozdawane wyłącznie po stronie serwera.',
+  'landing.welcome': 'Witaj przy stole',
+  'landing.welcomeBody':
+    'Wpisz swój Player ID — pytany jest przy każdej sesji i nigdy nie jest zapisywany lokalnie.',
+  'landing.primaryCta': 'Wejdź z Player ID →',
+  'landing.adminCta': 'Logowanie admina',
+  'landing.build': 'Build v0.1 · Bez prawdziwych pieniędzy · Brak powiązania z zewnętrznymi kontami',
+
+  'join.invitePrefix': 'Zaproszenie',
+  'join.privateAccess': 'Dostęp prywatny',
+  'join.title': 'Player ID',
+  'join.body':
+    'Wpisz swój ID dokładnie tak, jak podał administrator. Nie jest zapisywany — przy kolejnej wizycie potrzebny ponownie.',
+  'join.idLabel': 'Player ID',
+  'join.idPlaceholder': 'np. king_of_clubs',
+  'join.nameLabel': 'Nazwa wyświetlana (opcjonalnie)',
+  'join.namePlaceholder': 'Widoczna przy stole',
+  'join.nameHint': 'Zostaw puste, aby używać Player ID jako nazwy.',
+  'join.submit': 'Wejdź',
+  'join.submitting': 'Sprawdzam…',
+  'join.errors.invalidId': 'Wpisz prawidłowy Player ID.',
+  'join.errors.unknown': 'Nieznany błąd.',
+  'join.pending.title': 'Oczekiwanie na zatwierdzenie',
+  'join.pending.body':
+    'Twój Player ID trafił do administratora. Gdy zostanie zatwierdzony, możesz wejść tutaj tym samym ID.',
+  'join.banned.title': 'Dostęp zablokowany',
+  'join.banned.body': 'Ten Player ID nie ma obecnie uprawnień do gry.',
+
+  'lobby.title': 'Lobby',
+  'lobby.signedInAs': 'Zalogowany jako',
+  'lobby.chipsSuffix': 'żetonów',
+  'lobby.socketStatus': 'Socket',
+  'lobby.pending.title': 'Konto oczekuje na zatwierdzenie',
+  'lobby.pending.body':
+    'Gdy administrator zatwierdzi twój Player ID, stoły pojawią się tutaj.',
+  'lobby.empty': 'Obecnie brak otwartych stołów.',
+  'lobby.buyIn': 'Buy-in',
+  'lobby.playersCount': 'Gracze',
+  'lobby.inHand': 'Trwa rozdanie',
+  'lobby.waiting': 'Oczekiwanie',
+  'lobby.join': 'Dołącz',
+
+  'table.phaseLabel': 'Stół',
+  'table.leave': 'Opuść',
+  'table.handNumber': 'Rozdanie #',
+  'table.pot': 'Pot',
+  'table.blinds': 'Blinds',
+  'table.sidePots': 'Side pots',
+  'table.empty': '—',
+  'table.empty.seat': 'Wolne',
+  'table.connecting': 'Łączenie…',
+  'table.bb': 'BB',
+
+  'action.fold': 'Fold',
+  'action.check': 'Check',
+  'action.call': 'Call',
+  'action.bet': 'Bet',
+  'action.raise': 'Raise',
+  'action.allIn': 'All-in',
+  'action.waiting': 'Czekam…',
+
+  'seat.allIn': 'ALL-IN',
+  'seat.recon': 'RECON',
+
+  'chat.title': 'Czat przy stole',
+  'chat.empty': 'Cicho na razie.',
+  'chat.placeholder': 'Napisz coś…',
+  'chat.send': 'Wyślij',
+
+  'admin.login.title': 'Dostęp administratora',
+  'admin.login.body':
+    'Tylko dla głównego administratora projektu. Próby logowania są ograniczone.',
+  'admin.login.username': 'Nazwa użytkownika',
+  'admin.login.password': 'Hasło',
+  'admin.login.submit': 'Zaloguj',
+  'admin.login.submitting': 'Sprawdzam…',
+  'admin.login.errors.failed': 'Logowanie nie powiodło się.',
+
+  'admin.title': 'Panel administratora',
+  'admin.counts': 'Oczekujący {pending} · Zatwierdzeni {approved} · Zablokowani {banned} · Stoły {tables}',
+  'admin.auditButton': 'Dziennik audytu',
+  'admin.logout': 'Wyloguj',
+  'admin.pendingTitle': 'Oczekujące zatwierdzenia',
+  'admin.pendingEmpty': 'Brak otwartych zgłoszeń.',
+  'admin.col.handle': 'Handle',
+  'admin.col.display': 'Nazwa',
+  'admin.col.joined': 'Dołączył',
+  'admin.col.actions': 'Akcje',
+  'admin.col.status': 'Status',
+  'admin.col.chips': 'Żetony',
+  'admin.approve': 'Zatwierdź',
+  'admin.reject': 'Odrzuć',
+  'admin.players': 'Gracze',
+  'admin.chipsAdjust': 'Żetony ±',
+  'admin.ban': 'Zablokuj',
+  'admin.unban': 'Odblokuj',
+  'admin.tables': 'Stoły',
+  'admin.newTable': '+ Nowy stół',
+  'admin.tablesEmpty': 'Nie utworzono jeszcze stołów.',
+  'admin.col.name': 'Nazwa',
+  'admin.col.blinds': 'Blinds',
+  'admin.col.buyIn': 'Buy-in',
+  'admin.col.max': 'Max',
+  'admin.tableStatus.archived': 'Zarchiwizowany',
+  'admin.tableStatus.active': 'Aktywny',
+  'admin.prompt.initialChips': 'Początkowe żetony (0 = brak):',
+  'admin.prompt.confirmReject': 'Odrzucić to zgłoszenie?',
+  'admin.prompt.chipsAdjust': 'Obecnie {chips} — Δ (+/-):',
+  'admin.prompt.banReason': 'Powód:',
+  'admin.prompt.tableName': 'Nazwa stołu:',
+  'admin.prompt.tableSb': 'Small blind:',
+  'admin.prompt.tableBb': 'Big blind:',
+  'admin.prompt.tableBuyIn': 'Buy-in:',
+  'admin.prompt.tableMax': 'Maks. graczy (2–9):',
+
+  'audit.title': 'Dziennik audytu',
+  'audit.col.time': 'Czas',
+  'audit.col.action': 'Akcja',
+  'audit.col.player': 'Gracz',
+  'audit.col.table': 'Stół',
+  'audit.col.reason': 'Powód',
+  'audit.col.payload': 'Payload',
+};
+
+export type TKey = keyof typeof en;
+
+export const dict: Record<Locale, Record<TKey, string>> = { en, de, pl };

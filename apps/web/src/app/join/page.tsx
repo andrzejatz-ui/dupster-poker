@@ -7,6 +7,7 @@ import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { joinAsPlayer } from '@/lib/api';
 import { setSession } from '@/lib/session';
+import { useT } from '@/i18n/context';
 
 // `useSearchParams` triggers a CSR bail during static export unless it
 // sits inside a Suspense boundary. Wrap the form in one.
@@ -19,6 +20,7 @@ export default function JoinPage() {
 }
 
 function JoinForm() {
+  const t = useT();
   const router = useRouter();
   const params = useSearchParams();
   const inviteCode = params.get('invite') ?? null;
@@ -32,7 +34,7 @@ function JoinForm() {
     e.preventDefault();
     setError(null);
     if (handle.trim().length < 2) {
-      setError('Bitte gib eine gültige Player-ID ein.');
+      setError(t('join.errors.invalidId'));
       return;
     }
     setPhase('submitting');
@@ -51,7 +53,7 @@ function JoinForm() {
       return;
     }
     setPhase('idle');
-    setError(body.error ?? 'Unbekannter Fehler.');
+    setError(body.error ?? t('join.errors.unknown'));
   }
 
   if (phase === 'pending') {
@@ -59,14 +61,11 @@ function JoinForm() {
       <main className="min-h-screen flex items-center justify-center px-6 py-12">
         <NeonCard glow="cyan" strong className="max-w-md w-full text-center">
           <h1 className="font-display text-2xl text-glow-cyan text-neon-cyan mb-3">
-            Warten auf Freigabe
+            {t('join.pending.title')}
           </h1>
-          <p className="text-white/60 text-sm mb-6">
-            Deine Player-ID liegt jetzt beim Admin. Sobald sie freigegeben ist,
-            kannst du hier mit derselben ID erneut beitreten.
-          </p>
+          <p className="text-white/60 text-sm mb-6">{t('join.pending.body')}</p>
           <NeonButton variant="ghost" onClick={() => setPhase('idle')}>
-            Zurück
+            {t('common.back')}
           </NeonButton>
         </NeonCard>
       </main>
@@ -77,10 +76,8 @@ function JoinForm() {
     return (
       <main className="min-h-screen flex items-center justify-center px-6 py-12">
         <NeonCard glow={null} strong className="max-w-md w-full text-center">
-          <h1 className="font-display text-2xl text-rose-300 mb-3">Zugang gesperrt</h1>
-          <p className="text-white/60 text-sm">
-            Diese Player-ID ist aktuell nicht spielberechtigt.
-          </p>
+          <h1 className="font-display text-2xl text-rose-300 mb-3">{t('join.banned.title')}</h1>
+          <p className="text-white/60 text-sm">{t('join.banned.body')}</p>
         </NeonCard>
       </main>
     );
@@ -91,22 +88,19 @@ function JoinForm() {
       <NeonCard glow="violet" strong className="max-w-md w-full">
         <div className="mb-6">
           <span className="text-[10px] uppercase tracking-[0.4em] text-white/40 font-display">
-            {inviteCode ? `Invite · ${inviteCode}` : 'Privater Zugang'}
+            {inviteCode ? `${t('join.invitePrefix')} · ${inviteCode}` : t('join.privateAccess')}
           </span>
           <h1 className="font-display text-3xl mt-2 text-glow-violet text-neon-violet">
-            Player-ID
+            {t('join.title')}
           </h1>
-          <p className="text-white/55 text-sm mt-2">
-            Tippe deine ID exakt so ein, wie der Admin sie dir genannt hat.
-            Sie wird nicht gespeichert — bei nächstem Besuch erneut nötig.
-          </p>
+          <p className="text-white/55 text-sm mt-2">{t('join.body')}</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
           <NeonInput
             id="player-handle"
-            label="Player-ID"
-            placeholder="z.B. king_of_clubs"
+            label={t('join.idLabel')}
+            placeholder={t('join.idPlaceholder')}
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             autoFocus
@@ -115,12 +109,12 @@ function JoinForm() {
           />
           <NeonInput
             id="player-display"
-            label="Anzeigename (optional)"
-            placeholder="Wird am Tisch gezeigt"
+            label={t('join.nameLabel')}
+            placeholder={t('join.namePlaceholder')}
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             autoComplete="off"
-            hint="Leer lassen, um die Player-ID als Name zu nutzen."
+            hint={t('join.nameHint')}
           />
           <NeonButton
             type="submit"
@@ -129,7 +123,7 @@ function JoinForm() {
             disabled={phase === 'submitting'}
             className="w-full"
           >
-            {phase === 'submitting' ? 'Prüfe …' : 'Eintreten'}
+            {phase === 'submitting' ? t('join.submitting') : t('join.submit')}
           </NeonButton>
         </form>
       </NeonCard>

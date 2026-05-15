@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
+import { I18nShell } from '@/components/ui/I18nShell';
 
 export const metadata: Metadata = {
   title: 'Neon Poker',
@@ -22,7 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen antialiased">
-        {children}
+        <I18nShell>{children}</I18nShell>
       </body>
     </html>
   );

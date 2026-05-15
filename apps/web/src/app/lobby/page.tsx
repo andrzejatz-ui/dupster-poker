@@ -6,9 +6,11 @@ import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { useSocket } from '@/hooks/useSocket';
 import { getProfile, clearSession } from '@/lib/session';
+import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
 
 export default function LobbyPage() {
+  const t = useT();
   const router = useRouter();
   const { socket, status } = useSocket();
   const [tables, setTables] = useState<TableSummary[]>([]);
@@ -35,8 +37,7 @@ export default function LobbyPage() {
 
   async function join(t: TableSummary) {
     if (!socket) return;
-    // find first free seat
-    const seatIndex = 0; // server validates; in real UI player picks seat
+    const seatIndex = 0;
     socket.emit(
       'client:lobby:join',
       { tableId: t.id, seatIndex },
@@ -51,63 +52,63 @@ export default function LobbyPage() {
     <main className="min-h-screen px-6 py-10 max-w-6xl mx-auto">
       <header className="flex items-center justify-between mb-10">
         <div>
-          <h1 className="font-display text-3xl text-glow-cyan text-neon-cyan">Lobby</h1>
+          <h1 className="font-display text-3xl text-glow-cyan text-neon-cyan">{t('lobby.title')}</h1>
           <p className="text-white/50 text-sm">
-            Angemeldet als <span className="font-mono text-white/80">{profile?.handle}</span>
+            {t('lobby.signedInAs')} <span className="font-mono text-white/80">{profile?.handle}</span>
             {profile?.chips != null && (
               <>
-                {' '}· <span className="text-neon-gold">{profile.chips.toLocaleString()} Chips</span>
+                {' '}· <span className="text-neon-gold">
+                  {profile.chips.toLocaleString()} {t('lobby.chipsSuffix')}
+                </span>
               </>
             )}
-            {' '}· Socket: <span className="text-white/40">{status}</span>
+            {' '}· {t('lobby.socketStatus')}: <span className="text-white/40">{status}</span>
           </p>
         </div>
         <NeonButton variant="ghost" onClick={logout}>
-          Abmelden
+          {t('common.signOut')}
         </NeonButton>
       </header>
 
       {pending ? (
         <NeonCard glow="cyan" strong className="text-center">
-          <h2 className="text-xl font-display mb-2">Account wartet auf Freigabe</h2>
-          <p className="text-white/55 text-sm">
-            Sobald der Admin deine Player-ID genehmigt hat, erscheinen hier die Tische.
-          </p>
+          <h2 className="text-xl font-display mb-2">{t('lobby.pending.title')}</h2>
+          <p className="text-white/55 text-sm">{t('lobby.pending.body')}</p>
         </NeonCard>
       ) : tables.length === 0 ? (
         <NeonCard className="text-center">
-          <p className="text-white/55">Aktuell sind keine Tische offen.</p>
+          <p className="text-white/55">{t('lobby.empty')}</p>
         </NeonCard>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {tables.map((t) => (
-            <NeonCard key={t.id} glow="blue" className="flex flex-col gap-4">
+          {tables.map((tbl) => (
+            <NeonCard key={tbl.id} glow="blue" className="flex flex-col gap-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-display text-xl">{t.name}</h3>
+                  <h3 className="font-display text-xl">{tbl.name}</h3>
                   <p className="text-white/50 text-xs font-mono mt-1">
-                    SB {t.smallBlind} / BB {t.bigBlind} · Buy-in {t.buyIn.toLocaleString()}
+                    SB {tbl.smallBlind} / BB {tbl.bigBlind} · {t('lobby.buyIn')} {tbl.buyIn.toLocaleString()}
                   </p>
                 </div>
                 <span
                   className={`text-[10px] uppercase tracking-widest font-display px-2 py-1 rounded-md border ${
-                    t.inHand
+                    tbl.inHand
                       ? 'text-neon-pink border-neon-pink/40 bg-neon-pink/10'
                       : 'text-neon-green border-neon-green/40 bg-neon-green/10'
                   }`}
                 >
-                  {t.inHand ? 'Hand läuft' : 'Wartend'}
+                  {tbl.inHand ? t('lobby.inHand') : t('lobby.waiting')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-white/60 text-sm">
-                  Spieler {t.seated}/{t.maxPlayers}
+                  {t('lobby.playersCount')} {tbl.seated}/{tbl.maxPlayers}
                 </span>
                 <NeonButton
-                  onClick={() => join(t)}
-                  disabled={t.seated >= t.maxPlayers}
+                  onClick={() => join(tbl)}
+                  disabled={tbl.seated >= tbl.maxPlayers}
                 >
-                  Beitreten
+                  {t('lobby.join')}
                 </NeonButton>
               </div>
             </NeonCard>
