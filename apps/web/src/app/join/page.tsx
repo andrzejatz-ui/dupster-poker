@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
@@ -8,7 +8,17 @@ import { NeonInput } from '@/components/ui/Input';
 import { joinAsPlayer } from '@/lib/api';
 import { setSession } from '@/lib/session';
 
+// `useSearchParams` triggers a CSR bail during static export unless it
+// sits inside a Suspense boundary. Wrap the form in one.
 export default function JoinPage() {
+  return (
+    <Suspense fallback={null}>
+      <JoinForm />
+    </Suspense>
+  );
+}
+
+function JoinForm() {
   const router = useRouter();
   const params = useSearchParams();
   const inviteCode = params.get('invite') ?? null;
