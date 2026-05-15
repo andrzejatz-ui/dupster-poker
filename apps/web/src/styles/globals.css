@@ -114,13 +114,19 @@ body::after {
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---- Playing cards --------------------------------------------- */
+/*
+ * IMPORTANT: don't set `color` here. The suit colour (red / black) is
+ * a Tailwind text-* utility applied on the same element from React.
+ * Because globals.css is loaded after @tailwind utilities, setting
+ * `color` here would win on equal specificity and turn every suit
+ * black. The off-white parchment fill stays, the rank + glyph colour
+ * stays under React's control.
+ */
 .card-face {
   background: linear-gradient(160deg, #f4f1ea 0%, #d9d3c2 100%);
-  color: #0c0c0f;
   border: 1px solid rgba(212,175,55,0.35);
   box-shadow: 0 6px 18px -6px rgba(0,0,0,0.7);
 }
-.card-face-red { color: #b03a2e; }   /* hearts/diamonds */
 
 .card-back {
   background:

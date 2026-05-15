@@ -10,7 +10,15 @@ import { PlayerSeat } from '@/components/table/PlayerSeat';
 import { Board } from '@/components/table/Board';
 import { ActionBar } from '@/components/table/ActionBar';
 import { ChatBox, type ChatLine } from '@/components/table/ChatBox';
+import { HandResultBanner } from '@/components/table/HandResultBanner';
+import { playChatDing, playChipPlink } from '@/lib/sounds';
+import type { Card } from '@neon-poker/shared/poker';
 import { useT } from '@/i18n/context';
+
+interface ResultSnapshot {
+  winners: Array<{ seatIndex: number; amount: number; handLabel: string | null }>;
+  revealed: Array<{ seatIndex: number; holeCards: [Card, Card]; handLabel: string }>;
+}
 
 export default function TablePage() {
   const t = useT();
@@ -19,6 +27,7 @@ export default function TablePage() {
   const { socket, status } = useSocket();
   const [state, setState] = useState<PublicTableState | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
+  const [result, setResult] = useState<ResultSnapshot | null>(null);
   const [, force] = useState(0);
 
   // tick once per 250ms so the turn timer keeps refreshing
@@ -30,18 +39,38 @@ export default function TablePage() {
   useEffect(() => {
     if (!socket || !id) return;
     socket.on('server:table:state', (s) => {
-      if (s.tableId === id) setState(s);
+      if (s.tableId === id) {
+        setState(s);
+        // A new hand started → drop any lingering result snapshot.
+        if (s.handNumber > 0 && s.phase !== 'showdown' && s.phase !== 'waiting') {
+          setResult(null);
+        }
+      }
     });
     socket.on('server:table:chat', (msg) => {
       if (msg.tableId !== id) return;
       setChat((c) => [...c, msg]);
+      // Don't ding for our own messages.
+      const myName = state?.seats.find((s) => s.seatIndex === state.mySeatIndex)?.displayName;
+      if (msg.from !== myName) playChatDing();
     });
     socket.on('server:table:error', (e) => alert(e.message));
+    // Hand finished — keep the winner + revealed cards on screen for
+    // the 5-second pause the server takes before dealing the next hand.
+    socket.on('server:table:hand:result', (payload) => {
+      if (payload.tableId !== id) return;
+      setResult({ winners: payload.winners, revealed: payload.revealed });
+      playChipPlink();
+      // safety self-clear in case the next hand never comes (e.g. table
+      // closed) — server normally re-deals after 5s.
+      setTimeout(() => setResult(null), 5500);
+    });
     // Admin kicked us or closed the table — bounce to lobby.
     socket.on('server:account:left_table', (payload) => {
       if (payload.tableId !== id) return;
       router.replace(`/lobby?leftReason=${encodeURIComponent(payload.reason)}`);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, id, router]);
 
   const seatsByIndex = useMemo(() => {
@@ -131,20 +160,40 @@ export default function TablePage() {
             </div>
 
             {/* Seats */}
-            {seatPositions.map((pos, idx) => (
-              <div
-                key={idx}
-                className="absolute"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
-              >
-                <PlayerSeat
-                  seat={seatsByIndex.get(idx) ?? null}
-                  seatIndex={idx}
-                  isButton={state.buttonSeat === idx}
-                  bigBlindAmount={state.bigBlind}
-                />
-              </div>
-            ))}
+            {seatPositions.map((pos, idx) => {
+              const base = seatsByIndex.get(idx) ?? null;
+              // While the result banner is up, splice in opponents' hole
+              // cards so the seats reveal what the banner is summarising.
+              const reveal = result?.revealed.find((r) => r.seatIndex === idx);
+              const seat = base && reveal && !base.holeCards
+                ? { ...base, revealedCards: reveal.holeCards }
+                : base;
+              return (
+                <div
+                  key={idx}
+                  className="absolute"
+                  style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
+                >
+                  <PlayerSeat
+                    seat={seat}
+                    seatIndex={idx}
+                    isButton={state.buttonSeat === idx}
+                    bigBlindAmount={state.bigBlind}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Hand-result banner (5s after every finished hand). */}
+            {result && (
+              <HandResultBanner
+                winners={result.winners}
+                revealed={result.revealed}
+                nameForSeat={(i) =>
+                  state.seats.find((s) => s.seatIndex === i)?.displayName ?? `#${i}`
+                }
+              />
+            )}
           </div>
 
           {/* Action bar — sticky bottom on mobile so it's always reachable */}

@@ -79,6 +79,31 @@ export function playDealCard(): void {
 }
 
 /**
+ * Quiet chat ding — small high-end blip, well under the deal swoosh
+ * level so it never overwhelms the table.
+ */
+export function playChatDing(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+
+  const osc = audio.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1320, now);
+  osc.frequency.exponentialRampToValueAtTime(940, now + 0.12);
+
+  const gain = audio.createGain();
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+  osc.connect(gain).connect(audio.destination);
+  osc.start(now);
+  osc.stop(now + 0.15);
+}
+
+/**
  * Soft warm chip-stack thunk — for a winning hand or major event.
  */
 export function playChipPlink(): void {
