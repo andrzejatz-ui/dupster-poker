@@ -11,6 +11,9 @@ import { Board } from '@/components/table/Board';
 import { ActionBar } from '@/components/table/ActionBar';
 import { ChatBox, type ChatLine } from '@/components/table/ChatBox';
 import { HandResultBanner } from '@/components/table/HandResultBanner';
+import { HistoryModal } from '@/components/table/HistoryModal';
+import { fetchChatHistory } from '@/lib/api';
+import { getToken } from '@/lib/session';
 import { playChatDing, playChipPlink } from '@/lib/sounds';
 import type { Card } from '@neon-poker/shared/poker';
 import { useT } from '@/i18n/context';
@@ -28,7 +31,29 @@ export default function TablePage() {
   const [state, setState] = useState<PublicTableState | null>(null);
   const [chat, setChat] = useState<ChatLine[]>([]);
   const [result, setResult] = useState<ResultSnapshot | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [, force] = useState(0);
+
+  // Replay the last 50 chat messages from the server on mount so a
+  // page reload doesn't wipe the conversation.
+  useEffect(() => {
+    if (!id) return;
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    fetchChatHistory(token, id, 50).then((r) => {
+      if (cancelled || r.status !== 200) return;
+      type R = { id: string; body: string; at: number; from: string };
+      const lines: ChatLine[] = (r.body.messages as R[] | undefined ?? []).map((m) => ({
+        from: m.from,
+        body: m.body,
+        at: m.at,
+        seatIndex: null,
+      }));
+      setChat(lines);
+    });
+    return () => { cancelled = true; };
+  }, [id]);
 
   // tick once per 250ms so the turn timer keeps refreshing
   useEffect(() => {
@@ -144,6 +169,9 @@ export default function TablePage() {
               </NeonButton>
             );
           })()}
+          <NeonButton size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
+            {t('history.button')}
+          </NeonButton>
           <NeonButton size="sm" variant="ghost" onClick={leave}>
             {t('table.leave')}
           </NeonButton>
@@ -203,6 +231,8 @@ export default function TablePage() {
                 legal={state.legalActionsForMe}
                 isMyTurn={isMyTurn}
                 deadline={state.toActDeadline}
+                pot={state.pot}
+                bigBlind={state.bigBlind}
                 waitingFor={
                   state.toActSeat !== null
                     ? state.seats.find((s) => s.seatIndex === state.toActSeat)?.displayName ?? null
@@ -251,6 +281,10 @@ export default function TablePage() {
           <ChatBox lines={chat} onSend={sendChat} />
         </aside>
       </div>
+
+      {historyOpen && id && (
+        <HistoryModal tableId={id} onClose={() => setHistoryOpen(false)} />
+      )}
     </main>
   );
 }

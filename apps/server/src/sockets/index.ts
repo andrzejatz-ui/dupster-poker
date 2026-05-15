@@ -3,6 +3,7 @@ import { Server as IOServer, type Socket } from 'socket.io';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
+import { pool } from '../db/client.js';
 import { isSessionActive, touchSession, verifyPlayerToken } from '../auth/sessions.js';
 import { findPlayerById } from '../auth/players.js';
 import type {
@@ -168,9 +169,9 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       else ack({ ok: false, error: res.message, code: res.code });
     });
 
-    // ---- Chat (rate-limited per socket) -------------------------
+    // ---- Chat (rate-limited per socket, persisted to DB) --------
     const chatBuckets = new Map<string, number[]>();
-    socket.on('client:table:chat', (payload) => {
+    socket.on('client:table:chat', async (payload) => {
       const body = String(payload.body ?? '').trim().slice(0, 280);
       if (!body) return;
       const now = Date.now();
@@ -183,10 +184,23 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       const table = tables.get(payload.tableId);
       if (!table) return;
       const seat = [...table.seats.values()].find((s) => s.playerId === socket.data.playerId);
+      const from = seat?.displayName ?? 'Spectator';
+
+      // Persist before broadcasting so a refresh of the page replays the
+      // same message. Best-effort: a DB hiccup must not block the chat.
+      try {
+        await pool.query(
+          `insert into chat_messages (table_id, player_id, body) values ($1, $2, $3)`,
+          [payload.tableId, socket.data.playerId, body],
+        );
+      } catch (err) {
+        logger.warn({ err }, 'chat persist failed');
+      }
+
       io.to(`table:${payload.tableId}`).emit('server:table:chat', {
         tableId: payload.tableId,
         seatIndex: seat?.seatIndex ?? null,
-        from: seat?.displayName ?? 'Spectator',
+        from,
         body,
         at: now,
       });

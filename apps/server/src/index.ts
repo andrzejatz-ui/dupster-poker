@@ -8,6 +8,7 @@ import { runMigrations } from './db/migrate.js';
 import { bootstrapAdmin } from './auth/admin.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
+import { tablesRouter } from './tables/routes.js';
 import { TableManager } from './rooms/tableManager.js';
 import { attachSocketServer } from './sockets/index.js';
 
@@ -58,6 +59,7 @@ async function main() {
   const io = attachSocketServer(server, tables);
 
   app.use('/admin', adminRouter(tables, io));
+  app.use('/tables', tablesRouter());
 
   server.listen(config.SERVER_PORT, () => {
     logger.info(

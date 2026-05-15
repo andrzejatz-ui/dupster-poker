@@ -113,6 +113,12 @@ const en = {
   'seat.allIn': 'ALL-IN',
   'seat.recon': 'RECON',
 
+  // History
+  'history.button': 'History',
+  'history.title': 'Hand history',
+  'history.subtitle': 'Last 20 hands at this table.',
+  'history.empty': 'No hands have been played here yet.',
+
   // Chat
   'chat.title': 'Table chat',
   'chat.empty': 'Quiet so far.',
@@ -301,6 +307,11 @@ const de: Record<keyof typeof en, string> = {
   'seat.allIn': 'ALL-IN',
   'seat.recon': 'RECON',
 
+  'history.button': 'Historie',
+  'history.title': 'Hand-Historie',
+  'history.subtitle': 'Letzte 20 Hände an diesem Tisch.',
+  'history.empty': 'Hier wurde noch keine Hand gespielt.',
+
   'chat.title': 'Tisch-Chat',
   'chat.empty': 'Noch ruhig hier.',
   'chat.placeholder': 'Sag was …',
@@ -484,6 +495,11 @@ const pl: Record<keyof typeof en, string> = {
 
   'seat.allIn': 'ALL-IN',
   'seat.recon': 'RECON',
+
+  'history.button': 'Historia',
+  'history.title': 'Historia rozdań',
+  'history.subtitle': 'Ostatnich 20 rozdań przy tym stole.',
+  'history.empty': 'Tu jeszcze nie zagrano żadnego rozdania.',
 
   'chat.title': 'Czat przy stole',
   'chat.empty': 'Cicho na razie.',

@@ -34,6 +34,22 @@ export async function updateAvatar(token: string, avatarUrl: string | null) {
   return { status: res.status, body } as const;
 }
 
+export async function fetchChatHistory(token: string, tableId: string, limit = 50) {
+  const res = await rawFetch(`/tables/${tableId}/chat?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body } as const;
+}
+
+export async function fetchHandHistory(token: string, tableId: string, limit = 20) {
+  const res = await rawFetch(`/tables/${tableId}/history?limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body } as const;
+}
+
 export async function adminLogin(username: string, password: string) {
   const res = await rawFetch('/admin/login', {
     method: 'POST',
