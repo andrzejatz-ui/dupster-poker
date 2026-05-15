@@ -8,10 +8,13 @@ import {
   verifyAdminLogin,
 } from '../auth/admin.js';
 import {
+  createSession,
   revokeAllPlayerSessions,
   revokeSession,
   signAdminToken,
+  signPlayerToken,
 } from '../auth/sessions.js';
+import { findPlayerByHandle } from '../auth/players.js';
 import { requireAdmin, type AdminRequest } from '../middleware/adminAuth.js';
 import { config } from '../config.js';
 import type { TableManager } from '../rooms/tableManager.js';
@@ -38,6 +41,91 @@ export function adminRouter(tables: TableManager): Router {
     if (!result) return res.status(401).json({ error: 'invalid_credentials' });
     const token = signAdminToken(result.id);
     res.json({ token, admin: { id: result.id, username: result.username } });
+  });
+
+  /* ---- Admin "play" shortcut ------------------------------------- */
+  /**
+   * Issues a player session for the admin so they can join a table from
+   * the same browser. Creates the player on demand, forces approved, and
+   * optionally grants chips on first creation. Logged in admin_log.
+   *
+   * Auth gate is requireAdmin — only an authenticated admin can mint
+   * arbitrary player sessions, which is no more powerful than the
+   * existing approve+grant chains they already control.
+   */
+  r.post('/play', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({
+      playerHandle: z.string().min(2).max(40).trim(),
+      displayName: z.string().max(40).optional(),
+      initialChips: z.number().int().min(0).max(10_000_000).optional(),
+    });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+
+    const handle = parsed.data.playerHandle;
+    let player = await findPlayerByHandle(handle);
+    let created = false;
+
+    if (!player) {
+      const ins = await pool.query<{ id: string }>(
+        `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
+         values ($1, $2, 'approved', 0, now(), $3) returning id`,
+        [handle, parsed.data.displayName ?? null, req.adminId],
+      );
+      created = true;
+      player = await findPlayerByHandle(handle);
+      if (!player) return res.status(500).json({ error: 'create_failed' });
+    } else if (player.status !== 'approved') {
+      await pool.query(
+        `update players set status='approved', approved_at=now(), approved_by=$2,
+           banned_at=null, banned_reason=null where id=$1`,
+        [player.id, req.adminId],
+      );
+      player = await findPlayerByHandle(handle);
+      if (!player) return res.status(500).json({ error: 'reapprove_failed' });
+    }
+
+    // Only grant chips when explicitly requested AND balance is empty,
+    // to avoid accidental repeated top-ups when admin clicks Play twice.
+    if (parsed.data.initialChips && player.chips === 0) {
+      await moveChips({
+        playerId: player.id,
+        delta: parsed.data.initialChips,
+        reason: 'admin_grant',
+        adminId: req.adminId,
+        note: 'admin self-grant via /admin/play',
+      });
+      player = await findPlayerByHandle(handle);
+      if (!player) return res.status(500).json({ error: 'grant_failed' });
+    }
+
+    // Mint a player session. Same two-step "temp token to get sid, then
+    // sign real token with sid" trick as /auth/join.
+    const tempToken = signPlayerToken(player.id, 'pending');
+    const sessionId = await createSession({
+      playerId: player.id,
+      token: tempToken,
+      ip: req.ip ?? null,
+      userAgent: req.header('user-agent') ?? null,
+    });
+    const token = signPlayerToken(player.id, sessionId);
+
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'admin_play',
+      targetPlayerId: player.id,
+      payload: { handle, created, initialChips: parsed.data.initialChips ?? 0 },
+    });
+
+    res.json({
+      token,
+      profile: {
+        id: player.id,
+        handle: player.handle,
+        displayName: player.displayName,
+        chips: player.chips,
+      },
+    });
   });
 
   /* ---- Players --------------------------------------------------- */

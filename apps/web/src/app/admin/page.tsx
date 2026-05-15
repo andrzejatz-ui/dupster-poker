@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { adminCall, clearAdminToken, getAdminToken } from '@/lib/admin';
+import { setSession } from '@/lib/session';
 import { useT } from '@/i18n/context';
 
 interface PlayerRow {
@@ -126,6 +127,34 @@ export default function AdminDashboard() {
     router.replace('/admin/login');
   }
 
+  /**
+   * Issues a player session for the admin so they can sit at a table
+   * from the same browser. The admin's adminToken stays in
+   * sessionStorage alongside the new player token, so going back to
+   * /admin still works without re-login.
+   */
+  async function playAsAdmin() {
+    const handle = (prompt(t('admin.prompt.playHandle'), 'admin') ?? '').trim();
+    if (handle.length < 2) return;
+    const chipsRaw = prompt(t('admin.prompt.playChips'), '10000');
+    if (chipsRaw === null) return;
+    const initialChips = Number(chipsRaw) || 0;
+    const r = await adminCall('/play', {
+      method: 'POST',
+      body: JSON.stringify({
+        playerHandle: handle,
+        displayName: handle,
+        initialChips,
+      }),
+    });
+    if (r.status === 200 && r.body.token) {
+      setSession(r.body.token, r.body.profile);
+      router.push('/lobby');
+      return;
+    }
+    alert(r.body.error ?? 'failed');
+  }
+
   return (
     <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto space-y-6">
       <header className="flex items-center justify-between pr-24 sm:pr-36">
@@ -142,7 +171,10 @@ export default function AdminDashboard() {
             })}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
+          <NeonButton variant="gold" size="sm" onClick={playAsAdmin}>
+            ▶ {t('admin.play')}
+          </NeonButton>
           <Link href="/admin/audit"><NeonButton variant="ghost" size="sm">{t('admin.auditButton')}</NeonButton></Link>
           <NeonButton variant="ghost" size="sm" onClick={logout}>{t('admin.logout')}</NeonButton>
         </div>
