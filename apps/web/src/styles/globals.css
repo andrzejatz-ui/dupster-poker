@@ -142,38 +142,105 @@ body::after {
   mix-blend-mode: overlay;
 }
 
-/* ---- Felt: deep obsidian table top ----------------------------- */
+/* ---- Felt: classic emerald-on-obsidian poker top --------------- */
+/*
+ * Center stays mostly obsidian so the action reads. Mid-band picks up a
+ * deep-emerald tint that evokes traditional casino felt. Edges fall to
+ * near-black, framed by a thin gold inner rule. A second layer (::before)
+ * adds a faint, slowly-breathing gold ring just inside the rim.
+ */
 .felt {
-  background: radial-gradient(ellipse at center, #14110a 0%, #0c0a07 55%, #050402 95%);
-  border: 1px solid rgba(212,175,55,0.16);
+  background:
+    radial-gradient(ellipse at center,
+      rgba(20,17,10,1) 0%,
+      rgba(10,30,22,0.85) 40%,
+      rgba(7,18,14,0.95) 70%,
+      rgba(3,8,6,1) 95%);
+  border: 1px solid rgba(212,175,55,0.22);
   box-shadow:
     inset 0 0 80px rgba(0,0,0,0.7),
     inset 0 0 0 6px rgba(0,0,0,0.6),
-    inset 0 0 0 7px rgba(212,175,55,0.12),
-    0 30px 120px -30px rgba(212,175,55,0.10);
+    inset 0 0 0 7px rgba(212,175,55,0.14),
+    0 30px 120px -30px rgba(0,0,0,0.85),
+    0 0 0 1px rgba(212,175,55,0.08);
   position: relative;
 }
+.felt::before {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(212,175,55,0.10);
+  box-shadow: inset 0 0 60px rgba(20,80,55,0.10);
+}
 .felt::after {
-  /* subtle gold ring breathing */
   content: '';
   position: absolute;
   inset: 6px;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow: inset 0 0 60px rgba(212,175,55,0.08);
+  box-shadow: inset 0 0 60px rgba(212,175,55,0.10);
   animation: amberPulse 6s ease-in-out infinite;
 }
 
-/* ---- To-act indicator (gold) ----------------------------------- */
+/* ---- To-act indicator: layered gold halo with a slow pulse ----- */
 .ring-toact {
   box-shadow:
-    0 0 0 2px rgba(212,175,55,0.65),
-    0 0 24px rgba(212,175,55,0.45),
-    inset 0 0 24px rgba(212,175,55,0.12);
-  animation: amberPulse 2.6s ease-in-out infinite;
+    0 0 0 2px rgba(212,175,55,0.85),
+    0 0 0 4px rgba(212,175,55,0.18),
+    0 0 28px rgba(212,175,55,0.55),
+    inset 0 0 26px rgba(212,175,55,0.15);
+  animation: amberPulse 2.2s ease-in-out infinite;
 }
 
 /* ---- Mask emblem helper ---------------------------------------- */
 .sigil-glow {
   filter: drop-shadow(0 0 12px rgba(212,175,55,0.30));
+}
+
+/* ---- Dealer button: a real bevelled poker chip ----------------- */
+.dealer-chip {
+  background:
+    radial-gradient(circle at 30% 30%, #fff8d8 0%, #e6d28e 35%, #b8962e 70%, #6a4f10 100%);
+  box-shadow:
+    0 2px 6px rgba(0,0,0,0.7),
+    inset 0 1px 1px rgba(255,255,255,0.6),
+    inset 0 -2px 4px rgba(0,0,0,0.4);
+  color: #0c0c0f;
+  border: 1px solid rgba(0,0,0,0.5);
+}
+
+/* ---- Stacked-chip bet badge (a chip glyph + amount) ------------ */
+.chip-bet {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip-bet::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, #f5e08c, #b8962e 60%, #6a4f10 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.5),
+    inset 0 0 0 1px rgba(255,255,255,0.25);
+}
+
+/* ---- Ornamental gold rule (art-deco section divider) ----------- */
+.rule-ornament {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(212,175,55,0.6);
+  font-size: 9px;
+}
+.rule-ornament::before,
+.rule-ornament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,0.35), transparent);
 }

@@ -32,9 +32,9 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
 
   return (
     <div className="flex flex-col items-center gap-1.5 relative">
-      {/* Dealer button */}
+      {/* Dealer button — bevelled poker chip */}
       {isButton && (
-        <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 rounded-full bg-white text-ink-900 text-[10px] sm:text-xs font-display font-bold flex items-center justify-center shadow-lg z-10">
+        <div className="dealer-chip absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-xs font-display font-bold flex items-center justify-center z-10">
           D
         </div>
       )}
@@ -92,9 +92,9 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
         ) : null}
       </div>
 
-      {/* Current bet */}
+      {/* Current bet — gold chip + amount */}
       {seat.currentBet > 0 && (
-        <div className="mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-[10px] sm:text-xs font-mono animate-chip-pop">
+        <div className="chip-bet mt-1 px-1.5 sm:px-2 py-0.5 rounded-full bg-gold/15 border border-gold/40 text-gold text-[10px] sm:text-xs font-mono animate-chip-pop">
           {seat.currentBet.toLocaleString()}
         </div>
       )}

@@ -188,6 +188,15 @@ export interface ServerToClientEvents {
     reason: string;
   }) => void;
   'server:account:session_revoked': (payload: { reason: string }) => void;
+  /**
+   * Tells the player to leave a table view they're currently on — they
+   * were kicked by an admin or the table was closed. UI should redirect
+   * to /lobby and surface the reason as a toast/alert.
+   */
+  'server:account:left_table': (payload: {
+    tableId: string;
+    reason: 'kicked' | 'table_closed';
+  }) => void;
 }
 
 export interface SocketData {

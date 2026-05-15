@@ -403,6 +403,41 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     res.json({ ok: true });
   });
 
+  /**
+   * Kicks a player from whatever table they're currently sitting at.
+   * Their stack is cashed out via the normal leavePlayer flow, the seat
+   * row is dropped, and the player's open sockets get a
+   * server:account:left_table push so their UI redirects to /lobby.
+   * No-op (404) if they're not currently seated.
+   */
+  r.post('/players/:id/kick', requireAdmin, async (req: AdminRequest, res) => {
+    const seatRow = await pool.query<{ table_id: string; seat_index: number }>(
+      'select table_id, seat_index from table_seats where player_id = $1',
+      [req.params.id],
+    );
+    if ((seatRow.rowCount ?? 0) === 0) {
+      return res.status(404).json({ error: 'not_seated' });
+    }
+    const { table_id, seat_index } = seatRow.rows[0]!;
+    await tables.leavePlayer({
+      tableId: table_id,
+      seatIndex: seat_index,
+      playerId: req.params.id!,
+    });
+    emitToPlayer(io, req.params.id!, 'server:account:left_table', {
+      tableId: table_id,
+      reason: 'kicked',
+    });
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'kick_player',
+      targetPlayerId: req.params.id,
+      targetTableId: table_id,
+      payload: { seatIndex: seat_index },
+    });
+    res.json({ ok: true });
+  });
+
   r.post('/players/:id/concurrency', requireAdmin, async (req: AdminRequest, res) => {
     const Body = z.object({ allow: z.boolean() });
     const parsed = Body.safeParse(req.body);
@@ -535,9 +570,21 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
    * cash_out ledger path.
    */
   r.post('/tables/:id/close', requireAdmin, async (req: AdminRequest, res) => {
+    // Snapshot seated player ids BEFORE we close (closeTable empties the
+    // seat map) so we can push left_table to each.
+    const t = tables.get(req.params.id!);
+    const seatedIds = t ? [...t.seats.values()].map((s) => s.playerId) : [];
+
     const closed = await tables.closeTable(req.params.id!);
     if (!closed.ok) return res.status(404).json({ error: 'not_found' });
     await pool.query('update tables set archived_at = now() where id = $1', [req.params.id]);
+
+    for (const pid of seatedIds) {
+      emitToPlayer(io, pid, 'server:account:left_table', {
+        tableId: req.params.id!,
+        reason: 'table_closed',
+      });
+    }
     await logAdminAction({ adminId: req.adminId!, action: 'close_table', targetTableId: req.params.id });
     res.json({ ok: true });
   });

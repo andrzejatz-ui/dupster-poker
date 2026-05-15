@@ -42,6 +42,57 @@ export class TableManager {
   }
 
   /**
+   * If no active tables exist, seed three stake levels + a heads-up
+   * format so the admin doesn't have to create from scratch. Called
+   * once at boot, after loadTablesFromDb.
+   */
+  async ensureDefaultTables(turnTimerMs: number): Promise<void> {
+    if (this.tables.size > 0) return;
+    const admin = await pool.query<{ id: string }>(
+      'select id from admins order by created_at asc limit 1',
+    );
+    const adminId = admin.rows[0]?.id;
+    if (!adminId) return;
+
+    const presets: Array<{
+      name: string;
+      sb: number;
+      bb: number;
+      buyIn: number;
+      maxPlayers: number;
+    }> = [
+      { name: 'Casual',      sb: 5,   bb: 10,  buyIn: 500,   maxPlayers: 6 },
+      { name: 'Standard',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 6 },
+      { name: 'High Roller', sb: 100, bb: 200, buyIn: 10000, maxPlayers: 6 },
+      { name: 'Heads-Up',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 2 },
+    ];
+
+    for (const p of presets) {
+      const ins = await pool.query<{ id: string }>(
+        `insert into tables
+           (name, small_blind, big_blind, buy_in, max_players, allow_spectators, created_by)
+         values ($1,$2,$3,$4,$5,false,$6) returning id`,
+        [p.name, p.sb, p.bb, p.buyIn, p.maxPlayers, adminId],
+      );
+      const id = ins.rows[0]!.id;
+      this.tables.set(
+        id,
+        new PokerTable({
+          tableId: id,
+          name: p.name,
+          smallBlind: p.sb,
+          bigBlind: p.bb,
+          buyIn: p.buyIn,
+          maxPlayers: p.maxPlayers,
+          turnTimerMs,
+          allowSpectators: false,
+        }),
+      );
+    }
+    logger.warn({ count: presets.length }, 'seeded default tables');
+  }
+
+  /**
    * Releases all rows in table_seats, refunding the stack to each player.
    * Called once on boot so the next sit-down can succeed.
    */

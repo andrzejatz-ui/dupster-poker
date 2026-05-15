@@ -37,7 +37,12 @@ export default function TablePage() {
       setChat((c) => [...c, msg]);
     });
     socket.on('server:table:error', (e) => alert(e.message));
-  }, [socket, id]);
+    // Admin kicked us or closed the table — bounce to lobby.
+    socket.on('server:account:left_table', (payload) => {
+      if (payload.tableId !== id) return;
+      router.replace(`/lobby?leftReason=${encodeURIComponent(payload.reason)}`);
+    });
+  }, [socket, id, router]);
 
   const seatsByIndex = useMemo(() => {
     const map = new Map<number, PublicTableState['seats'][number]>();

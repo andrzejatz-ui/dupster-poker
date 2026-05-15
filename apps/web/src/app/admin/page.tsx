@@ -196,6 +196,18 @@ export default function AdminDashboard() {
                       <NeonButton size="sm" variant="ghost" onClick={() => setDialog({ kind: 'chips', player: p })}>
                         {t('admin.chipsAdjust')}
                       </NeonButton>
+                      {p.seat_table_id && (
+                        <NeonButton
+                          size="sm"
+                          variant="danger"
+                          onClick={async () => {
+                            await adminCall(`/players/${p.id}/kick`, { method: 'POST' });
+                            refresh();
+                          }}
+                        >
+                          {t('admin.kick')}
+                        </NeonButton>
+                      )}
                       <NeonButton
                         size="sm"
                         variant={p.status === 'banned' ? 'primary' : 'danger'}
@@ -608,15 +620,33 @@ function PasswordDialog({ player, onClose, onDone }: {
   );
 }
 
+const TABLE_PRESETS = [
+  { key: 'casual',  name: 'Casual',      sb: 5,   bb: 10,  buyIn: 500,   maxPlayers: 6 },
+  { key: 'standard',name: 'Standard',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 6 },
+  { key: 'high',    name: 'High Roller', sb: 100, bb: 200, buyIn: 10000, maxPlayers: 6 },
+  { key: 'headsup', name: 'Heads-Up',    sb: 25,  bb: 50,  buyIn: 2500,  maxPlayers: 2 },
+] as const;
+
 function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const t = useT();
-  const [name, setName] = useState('Dupster Table');
-  const [sb, setSb] = useState(10);
-  const [bb, setBb] = useState(20);
-  const [buyIn, setBuyIn] = useState(1000);
+  const [name, setName] = useState('Casual');
+  const [sb, setSb] = useState(5);
+  const [bb, setBb] = useState(10);
+  const [buyIn, setBuyIn] = useState(500);
   const [maxPlayers, setMaxPlayers] = useState(6);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activePreset, setActivePreset] = useState<string | null>('casual');
+
+  function applyPreset(p: typeof TABLE_PRESETS[number]) {
+    setActivePreset(p.key);
+    setName(p.name);
+    setSb(p.sb);
+    setBb(p.bb);
+    setBuyIn(p.buyIn);
+    setMaxPlayers(p.maxPlayers);
+  }
+
   async function submit() {
     setError(null); setBusy(true);
     const r = await adminCall('/tables', {
@@ -628,20 +658,53 @@ function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: (
     else setError(r.body.error ?? 'failed');
   }
   return (
-    <Modal open onClose={onClose} title={t('admin.newTable')} width="lg"
+    <Modal open onClose={onClose} title={t('admin.newTable')} subtitle={t('admin.prompt.presetHint')} width="lg"
            footer={<DialogFooter onCancel={onClose} onSubmit={submit} busy={busy} submitLabel={t('admin.newTable')} />}>
+      {/* Preset grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {TABLE_PRESETS.map((p) => {
+          const active = activePreset === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => applyPreset(p)}
+              className={
+                'rounded-lg p-3 text-left border transition ' +
+                (active
+                  ? 'border-gold/60 bg-gold/10 shadow-gold-soft'
+                  : 'border-rim-bright hover:border-gold/40 hover:bg-gold/[0.04]')
+              }
+            >
+              <div className="font-display text-sm tracking-wider text-gold">
+                {p.name}
+              </div>
+              <div className="text-[10px] uppercase tracking-widest text-ink-muted mt-1 font-mono">
+                {p.sb}/{p.bb} · {p.buyIn.toLocaleString()} · {p.maxPlayers}p
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="h-px bg-rim-bright my-2" />
+
       <NeonInput id="t-name" label={t('admin.prompt.tableName')} value={name}
-                 onChange={(e) => setName(e.target.value)} autoFocus error={error} />
+                 onChange={(e) => { setName(e.target.value); setActivePreset(null); }}
+                 autoFocus error={error} />
       <div className="grid grid-cols-2 gap-3">
         <NeonInput id="t-sb" label={t('admin.prompt.tableSb')} type="number" inputMode="numeric"
-                   value={String(sb)} onChange={(e) => setSb(Number(e.target.value) || 0)} />
+                   value={String(sb)}
+                   onChange={(e) => { setSb(Number(e.target.value) || 0); setActivePreset(null); }} />
         <NeonInput id="t-bb" label={t('admin.prompt.tableBb')} type="number" inputMode="numeric"
-                   value={String(bb)} onChange={(e) => setBb(Number(e.target.value) || 0)} />
+                   value={String(bb)}
+                   onChange={(e) => { setBb(Number(e.target.value) || 0); setActivePreset(null); }} />
         <NeonInput id="t-buyin" label={t('admin.prompt.tableBuyIn')} type="number" inputMode="numeric"
-                   value={String(buyIn)} onChange={(e) => setBuyIn(Number(e.target.value) || 0)} />
+                   value={String(buyIn)}
+                   onChange={(e) => { setBuyIn(Number(e.target.value) || 0); setActivePreset(null); }} />
         <NeonInput id="t-max" label={t('admin.prompt.tableMax')} type="number" inputMode="numeric"
                    value={String(maxPlayers)}
-                   onChange={(e) => setMaxPlayers(Math.min(9, Math.max(2, Number(e.target.value) || 2)))} />
+                   onChange={(e) => { setMaxPlayers(Math.min(9, Math.max(2, Number(e.target.value) || 2))); setActivePreset(null); }} />
       </div>
     </Modal>
   );

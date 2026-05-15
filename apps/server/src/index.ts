@@ -19,6 +19,7 @@ async function main() {
 
   const tables = new TableManager();
   await tables.loadTablesFromDb(config.TURN_TIMER_MS);
+  await tables.ensureDefaultTables(config.TURN_TIMER_MS);
 
   const app = express();
   app.use(express.json({ limit: '64kb' }));
