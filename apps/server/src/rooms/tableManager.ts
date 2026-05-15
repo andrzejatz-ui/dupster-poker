@@ -16,6 +16,13 @@ export class TableManager {
   onTurn: (tableId: string) => void = () => {};
 
   async loadTablesFromDb(turnTimerMs: number) {
+    // Sessions don't survive a server restart — the in-memory game state
+    // is gone, so any rows left in `table_seats` from the previous run
+    // are dangling. They block new joins via the PK (table_id, seat_index)
+    // and they hold chips that the player can't reach. Refund their
+    // stacks back to the player balance, then delete the rows.
+    await this.cleanupStaleSeats();
+
     const r = await pool.query(`select id, name, small_blind, big_blind, buy_in,
       max_players, allow_spectators from tables where archived_at is null`);
     for (const row of r.rows) {
@@ -34,6 +41,43 @@ export class TableManager {
     logger.info({ count: this.tables.size }, 'tables loaded');
   }
 
+  /**
+   * Releases all rows in table_seats, refunding the stack to each player.
+   * Called once on boot so the next sit-down can succeed.
+   */
+  private async cleanupStaleSeats(): Promise<void> {
+    const rows = await pool.query<{
+      table_id: string;
+      seat_index: number;
+      player_id: string;
+      stack: string;
+    }>(`select table_id, seat_index, player_id, stack from table_seats`);
+    if (rows.rowCount === 0) return;
+    for (const row of rows.rows) {
+      try {
+        await withTx(async (c) => {
+          const stack = Number(row.stack);
+          if (stack > 0) {
+            await moveChipsInTx(c, {
+              playerId: row.player_id,
+              delta: BigInt(stack),
+              reason: 'cash_out',
+              refTableId: row.table_id,
+              note: 'auto-refund: stale seat on restart',
+            });
+          }
+          await c.query(
+            'delete from table_seats where table_id = $1 and seat_index = $2',
+            [row.table_id, row.seat_index],
+          );
+        });
+      } catch (err) {
+        logger.error({ err, row }, 'failed to clean stale seat');
+      }
+    }
+    logger.warn({ count: rows.rowCount }, 'cleaned up stale seats from previous run');
+  }
+
   get(tableId: string): PokerTable | null {
     return this.tables.get(tableId) ?? null;
   }
@@ -48,35 +92,69 @@ export class TableManager {
 
   /**
    * Player sits down at a table. Transfers buy-in chips from player balance
-   * to seat stack. Throws on insufficient chips or seat taken.
+   * to seat stack.
+   *
+   * Seat selection:
+   *   - If `seatIndex` is supplied and the seat is free → use it.
+   *   - Otherwise pick the first free seat on the table.
+   *   - If the player is already sitting at this table, return that seat
+   *     (idempotent — fixes "join twice" double-click crashes).
+   *   - If the table is full, throw 'table_full'.
+   *
+   * Returns the seat index that was actually used so the caller can tell
+   * the client where they ended up.
    */
   async sitPlayer(args: {
     tableId: string;
     seatIndex: number;
     playerId: string;
     displayName: string;
-  }): Promise<void> {
+  }): Promise<{ seatIndex: number }> {
     const table = this.tables.get(args.tableId);
     if (!table) throw new Error('table_not_found');
+
+    // Already seated here?
+    for (const s of table.seats.values()) {
+      if (s.playerId === args.playerId) return { seatIndex: s.seatIndex };
+    }
+
+    // Pick a seat.
+    const desired = args.seatIndex;
+    let chosen = desired;
+    if (chosen < 0 || chosen >= table.cfg.maxPlayers || table.seats.has(chosen)) {
+      chosen = -1;
+      for (let i = 0; i < table.cfg.maxPlayers; i++) {
+        if (!table.seats.has(i)) { chosen = i; break; }
+      }
+    }
+    if (chosen < 0) throw new Error('table_full');
+
     const buyIn = table.cfg.buyIn;
 
     await withTx(async (c) => {
-      // lock player + chip move
+      // Defensive: a previous crashed session might have left a row at
+      // this (table, seat). Cleanup-on-boot already handled that, but a
+      // mid-run crash could re-create the situation, so we explicitly
+      // upsert here rather than blind-insert.
       await moveChipsInTx(c, {
         playerId: args.playerId,
         delta: -BigInt(buyIn),
         reason: 'buy_in',
         refTableId: args.tableId,
-        note: `seat ${args.seatIndex}`,
+        note: `seat ${chosen}`,
       });
       await c.query(
         `insert into table_seats (table_id, seat_index, player_id, stack)
-         values ($1,$2,$3,$4)`,
-        [args.tableId, args.seatIndex, args.playerId, buyIn],
+         values ($1,$2,$3,$4)
+         on conflict (table_id, seat_index) do update
+           set player_id = excluded.player_id,
+               stack = excluded.stack,
+               sat_down_at = now()`,
+        [args.tableId, chosen, args.playerId, buyIn],
       );
     });
     table.sit({
-      seatIndex: args.seatIndex,
+      seatIndex: chosen,
       playerId: args.playerId,
       displayName: args.displayName,
       stack: buyIn,
@@ -84,6 +162,7 @@ export class TableManager {
 
     this.onStateChange(args.tableId);
     this.maybeStartHand(args.tableId);
+    return { seatIndex: chosen };
   }
 
   async leavePlayer(args: { tableId: string; seatIndex: number; playerId: string }): Promise<void> {
