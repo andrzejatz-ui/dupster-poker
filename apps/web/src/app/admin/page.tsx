@@ -184,7 +184,7 @@ export default function AdminDashboard() {
                       <StatusPill status={p.status} />
                     </td>
                     <td>
-                      <PasswordCell value={p.password} t={t} />
+                      <PasswordCell value={p.password} />
                     </td>
                     <td className="text-right font-mono text-gold">
                       {Number(p.chips).toLocaleString()}
@@ -256,7 +256,7 @@ export default function AdminDashboard() {
                       <td className="font-mono text-gold">{Number(tbl.buy_in).toLocaleString()}</td>
                       <td className="font-mono">{tbl.seated}/{tbl.max_players}</td>
                       <td>
-                        <TableStatusPill table={tbl} t={t} />
+                        <TableStatusPill table={tbl} />
                       </td>
                       <td className="text-right space-x-2 whitespace-nowrap">
                         {!tbl.archived_at && (
@@ -376,7 +376,8 @@ function StatusPill({ status }: { status: 'pending' | 'approved' | 'banned' }) {
   );
 }
 
-function TableStatusPill({ table, t }: { table: TableRow; t: (k: string) => string }) {
+function TableStatusPill({ table }: { table: TableRow }) {
+  const t = useT();
   if (table.archived_at) {
     return <Pill tone="muted">{t('admin.tableStatus.archived')}</Pill>;
   }
@@ -399,7 +400,8 @@ function Pill({ tone, children }: { tone: 'success' | 'alert' | 'warning' | 'mut
   );
 }
 
-function PasswordCell({ value, t }: { value: string | null; t: (k: string) => string }) {
+function PasswordCell({ value }: { value: string | null }) {
+  const t = useT();
   if (!value) return <span className="text-ink-muted text-xs">{t('admin.passwordNone')}</span>;
   return (
     <div className="inline-flex items-center gap-1.5">
