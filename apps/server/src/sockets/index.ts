@@ -207,6 +207,9 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
   // Wire engine → socket broadcasts
   tables.onStateChange = (tableId) => {
     broadcastTableState(io, tables, tableId);
+    // Anyone on the lobby (or anywhere else, listener-driven) also needs
+    // to see seated/inHand counts update live.
+    io.emit('server:lobby:tables', { tables: summarize(tables.list()) });
   };
   tables.onHandResult = (tableId, result) => {
     io.to(`table:${tableId}`).emit('server:table:hand:result', {
@@ -220,6 +223,41 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
   };
 
   return io;
+}
+
+/**
+ * Pushes an arbitrary event to every active socket of a specific player.
+ * Used by admin endpoints to notify a player about account changes (chip
+ * grants, ban, password reset) without waiting for the next refresh.
+ */
+export function emitToPlayer<E extends keyof ServerToClientEvents>(
+  io: IOType,
+  playerId: string,
+  event: E,
+  payload: Parameters<ServerToClientEvents[E]>[0],
+): number {
+  let count = 0;
+  for (const socket of io.sockets.sockets.values()) {
+    if ((socket as SocketType).data.playerId === playerId) {
+      // @ts-expect-error — Socket.IO's typed-event overload is awkward
+      socket.emit(event, payload);
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Forcibly disconnects every socket belonging to a player. Called after
+ * the admin bans them so they're kicked out of any tables immediately.
+ */
+export function disconnectPlayer(io: IOType, playerId: string, reason: string): void {
+  for (const socket of io.sockets.sockets.values()) {
+    if ((socket as SocketType).data.playerId === playerId) {
+      socket.emit('server:account:banned', { reason });
+      socket.disconnect(true);
+    }
+  }
 }
 
 function summarize(list: PokerTable[]): TableSummary[] {

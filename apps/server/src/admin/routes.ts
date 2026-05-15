@@ -19,8 +19,9 @@ import { requireAdmin, type AdminRequest } from '../middleware/adminAuth.js';
 import { config } from '../config.js';
 import type { TableManager } from '../rooms/tableManager.js';
 import { PokerTable } from '../poker/engine.js';
+import { disconnectPlayer, emitToPlayer, type IOType } from '../sockets/index.js';
 
-export function adminRouter(tables: TableManager): Router {
+export function adminRouter(tables: TableManager, io: IOType): Router {
   const r = Router();
 
   const loginLimiter = rateLimit({
@@ -246,6 +247,9 @@ export function adminRouter(tables: TableManager): Router {
       [req.params.id, parsed.data.reason ?? null],
     );
     await revokeAllPlayerSessions(req.params.id!);
+    // Kick all of that player's live sockets immediately rather than
+    // letting them keep playing until their next reconnect.
+    disconnectPlayer(io, req.params.id!, parsed.data.reason ?? 'banned');
     await logAdminAction({
       adminId: req.adminId!,
       action: 'ban_player',
@@ -287,6 +291,13 @@ export function adminRouter(tables: TableManager): Router {
         targetPlayerId: req.params.id!,
         payload: parsed.data,
       });
+      // Push the new balance to the player's open sockets so the chip
+      // counter in their UI updates without a refresh.
+      emitToPlayer(io, req.params.id!, 'server:account:chip_update', {
+        chips: Number(after),
+        delta: parsed.data.delta,
+        reason: parsed.data.reason,
+      });
       res.json({ balance: after.toString() });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'unknown';
@@ -316,6 +327,11 @@ export function adminRouter(tables: TableManager): Router {
       action: 'chip_set',
       targetPlayerId: req.params.id,
       payload: parsed.data,
+    });
+    emitToPlayer(io, req.params.id!, 'server:account:chip_update', {
+      chips: Number(after),
+      delta,
+      reason: 'admin_set',
     });
     res.json({ balance: after.toString() });
   });

@@ -15,7 +15,8 @@ export default function LobbyPage() {
   const { socket, status } = useSocket();
   const [tables, setTables] = useState<TableSummary[]>([]);
   const [pending, setPending] = useState(false);
-  const profile = typeof window !== 'undefined' ? getProfile() : null;
+  const initial = typeof window !== 'undefined' ? getProfile() : null;
+  const [profile, setProfile] = useState(initial);
 
   useEffect(() => {
     if (!socket) return;
@@ -28,6 +29,25 @@ export default function LobbyPage() {
     });
     socket.on('server:lobby:tables', (p) => setTables(p.tables));
     socket.emit('client:lobby:list', (r) => setTables(r.tables));
+
+    // Live chip balance updates pushed from the server when the admin
+    // grants / sets chips.
+    socket.on('server:account:chip_update', (p) => {
+      setProfile((cur) => {
+        if (!cur) return cur;
+        const next = { ...cur, chips: p.chips };
+        try {
+          window.sessionStorage.setItem('np_profile', JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    });
+
+    // Banned mid-session → clear and bounce back to /join.
+    socket.on('server:account:banned', () => {
+      clearSession();
+      router.replace('/join');
+    });
   }, [socket, router]);
 
   function logout() {

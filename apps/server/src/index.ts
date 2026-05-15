@@ -43,10 +43,13 @@ async function main() {
 
   app.get('/health', (_req, res) => res.json({ ok: true, time: Date.now() }));
   app.use('/auth', authRouter());
-  app.use('/admin', adminRouter(tables));
 
+  // Socket server is attached first so the admin routes can push events
+  // (chip updates, ban kicks, password resets) to live player sockets.
   const server = http.createServer(app);
-  attachSocketServer(server, tables);
+  const io = attachSocketServer(server, tables);
+
+  app.use('/admin', adminRouter(tables, io));
 
   server.listen(config.SERVER_PORT, () => {
     logger.info(
