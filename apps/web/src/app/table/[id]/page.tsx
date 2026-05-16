@@ -14,6 +14,7 @@ import { HandResultBanner } from '@/components/table/HandResultBanner';
 import { HistoryModal } from '@/components/table/HistoryModal';
 import { ChipTransferOverlay } from '@/components/table/ChipTransferOverlay';
 import { TopUpModal } from '@/components/table/TopUpModal';
+import { ChipRequestModal } from '@/components/table/ChipRequestModal';
 import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
 import { getProfile, setStoredProfile } from '@/lib/session';
@@ -60,6 +61,7 @@ export default function TablePage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const [chipReqOpen, setChipReqOpen] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
   const [, force] = useState(0);
   /** Live mirror of state.mySeatIndex so the socket-event closures
@@ -212,6 +214,23 @@ export default function TablePage() {
     });
   }
 
+  /** Sends a chip-grant request to the admin via socket → DB → Telegram. */
+  function sendChipRequest(args: { amount?: number; message?: string }): Promise<
+    | { ok: true }
+    | { ok: false; error: string }
+  > {
+    return new Promise((resolve) => {
+      if (!socket) {
+        resolve({ ok: false, error: 'no_socket' });
+        return;
+      }
+      socket.emit('client:player:chip_request', args, (res) => {
+        if (res.ok) resolve({ ok: true });
+        else resolve({ ok: false, error: res.error });
+      });
+    });
+  }
+
   function togglePause() {
     if (!socket) return;
     const mySeat = state?.mySeatIndex !== null && state?.mySeatIndex !== undefined
@@ -260,16 +279,24 @@ export default function TablePage() {
           {state.mySeatIndex !== null && state.canTopUp && (() => {
             const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
             const stack = mySeat?.stack ?? 0;
-            // Hide the button when there's nothing meaningful to add —
-            // wallet empty OR stack already at the cap.
-            const canAddSomething =
-              walletBalance > 0 && stack < state.maxBuyIn;
-            if (!canAddSomething) return null;
-            return (
-              <NeonButton size="sm" variant="gold" onClick={() => setTopUpOpen(true)}>
-                💰 {t('action.topUp')}
-              </NeonButton>
-            );
+            // Two distinct buttons depending on wallet state:
+            //   wallet > 0 and stack below cap → Top-up modal
+            //   wallet = 0 → Chip-request modal (ping the admin)
+            if (walletBalance > 0 && stack < state.maxBuyIn) {
+              return (
+                <NeonButton size="sm" variant="gold" onClick={() => setTopUpOpen(true)}>
+                  💰 {t('action.topUp')}
+                </NeonButton>
+              );
+            }
+            if (walletBalance === 0) {
+              return (
+                <NeonButton size="sm" variant="gold" onClick={() => setChipReqOpen(true)}>
+                  🙋 {t('action.requestChips')}
+                </NeonButton>
+              );
+            }
+            return null;
           })()}
           {state.mySeatIndex !== null && (() => {
             const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
@@ -503,6 +530,15 @@ export default function TablePage() {
           />
         );
       })()}
+
+      {chipReqOpen && (
+        <ChipRequestModal
+          bigBlind={state.bigBlind}
+          buyIn={state.buyIn}
+          onClose={() => setChipReqOpen(false)}
+          onSubmit={sendChipRequest}
+        />
+      )}
     </main>
   );
 }

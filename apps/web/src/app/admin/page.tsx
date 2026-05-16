@@ -48,6 +48,18 @@ interface TableRow {
   hand_number: number;
 }
 
+interface ChipRequestRow {
+  id: string;
+  amount: string | null;
+  message: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  player_id: string;
+  player_handle: string;
+  display_name: string | null;
+  chips: string;
+}
+
 type Dialog =
   | null
   | { kind: 'settings' }
@@ -68,6 +80,7 @@ export default function AdminDashboard() {
   const [approved, setApproved] = useState<PlayerRow[]>([]);
   const [banned, setBanned] = useState<PlayerRow[]>([]);
   const [tables, setTables] = useState<TableRow[]>([]);
+  const [chipRequests, setChipRequests] = useState<ChipRequestRow[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [me, setMe] = useState<AdminProfile | null>(null);
 
@@ -82,20 +95,42 @@ export default function AdminDashboard() {
 
   async function refresh() {
     try {
-      const [a, b, c, ts, meRes] = await Promise.all([
+      const [a, b, c, ts, meRes, crs] = await Promise.all([
         adminCall('/players?status=pending'),
         adminCall('/players?status=approved'),
         adminCall('/players?status=banned'),
         adminCall('/tables'),
         adminCall('/me'),
+        adminCall('/chip-requests'),
       ]);
       if (a.status === 401) { clearAdminToken(); router.replace('/admin/login'); return; }
       setPending(a.body.players ?? []);
       setApproved(b.body.players ?? []);
       setBanned(c.body.players ?? []);
       setTables(ts.body.tables ?? []);
+      setChipRequests(crs.body.requests ?? []);
       if (meRes.status === 200) setMe(meRes.body);
     } catch {/* ignore */}
+  }
+
+  async function approveChipRequest(req: ChipRequestRow, amount: number) {
+    const r = await adminCall(`/chip-requests/${req.id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+    if (r.status !== 200) {
+      alert(r.body.error ?? 'failed');
+      return;
+    }
+    refresh();
+  }
+  async function rejectChipRequest(req: ChipRequestRow) {
+    const r = await adminCall(`/chip-requests/${req.id}/reject`, { method: 'POST' });
+    if (r.status !== 200) {
+      alert(r.body.error ?? 'failed');
+      return;
+    }
+    refresh();
   }
 
   function logout() {
@@ -191,6 +226,27 @@ export default function AdminDashboard() {
             <NeonButton variant="ghost" size="sm" onClick={logout}>{t('admin.logout')}</NeonButton>
           </div>
         </header>
+
+        {/* Chip requests — auto-refreshes every 4 s, gold-glowing if any
+            pending so the admin can't miss a new one. */}
+        {chipRequests.length > 0 && (
+          <NeonCard glow="gold" className="border-gold/40 bg-gold/[0.06]">
+            <SectionTitle
+              title={t('admin.chipRequests.title')}
+              count={chipRequests.length}
+            />
+            <div className="space-y-2">
+              {chipRequests.map((req) => (
+                <ChipRequestRowCmp
+                  key={req.id}
+                  req={req}
+                  onApprove={(amount) => approveChipRequest(req, amount)}
+                  onReject={() => rejectChipRequest(req)}
+                />
+              ))}
+            </div>
+          </NeonCard>
+        )}
 
         {/* Pending */}
         <NeonCard glow="gold">
@@ -477,6 +533,72 @@ export default function AdminDashboard() {
 }
 
 /* ---------- presentational helpers ---------- */
+
+/**
+ * Inline row for a pending chip-grant request. Admin picks an amount
+ * (pre-filled with what the player asked for, free to override) and
+ * clicks Approve to move chips into the player's wallet — or Reject
+ * to dismiss the request without granting anything.
+ */
+function ChipRequestRowCmp({
+  req,
+  onApprove,
+  onReject,
+}: {
+  req: ChipRequestRow;
+  onApprove: (amount: number) => void;
+  onReject: () => void;
+}) {
+  const t = useT();
+  const asked = req.amount ? Number(req.amount) : 0;
+  const [amount, setAmount] = useState<number>(asked > 0 ? asked : 1000);
+  return (
+    <div className="rounded-xl border border-gold/40 bg-obsidian-soft/60 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="font-display text-gold text-sm sm:text-base truncate">
+            {req.display_name ?? req.player_handle}
+          </span>
+          <span className="font-mono text-[11px] text-ink-muted">
+            @{req.player_handle}
+          </span>
+          <span className="font-mono text-[10px] text-ink-muted">
+            · {t('admin.chipRequests.wallet')}: {Number(req.chips).toLocaleString()}
+          </span>
+        </div>
+        <div className="text-xs text-ink-secondary mt-1">
+          {asked > 0
+            ? t('admin.chipRequests.asked', { amount: asked.toLocaleString() })
+            : t('admin.chipRequests.askedNoAmount')}
+          {req.message && (
+            <>
+              {' — '}
+              <span className="italic">{req.message}</span>
+            </>
+          )}
+        </div>
+        <div className="text-[10px] text-ink-muted font-mono mt-1">
+          {new Date(req.created_at).toLocaleString()}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <input
+          type="number"
+          inputMode="numeric"
+          value={amount}
+          onChange={(e) => setAmount(Math.max(1, Math.floor(Number(e.target.value) || 0)))}
+          className="w-28 px-2 py-1 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold text-right"
+        />
+        <NeonButton size="sm" variant="gold" onClick={() => onApprove(amount)}>
+          {t('admin.chipRequests.approve')}
+        </NeonButton>
+        <NeonButton size="sm" variant="danger" onClick={onReject}>
+          {t('admin.chipRequests.reject')}
+        </NeonButton>
+      </div>
+    </div>
+  );
+}
 
 function SectionTitle({ title, count }: { title: string; count: number }) {
   return (

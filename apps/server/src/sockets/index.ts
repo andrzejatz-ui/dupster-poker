@@ -6,6 +6,7 @@ import { logger } from '../utils/logger.js';
 import { pool } from '../db/client.js';
 import { isSessionActive, touchSession, verifyPlayerToken } from '../auth/sessions.js';
 import { findPlayerById } from '../auth/players.js';
+import { buildChipRequestMessage, notifyTelegram } from '../utils/telegram.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -220,6 +221,54 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
     socket.on('client:player:resume', (ack) => {
       const ok = tables.resumePlayer(socket.data.playerId);
       ack(ok ? { ok: true } : { ok: false, error: 'not_seated' });
+    });
+
+    // ---- Wallet empty — ask the admin for more chips. The admin sees
+    //      the row live in the dashboard and as a Telegram bot push.
+    socket.on('client:player:chip_request', async (payload, ack) => {
+      try {
+        const amount = payload?.amount && payload.amount > 0
+          ? Math.floor(payload.amount) : null;
+        const message = typeof payload?.message === 'string'
+          ? payload.message.trim().slice(0, 280) || null
+          : null;
+
+        // One open request at a time per player — keeps the admin's
+        // queue clean and prevents accidental double-asks.
+        const open = await pool.query<{ id: string }>(
+          "select id from chip_requests where player_id = $1 and status = 'pending' limit 1",
+          [socket.data.playerId],
+        );
+        if ((open.rowCount ?? 0) > 0) {
+          return ack({ ok: false, error: 'already_pending', code: 'already_pending' });
+        }
+
+        const ins = await pool.query<{ id: string }>(
+          `insert into chip_requests (player_id, amount, message)
+           values ($1, $2, $3) returning id`,
+          [socket.data.playerId, amount, message],
+        );
+        const requestId = ins.rows[0]!.id;
+
+        // Telegram ping (fire-and-forget, no-op if not configured).
+        const profile = await findPlayerById(socket.data.playerId);
+        if (profile) {
+          void notifyTelegram(
+            buildChipRequestMessage({
+              handle: profile.handle,
+              displayName: profile.displayName,
+              amount,
+              userMessage: message,
+              createdAt: new Date(),
+            }),
+          );
+        }
+        ack({ ok: true, requestId });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.error({ err, playerId: socket.data.playerId }, 'chip_request failed');
+        ack({ ok: false, error: msg });
+      }
     });
 
     // ---- Mid-session top-up: pull from wallet to seat stack ---------

@@ -85,3 +85,40 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+
+/**
+ * Builds the message body for a player's chip-top-up request. Always
+ * routed via the same admin bot used for new-signup alerts; the
+ * admin clicks the dashboard link and approves / rejects from there.
+ */
+export function buildChipRequestMessage(args: {
+  handle: string;
+  displayName: string | null;
+  amount: number | null;
+  userMessage: string | null;
+  createdAt: Date;
+}): string {
+  const base = adminBaseUrl();
+  const link = base ? `${base}/admin` : null;
+  const created = args.createdAt.toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+  const lines = [
+    `💰 <b>Chip-Anfrage</b>`,
+    `Spieler: <code>${escapeHtml(args.handle)}</code>`,
+  ];
+  if (args.displayName) lines.push(`Name: ${escapeHtml(args.displayName)}`);
+  if (args.amount && args.amount > 0) {
+    lines.push(`Gewünscht: <b>${args.amount.toLocaleString('de-DE')}</b> Chips`);
+  } else {
+    lines.push(`Gewünscht: <i>keine Angabe</i>`);
+  }
+  if (args.userMessage) {
+    lines.push(`Nachricht: ${escapeHtml(args.userMessage)}`);
+  }
+  lines.push(`Zeit: ${created}`);
+  if (link) lines.push(`\n👉 <a href="${link}">Im Admin-Dashboard prüfen</a>`);
+  return lines.join('\n');
+}

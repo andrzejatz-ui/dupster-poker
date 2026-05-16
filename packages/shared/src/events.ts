@@ -168,6 +168,21 @@ export interface ClientToServerEvents {
         | { ok: false; error: string; code?: string },
     ) => void,
   ) => void;
+  /**
+   * Wallet empty — player asks the admin for more chips. The server
+   * inserts a row in chip_requests, pings the Telegram admin bot, and
+   * the request shows up live in the admin dashboard for approval /
+   * rejection. Amount is optional ("I need some chips, you decide");
+   * message is optional human context.
+   */
+  'client:player:chip_request': (
+    payload: { amount?: number; message?: string },
+    ack: (
+      res:
+        | { ok: true; requestId: string }
+        | { ok: false; error: string; code?: string },
+    ) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {

@@ -81,6 +81,28 @@ export async function runMigrations(): Promise<void> {
           check (seat_index between 0 and 9);
       end $$`,
     },
+    {
+      // Player-initiated chip top-up requests. Pops up in the admin
+      // dashboard + Telegram bot for approval. Status moves
+      // pending → approved (grants chips) / rejected (no chips).
+      name: 'chip_requests table',
+      sql: `create table if not exists chip_requests (
+        id           uuid primary key default gen_random_uuid(),
+        player_id    uuid not null references players(id) on delete cascade,
+        amount       bigint check (amount is null or amount > 0),
+        message      text,
+        status       text not null default 'pending'
+                     check (status in ('pending','approved','rejected')),
+        created_at   timestamptz not null default now(),
+        resolved_at  timestamptz,
+        resolved_by  uuid references admins(id),
+        granted_amount bigint
+      )`,
+    },
+    {
+      name: 'chip_requests.player_status index',
+      sql: 'create index if not exists chip_requests_status_idx on chip_requests(status, created_at desc)',
+    },
     // future: add more idempotent migrations here
   ];
 

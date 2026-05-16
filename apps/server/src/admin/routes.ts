@@ -940,6 +940,111 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     }
   });
 
+  /* ---- Chip requests (player → admin) --------------------------- */
+
+  /**
+   * Pending chip-top-up requests submitted via the player UI. The
+   * admin dashboard polls this every few seconds and pops up a card
+   * per row with [Approve / Reject] buttons. Resolving a request is
+   * a separate POST below so the admin can override the amount.
+   */
+  r.get('/chip-requests', requireAdmin, async (_req, res) => {
+    const q = await pool.query(
+      `select r.id, r.amount, r.message, r.status, r.created_at,
+              r.resolved_at, r.granted_amount,
+              p.id          as player_id,
+              p.player_handle,
+              p.display_name,
+              p.chips
+         from chip_requests r
+         join players p on p.id = r.player_id
+        where r.status = 'pending'
+        order by r.created_at asc
+        limit 100`,
+    );
+    res.json({ requests: q.rows });
+  });
+
+  r.post('/chip-requests/:id/approve', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({ amount: z.number().int().min(1) });
+    const parsed = Body.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    try {
+      const row = await pool.query<{ player_id: string; status: string }>(
+        'select player_id, status from chip_requests where id = $1',
+        [req.params.id],
+      );
+      if (row.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+      if (row.rows[0]!.status !== 'pending') {
+        return res.status(409).json({ error: 'already_resolved' });
+      }
+      const playerId = row.rows[0]!.player_id;
+
+      await moveChips({
+        playerId,
+        delta: parsed.data.amount,
+        reason: 'admin_grant',
+        adminId: req.adminId,
+        note: `chip_request approved (id ${req.params.id})`,
+      });
+      await pool.query(
+        `update chip_requests
+           set status='approved', resolved_at=now(), resolved_by=$2, granted_amount=$3
+         where id=$1`,
+        [req.params.id, req.adminId, parsed.data.amount],
+      );
+
+      // Pop the new balance to the player's open sockets so the lobby
+      // / table header reflects the grant immediately.
+      try {
+        const fresh = await findPlayerById(playerId);
+        if (fresh) {
+          emitToPlayer(io, playerId, 'server:account:chip_update', {
+            chips: fresh.chips,
+            delta: parsed.data.amount,
+            reason: 'admin_grant',
+          });
+        }
+      } catch { /* non-fatal */ }
+
+      await logAdminAction({
+        adminId: req.adminId!,
+        action: 'approve_chip_request',
+        targetPlayerId: playerId,
+        payload: { requestId: req.params.id, amount: parsed.data.amount },
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      logger.error({ err, id: req.params.id }, 'approve_chip_request failed');
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  r.post('/chip-requests/:id/reject', requireAdmin, async (req: AdminRequest, res) => {
+    const row = await pool.query<{ status: string; player_id: string }>(
+      'select status, player_id from chip_requests where id = $1',
+      [req.params.id],
+    );
+    if (row.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    if (row.rows[0]!.status !== 'pending') {
+      return res.status(409).json({ error: 'already_resolved' });
+    }
+    await pool.query(
+      `update chip_requests
+         set status='rejected', resolved_at=now(), resolved_by=$2
+       where id=$1`,
+      [req.params.id, req.adminId],
+    );
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'reject_chip_request',
+      targetPlayerId: row.rows[0]!.player_id,
+      payload: { requestId: req.params.id },
+    });
+    res.json({ ok: true });
+  });
+
   /* ---- Audit / Ledger ------------------------------------------- */
 
   r.get('/audit', requireAdmin, async (req, res) => {
