@@ -232,6 +232,183 @@ export function playCashRegister(): void {
 }
 
 /**
+ * ---- Action sounds — minimalist, low-volume cues for fold / check /
+ * call / bet / raise / all-in. All synthesised in Web Audio so the
+ * bundle stays tiny and there's no asset to fetch. Each peak gain is
+ * kept ≤ 0.05 so a long session doesn't fatigue the ears.
+ *
+ * Design pitches (so they're distinguishable without looking):
+ *   fold    – soft downward whoosh, the lowest of the bunch
+ *   check   – single dry table-knock click, no pitch
+ *   call    – higher tick, slight pitch
+ *   bet     – two-step chip-drop, ascending
+ *   raise   – three-step chip-drop, ascending faster
+ *   all-in  – rapid descending crash, the loudest still under cap
+ * ----
+ */
+export function playActionFold(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Low whoosh: filtered noise sweeping down 800→200 Hz.
+  const noise = audio.createBufferSource();
+  const len = Math.floor(0.16 * audio.sampleRate);
+  const buf = audio.createBuffer(1, len, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  noise.buffer = buf;
+  const filt = audio.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.setValueAtTime(800, now);
+  filt.frequency.exponentialRampToValueAtTime(220, now + 0.16);
+  filt.Q.value = 0.5;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.04, now + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+  noise.connect(filt).connect(g).connect(audio.destination);
+  noise.start(now);
+  noise.stop(now + 0.20);
+}
+
+export function playActionCheck(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Dry knock — short noise burst, mid-band, very quick decay.
+  const noise = audio.createBufferSource();
+  const len = Math.floor(0.04 * audio.sampleRate);
+  const buf = audio.createBuffer(1, len, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  noise.buffer = buf;
+  const filt = audio.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = 1400;
+  filt.Q.value = 2.5;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.04, now + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+  noise.connect(filt).connect(g).connect(audio.destination);
+  noise.start(now);
+  noise.stop(now + 0.08);
+}
+
+export function playActionCall(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Single chip tick — higher than check so you can tell them apart.
+  const noise = audio.createBufferSource();
+  const len = Math.floor(0.06 * audio.sampleRate);
+  const buf = audio.createBuffer(1, len, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  noise.buffer = buf;
+  const filt = audio.createBiquadFilter();
+  filt.type = 'bandpass';
+  filt.frequency.value = 2400;
+  filt.Q.value = 3;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.05, now + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+  noise.connect(filt).connect(g).connect(audio.destination);
+  noise.start(now);
+  noise.stop(now + 0.10);
+}
+
+export function playActionBet(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Two chip-drops 60 ms apart, ascending pitch.
+  for (const t of [0, 0.06]) {
+    const noise = audio.createBufferSource();
+    const len = Math.floor(0.05 * audio.sampleRate);
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    noise.buffer = buf;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'bandpass';
+    filt.frequency.value = 1800 + t * 8000;
+    filt.Q.value = 3;
+    const g = audio.createGain();
+    const start = now + t;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.045, start + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+    noise.connect(filt).connect(g).connect(audio.destination);
+    noise.start(start);
+    noise.stop(start + 0.09);
+  }
+}
+
+export function playActionRaise(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Three chip-drops, faster + steeper ascent than a bet.
+  for (const t of [0, 0.05, 0.10]) {
+    const noise = audio.createBufferSource();
+    const len = Math.floor(0.05 * audio.sampleRate);
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    noise.buffer = buf;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'bandpass';
+    filt.frequency.value = 1600 + t * 10000;
+    filt.Q.value = 3;
+    const g = audio.createGain();
+    const start = now + t;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.05, start + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+    noise.connect(filt).connect(g).connect(audio.destination);
+    noise.start(start);
+    noise.stop(start + 0.09);
+  }
+}
+
+export function playActionAllIn(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+  // Rapid chip-avalanche — six descending bursts in 220 ms total.
+  const steps = 6;
+  for (let i = 0; i < steps; i++) {
+    const t = i * 0.035;
+    const noise = audio.createBufferSource();
+    const len = Math.floor(0.05 * audio.sampleRate);
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let j = 0; j < len; j++) data[j] = (Math.random() * 2 - 1) * (1 - j / len);
+    noise.buffer = buf;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'bandpass';
+    filt.frequency.value = 2800 - i * 350;
+    filt.Q.value = 3;
+    const g = audio.createGain();
+    const start = now + t;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(0.05, start + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+    noise.connect(filt).connect(g).connect(audio.destination);
+    noise.start(start);
+    noise.stop(start + 0.09);
+  }
+}
+
+/**
  * Descending three-note motif for the player who lost the showdown.
  * Classic "game over" feel — a minor third descent on a slightly
  * detuned triangle wave that bends down on the last note for the

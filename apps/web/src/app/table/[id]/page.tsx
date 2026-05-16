@@ -18,7 +18,17 @@ import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
 import { getProfile, setStoredProfile } from '@/lib/session';
 import { getToken } from '@/lib/session';
-import { playCashRegister, playChatDing, playGameOver } from '@/lib/sounds';
+import {
+  playActionAllIn,
+  playActionBet,
+  playActionCall,
+  playActionCheck,
+  playActionFold,
+  playActionRaise,
+  playCashRegister,
+  playChatDing,
+  playGameOver,
+} from '@/lib/sounds';
 import type { Card } from '@neon-poker/shared/poker';
 import { useT } from '@/i18n/context';
 
@@ -107,6 +117,17 @@ export default function TablePage() {
       }
     });
     socket.on('server:table:error', (e) => alert(e.message));
+    socket.on('server:table:action', (p) => {
+      if (p.tableId !== id) return;
+      switch (p.action) {
+        case 'fold':   playActionFold();  break;
+        case 'check':  playActionCheck(); break;
+        case 'call':   playActionCall();  break;
+        case 'bet':    playActionBet();   break;
+        case 'raise':  playActionRaise(); break;
+        case 'all_in': playActionAllIn(); break;
+      }
+    });
     socket.on('server:account:chip_update', (p) => {
       // Keep the local wallet mirror fresh and persist to session storage
       // so the lobby + header reads stay consistent if the player navigates.
