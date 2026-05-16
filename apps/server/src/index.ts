@@ -61,6 +61,16 @@ async function main() {
   app.use('/admin', adminRouter(tables, io));
   app.use('/tables', tablesRouter());
 
+  // Express error middleware — any async route handler that throws
+  // gets here instead of bubbling into the global unhandledRejection
+  // path (which on Node 20 will kill the process by default).
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error({ err, path: req.path, method: req.method }, 'route handler threw');
+    if (res.headersSent) return;
+    const msg = err instanceof Error ? err.message : 'internal_error';
+    res.status(500).json({ error: msg });
+  });
+
   server.listen(config.SERVER_PORT, () => {
     logger.info(
       { port: config.SERVER_PORT, origins: config.allowedOrigins },
@@ -75,6 +85,17 @@ async function main() {
     });
   }
 }
+
+// Belt-and-braces: any async path that escapes Express's error
+// middleware (e.g. socket handlers, background timers) lands here.
+// We log and keep running instead of letting Node 20's default
+// behaviour kill the process and trigger a Render restart loop.
+process.on('unhandledRejection', (reason) => {
+  logger.error({ reason }, 'unhandled rejection — server stays up');
+});
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, 'uncaught exception — server stays up');
+});
 
 main().catch((err) => {
   logger.fatal({ err }, 'fatal startup error');

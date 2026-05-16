@@ -20,6 +20,7 @@ import { config } from '../config.js';
 import type { TableManager } from '../rooms/tableManager.js';
 import { PokerTable } from '../poker/engine.js';
 import { disconnectPlayer, emitToPlayer, type IOType } from '../sockets/index.js';
+import { logger } from '../utils/logger.js';
 
 export function adminRouter(tables: TableManager, io: IOType): Router {
   const r = Router();
@@ -159,27 +160,28 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       }
     }
     if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
-    let player = await findPlayerByHandle(handle);
-    let created = false;
+    const existing = await findPlayerByHandle(handle);
+    const created = !existing;
 
-    if (!player) {
-      const ins = await pool.query<{ id: string }>(
-        `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
-         values ($1, $2, 'approved', 0, now(), $3) returning id`,
-        [handle, parsed.data.displayName ?? null, req.adminId],
-      );
-      created = true;
-      player = await findPlayerByHandle(handle);
-      if (!player) return res.status(500).json({ error: 'create_failed' });
-    } else if (player.status !== 'approved') {
-      await pool.query(
-        `update players set status='approved', approved_at=now(), approved_by=$2,
-           banned_at=null, banned_reason=null where id=$1`,
-        [player.id, req.adminId],
-      );
-      player = await findPlayerByHandle(handle);
-      if (!player) return res.status(500).json({ error: 'reapprove_failed' });
-    }
+    // Same resurrect-or-create as /test-room: a previously soft-deleted
+    // row holds the unique player_handle slot but findPlayerByHandle
+    // filters it out, so a plain INSERT trips a 23505. ON CONFLICT
+    // clears deleted_at + re-approves atomically.
+    await pool.query(
+      `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
+       values ($1, $2, 'approved', 0, now(), $3)
+       on conflict (player_handle) do update set
+         status        = 'approved',
+         display_name  = coalesce(excluded.display_name, players.display_name),
+         approved_at   = now(),
+         approved_by   = excluded.approved_by,
+         banned_at     = null,
+         banned_reason = null,
+         deleted_at    = null`,
+      [handle, parsed.data.displayName ?? null, req.adminId],
+    );
+    let player = await findPlayerByHandle(handle);
+    if (!player) return res.status(500).json({ error: 'create_failed' });
 
     // Only grant chips when a positive amount was requested AND the
     // balance is empty, to avoid accidental repeated top-ups when admin
@@ -237,6 +239,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
    * archived on every server boot — they're disposable by design.
    */
   r.post('/test-room', requireAdmin, async (req: AdminRequest, res) => {
+    try {
     const Body = z.object({
       maxPlayers: z.number().int().min(2).max(10).default(6),
       smallBlind: z.number().int().positive().default(50),
@@ -260,24 +263,26 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const handle = meRow.rows[0]?.play_handle ?? null;
     if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
 
-    let player = await findPlayerByHandle(handle);
-    if (!player) {
-      await pool.query(
-        `insert into players (player_handle, status, chips, approved_at, approved_by)
-         values ($1, 'approved', 0, now(), $2)`,
-        [handle, req.adminId],
-      );
-      player = await findPlayerByHandle(handle);
-      if (!player) return res.status(500).json({ error: 'create_failed' });
-    } else if (player.status !== 'approved') {
-      await pool.query(
-        `update players set status='approved', approved_at=now(), approved_by=$2,
-           banned_at=null, banned_reason=null where id=$1`,
-        [player.id, req.adminId],
-      );
-      player = await findPlayerByHandle(handle);
-      if (!player) return res.status(500).json({ error: 'reapprove_failed' });
-    }
+    // Resurrect-or-create: a previously soft-deleted row still occupies
+    // the unique player_handle slot, but findPlayerByHandle filters
+    // soft-deleted rows out — so a plain INSERT after a null-lookup
+    // hits a 23505 and used to crash the route. ON CONFLICT clears
+    // deleted_at + re-approves in one atomic statement, which also
+    // covers banned / pending rows.
+    await pool.query(
+      `insert into players (player_handle, status, chips, approved_at, approved_by)
+       values ($1, 'approved', 0, now(), $2)
+       on conflict (player_handle) do update set
+         status        = 'approved',
+         approved_at   = now(),
+         approved_by   = excluded.approved_by,
+         banned_at     = null,
+         banned_reason = null,
+         deleted_at    = null`,
+      [handle, req.adminId],
+    );
+    const player = await findPlayerByHandle(handle);
+    if (!player) return res.status(500).json({ error: 'create_failed' });
 
     // If the admin is already seated somewhere, kick them out first so
     // sitPlayer's "unique player per seat" invariant holds.
@@ -375,6 +380,11 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         chips: player.chips,
       },
     });
+    } catch (err) {
+      logger.error({ err, adminId: req.adminId }, 'test-room creation failed');
+      const msg = err instanceof Error ? err.message : 'unknown';
+      if (!res.headersSent) res.status(500).json({ error: msg });
+    }
   });
 
   /* ---- Players --------------------------------------------------- */
