@@ -11,6 +11,24 @@ interface Props {
 }
 
 /**
+ * Telegram WebApp surface — exposes only the two methods we need to
+ * route share targets correctly when the page runs inside the
+ * Telegram client. openTelegramLink keeps Telegram routes inside
+ * the app; openLink hands everything else off to the OS so the
+ * user's installed WhatsApp / SMS apps fire properly.
+ */
+interface TgWebAppMinimal {
+  openTelegramLink?: (url: string) => void;
+  openLink?: (url: string, options?: { try_instant_view?: boolean }) => void;
+}
+
+function tgWebApp(): TgWebAppMinimal | null {
+  if (typeof window === 'undefined') return null;
+  return (window as unknown as { Telegram?: { WebApp?: TgWebAppMinimal } })
+    .Telegram?.WebApp ?? null;
+}
+
+/**
  * Invite-a-friend share sheet. Prefers the native Web Share API when
  * the browser offers it (most mobile + Edge + Safari + Telegram WebView
  * expose it), falls back to platform-specific deep-links — Telegram
@@ -30,8 +48,14 @@ export function InviteModal({ onClose }: Props) {
   const [hasNativeShare, setHasNativeShare] = useState(false);
 
   useEffect(() => {
+    // Inside Telegram, hide navigator.share — the WebView exposes it
+    // but it fires nothing on Telegram Desktop and is flaky on iOS,
+    // leading to "I tapped Share and nothing happened" reports. Our
+    // per-platform buttons cover the same ground reliably.
+    const tg = tgWebApp();
     setHasNativeShare(
-      typeof window !== 'undefined' &&
+      tg === null &&
+        typeof window !== 'undefined' &&
         typeof (navigator as Navigator & { share?: unknown }).share === 'function',
     );
   }, []);
@@ -65,25 +89,41 @@ export function InviteModal({ onClose }: Props) {
   }
 
   function openTelegram() {
-    window.open(
-      `https://t.me/share/url?url=${encodedBotUrl}&text=${encodedMessage}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
+    const url = `https://t.me/share/url?url=${encodedBotUrl}&text=${encodedMessage}`;
+    const tg = tgWebApp();
+    // Inside Telegram, route through openTelegramLink so the share
+    // picker stays inside the client instead of being treated as an
+    // external URL and silently swallowed.
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function openWhatsApp() {
-    window.open(
-      `https://wa.me/?text=${encodedMessage}`,
-      '_blank',
-      'noopener,noreferrer',
-    );
+    const url = `https://wa.me/?text=${encodedMessage}`;
+    const tg = tgWebApp();
+    // openLink hands non-Telegram URLs off to the OS so the user's
+    // installed WhatsApp app actually gets the intent. Plain
+    // window.open inside Telegram WebView often just no-ops.
+    if (tg?.openLink) {
+      tg.openLink(url);
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function openSms() {
+    const url = `sms:?&body=${encodedMessage}`;
+    const tg = tgWebApp();
+    if (tg?.openLink) {
+      tg.openLink(url);
+      return;
+    }
     // sms: links open the native messaging app on mobile; on desktop
     // they're a no-op which is fine, the other share targets cover us.
-    window.location.href = `sms:?&body=${encodedMessage}`;
+    window.location.href = url;
   }
 
   return (
