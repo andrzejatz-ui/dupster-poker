@@ -137,19 +137,22 @@ export function PlayerSeat({
         </div>
       </div>
 
-      {/* Hole cards (own face up, others face down or revealed) */}
+      {/* Hole cards (own face up, others face down or revealed).
+          The viewer's OWN seat renders cards a size bigger so they
+          stay legible on tight phone viewports — these are the
+          single most important pieces of information on screen. */}
       <div className="flex gap-1 mt-1">
         {seat.holeCards ? (
           <>
             <PlayingCard
               card={seat.holeCards[0]}
-              size="sm"
+              size={isMine ? 'md' : 'sm'}
               hoverable
               className={clsx(cardIsWinning(seat.holeCards[0]) && 'card-winning')}
             />
             <PlayingCard
               card={seat.holeCards[1]}
-              size="sm"
+              size={isMine ? 'md' : 'sm'}
               hoverable
               className={clsx(cardIsWinning(seat.holeCards[1]) && 'card-winning')}
             />

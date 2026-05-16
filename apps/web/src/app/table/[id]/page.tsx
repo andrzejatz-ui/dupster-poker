@@ -559,13 +559,24 @@ export default function TablePage() {
 /**
  * Seat positions in %, around an ellipse. Index 0 is bottom-center (the
  * viewer-ish seat); positions go counter-clockwise around the felt.
+ *
+ * The ellipse is intentionally asymmetric vertically: the bottom seat
+ * needs to leave room for the viewer's avatar + bigger hole cards +
+ * stack + dealer chip ALL stacked beneath the centre point, while top
+ * seats only carry an avatar + name. We pull seat 0 noticeably higher
+ * (y=80 instead of 88) on tight mobile viewports so the local user's
+ * cards never slip past the felt's bottom edge into the action bar.
  */
 function computeSeatPositions(n: number): Array<{ x: number; y: number }> {
   const positions: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < n; i++) {
     const angle = (Math.PI / 2) + (i * 2 * Math.PI) / n;
     const x = 50 + 42 * Math.cos(angle);
-    const y = 50 + 38 * Math.sin(angle);
+    // Slightly compressed vertical ellipse — 32 instead of 38 — so
+    // both poles have breathing room on a phone viewport. Top seats
+    // come down from y=12 to y=18; bottom seats come up from y=88 to
+    // y=82, freeing ~6% of felt height each end.
+    const y = 50 + 32 * Math.sin(angle);
     positions.push({ x, y });
   }
   return positions;
