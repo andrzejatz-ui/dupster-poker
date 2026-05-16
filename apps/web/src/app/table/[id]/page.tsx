@@ -28,6 +28,13 @@ interface ResultSnapshot {
     handLabel: string;
     bestCards: Card[];
   }>;
+  /**
+   * The five community cards as they stood when the hand ended. We
+   * snapshot them here because the server clears table.board in
+   * finishHand() right after the result event, so a re-read of the
+   * live state during the result window would yield an empty board.
+   */
+  board: Card[];
 }
 
 export default function TablePage() {
@@ -94,7 +101,11 @@ export default function TablePage() {
     socket.on('server:table:error', (e) => alert(e.message));
     socket.on('server:table:hand:result', (payload) => {
       if (payload.tableId !== id) return;
-      setResult({ winners: payload.winners, revealed: payload.revealed });
+      setResult({
+        winners: payload.winners,
+        revealed: payload.revealed,
+        board: payload.board,
+      });
       // Play a sound only for the viewer who actually had skin in the
       // hand — winner gets the cash-register, loser gets the game-over
       // motif, spectators stay silent. mySeatRef is the latest seat
@@ -232,7 +243,12 @@ export default function TablePage() {
           <div className="felt rounded-[40px] sm:rounded-[110px] relative flex-1 min-h-0">
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <Board
-                board={state.board}
+                // During the result window the server has already
+                // cleared table.board in finishHand(), so we render
+                // the snapshot captured from the hand:result event —
+                // otherwise the community cards would vanish the
+                // moment the banner appears.
+                board={result?.board && result.board.length > 0 ? result.board : state.board}
                 pot={state.pot}
                 handToken={state.handId}
                 winningCards={
