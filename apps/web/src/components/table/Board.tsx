@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import type { Card } from '@neon-poker/shared/poker';
 import { PlayingCard } from './PlayingCard';
+import { PotPile } from './PotPile';
 import { Eye } from '@/components/brand/Eye';
 import { playDealCard } from '@/lib/sounds';
 import { useT } from '@/i18n/context';
@@ -53,8 +54,11 @@ export function Board({ board, pot, handToken = null, winningCards = null }: Pro
       <div className="rule-ornament w-full font-display tracking-[0.4em]">
         ◆ {t('table.pot')} ◆
       </div>
-      <div className="chip-bet text-xl sm:text-3xl font-display text-gold text-glow-gold">
-        {pot.toLocaleString()}
+      <div className="flex items-end justify-center gap-2 sm:gap-3">
+        <PotPile amount={pot} />
+        <div className="font-display text-xl sm:text-3xl text-gold text-glow-gold leading-none pb-0.5">
+          {pot.toLocaleString()}
+        </div>
       </div>
       <div className="flex gap-1 sm:gap-2 mt-1 sm:mt-2">
         {slots.map((i) => {

@@ -333,53 +333,97 @@ body::after {
   border: 1px solid rgba(0,0,0,0.5);
 }
 
-/* ---- 3D chip stack — a column of bevelled discs ---------------- */
+/* ---- 3D chip stack — column of bevelled discs (side view) ----- */
 /*
- * Each disc is rendered as a flat ellipse from above (radial gradient
- * sets the rim shading), stacked with a -2px vertical offset to look
- * like a cylindrical pile. Used by ChipStack to show a player's live
- * bet in front of their seat.
+ * Each disc is a flat ellipse drawn from a low angle (a real chip's
+ * top edge as you look across the table). Three tiers — gold, red,
+ * black — mirror real casino denominations and let ChipStack +
+ * PotPile mix colours by stack position.
+ *
+ * Visual breakdown:
+ *  - radial body gradient (main face)
+ *  - linear top highlight (light hits from above)
+ *  - vertical-ridge texture via ::after (the iconic grooved edge)
+ *  - layered shadows for rim definition + drop shadow
  */
 .chip-disc {
-  width: 22px;
-  height: 6px;
+  position: relative;
+  width: 28px;
+  height: 9px;
   border-radius: 50%;
   background:
+    /* glossy top highlight */
+    linear-gradient(180deg,
+      rgba(255,255,255,0.62) 0%,
+      rgba(255,255,255,0.20) 22%,
+      transparent 50%),
+    /* main face gradient */
     radial-gradient(ellipse at 30% 25%,
       #fff5c2 0%,
       #f0d57b 22%,
       #c8a64a 55%,
       #8a691e 100%);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.65),
-    inset 0 1px 0.5px rgba(255,255,255,0.55),
-    inset 0 -1px 1px rgba(0,0,0,0.50),
-    0 2px 2px rgba(0,0,0,0.45);
+    0 0 0 0.5px rgba(0,0,0,0.85),
+    inset 0 1px 0.5px rgba(255,255,255,0.65),
+    inset 0 -1.5px 1.5px rgba(0,0,0,0.55),
+    0 2px 3px rgba(0,0,0,0.55);
+}
+.chip-disc::after {
+  /* Grooved edge — the tactile ridges you feel running a thumb across
+     a real poker chip. Painted on top of the gradient with multiply
+     blending so it darkens uniformly instead of looking like stripes. */
+  content: '';
+  position: absolute;
+  inset: 1px 0 1px 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(90deg,
+    rgba(0,0,0,0.40) 0 0.5px,
+    transparent 0.5px 2.5px);
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 .chip-disc--mid {
-  /* alternate red-rim chip for higher denominations */
+  /* Red-rim mid-value chip */
   background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.55) 0%,
+      rgba(255,255,255,0.18) 22%,
+      transparent 50%),
     radial-gradient(ellipse at 30% 25%,
       #ffd8c2 0%,
-      #d56548 35%,
-      #8c2a17 100%);
+      #ff7a5a 22%,
+      #c43e2b 60%,
+      #5e1408 100%);
 }
 .chip-disc--high {
-  /* near-black chip with gold flecks */
+  /* Near-black high-value chip with gold rim outline */
   background:
+    linear-gradient(180deg,
+      rgba(255,228,170,0.42) 0%,
+      rgba(255,200,90,0.15) 22%,
+      transparent 50%),
     radial-gradient(ellipse at 30% 25%,
-      #2a2620 0%,
-      #14110a 70%,
+      #5a4f44 0%,
+      #2a2620 35%,
+      #14110a 75%,
       #050402 100%);
   box-shadow:
-    0 0 0 1px rgba(212,175,55,0.55),
-    inset 0 1px 0.5px rgba(255,255,255,0.18),
-    inset 0 -1px 1px rgba(0,0,0,0.60),
-    0 2px 2px rgba(0,0,0,0.55);
+    0 0 0 0.5px rgba(212,175,55,0.70),
+    inset 0 1px 0.5px rgba(255,200,90,0.35),
+    inset 0 -1.5px 1.5px rgba(0,0,0,0.75),
+    0 2px 3px rgba(0,0,0,0.65);
+}
+.chip-disc--pot {
+  /* Slightly larger discs for the centre pot pile — reads as "more
+     valuable" without being a different visual language. */
+  width: 36px;
+  height: 11px;
 }
 
 @media (max-width: 640px) {
-  .chip-disc { width: 16px; height: 4.5px; }
+  .chip-disc       { width: 22px; height: 7px; }
+  .chip-disc--pot  { width: 28px; height: 9px; }
 }
 
 /* Stack grows in when amount changes. */
@@ -451,10 +495,56 @@ body::after {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   pointer-events: none;
+  /* Top-down chip: outer rim with eight dark "edge spots" alternating
+     with light segments — the classic casino-chip silhouette — over a
+     warm gold base. The ::before pseudo paints the inner gold face on
+     top, so visually you read rim → face → centre highlight. */
+  background:
+    conic-gradient(
+      from -11.25deg,
+      rgba(0,0,0,0.62) 0deg 22.5deg,
+      rgba(255,235,170,0) 22.5deg 45deg,
+      rgba(0,0,0,0.62) 45deg 67.5deg,
+      rgba(255,235,170,0) 67.5deg 90deg,
+      rgba(0,0,0,0.62) 90deg 112.5deg,
+      rgba(255,235,170,0) 112.5deg 135deg,
+      rgba(0,0,0,0.62) 135deg 157.5deg,
+      rgba(255,235,170,0) 157.5deg 180deg,
+      rgba(0,0,0,0.62) 180deg 202.5deg,
+      rgba(255,235,170,0) 202.5deg 225deg,
+      rgba(0,0,0,0.62) 225deg 247.5deg,
+      rgba(255,235,170,0) 247.5deg 270deg,
+      rgba(0,0,0,0.62) 270deg 292.5deg,
+      rgba(255,235,170,0) 292.5deg 315deg,
+      rgba(0,0,0,0.62) 315deg 337.5deg,
+      rgba(255,235,170,0) 337.5deg 360deg
+    ),
+    radial-gradient(circle at 30% 28%,
+      #fff3b8 0%,
+      #e6c265 28%,
+      #b8962e 62%,
+      #6a4f10 100%);
+  box-shadow:
+    0 0 0 0.5px rgba(0,0,0,0.85),
+    inset 0 0 2px rgba(0,0,0,0.55),
+    0 3px 6px rgba(0,0,0,0.60),
+    0 0 14px rgba(212,175,55,0.55);
+  /* Forward fill so the chip ends invisible at the seat (opacity 0 in
+     final keyframe); we don't want it to snap back to the pot. */
+  animation: chipFly 1500ms cubic-bezier(0.34, 0.04, 0.36, 1) forwards;
+}
+.chip-fly::before {
+  /* Inner gold face — the disc on top of the rim where the denomination
+     would be printed. Slight inner shadow keeps the rim segments
+     visually behind it. */
+  content: '';
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
   background:
     radial-gradient(circle at 30% 28%,
       #fff3b8 0%,
@@ -462,18 +552,13 @@ body::after {
       #b8962e 62%,
       #6a4f10 100%);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.55),
-    inset 0 0 0 1px rgba(255,255,255,0.30),
-    inset 0 -1px 1px rgba(0,0,0,0.40),
-    0 2px 4px rgba(0,0,0,0.55),
-    0 0 10px rgba(212,175,55,0.45);
-  /* Forward fill so the chip ends invisible at the seat (opacity 0 in
-     final keyframe); we don't want it to snap back to the pot. */
-  animation: chipFly 1500ms cubic-bezier(0.34, 0.04, 0.36, 1) forwards;
+    inset 0 0 0 0.5px rgba(0,0,0,0.6),
+    inset 0 1px 0.5px rgba(255,255,255,0.55),
+    inset 0 -1px 1px rgba(0,0,0,0.40);
 }
 
 @media (max-width: 640px) {
-  .chip-fly { width: 10px; height: 10px; }
+  .chip-fly { width: 14px; height: 14px; }
   .pot-burst { width: 60px; height: 60px; }
 }
 
