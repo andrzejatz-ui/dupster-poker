@@ -33,15 +33,14 @@ export default function Landing() {
         <NeonCard glow="gold" strong className="text-center">
           <h2 className="font-display text-xl sm:text-2xl mb-1 sm:mb-2 text-ink-primary">{t('landing.welcome')}</h2>
           <p className="text-ink-secondary text-xs sm:text-sm mb-4 sm:mb-5">{t('landing.welcomeBody')}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          {/* Single button — the /join form now handles both player and
+              admin sign-in (server checks admin credentials first, falls
+              back to the player create-or-login path). One door, one
+              form, two outcomes based on what the credentials match. */}
+          <div className="flex justify-center">
             <Link href="/join">
               <NeonButton variant="gold" size="lg">
                 {t('landing.primaryCta')}
-              </NeonButton>
-            </Link>
-            <Link href="/admin/login">
-              <NeonButton variant="ghost" size="lg">
-                {t('landing.adminCta')}
               </NeonButton>
             </Link>
           </div>

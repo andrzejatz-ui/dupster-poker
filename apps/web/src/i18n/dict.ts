@@ -48,6 +48,9 @@ const en = {
   'join.title': 'Player ID',
   'join.body':
     'Enter your ID exactly as the admin gave it to you. It is not stored — required again on the next visit.',
+  'join.firstTimeTitle': 'First time here?',
+  'join.firstTimeBody':
+    'Pick any Player ID + password. You go into the admin\'s approval queue — once cleared, you\'re in. Write down both: every session asks for them again, nothing is stored on your device. Admins use the same form with their own credentials.',
   'join.idLabel': 'Player ID',
   'join.idPlaceholder': 'e.g. king_of_clubs',
   'join.passwordLabel': 'Password',
@@ -291,6 +294,9 @@ const de: Record<keyof typeof en, string> = {
   'join.title': 'Player-ID',
   'join.body':
     'Tippe deine ID exakt so ein, wie der Admin sie dir genannt hat. Sie wird nicht gespeichert — bei nächstem Besuch erneut nötig.',
+  'join.firstTimeTitle': 'Zum ersten Mal hier?',
+  'join.firstTimeBody':
+    'Wähl eine beliebige Player-ID + Passwort. Du landest in der Freigabe-Warteschlange des Admins — sobald er dich freigibt, bist du drin. Notier dir beides: jede Session fragt sie neu ab, nichts wird lokal gespeichert. Admins nutzen dasselbe Formular mit ihren eigenen Zugangsdaten.',
   'join.idLabel': 'Player-ID',
   'join.idPlaceholder': 'z.B. king_of_clubs',
   'join.passwordLabel': 'Passwort',
@@ -523,6 +529,9 @@ const pl: Record<keyof typeof en, string> = {
   'join.title': 'Player ID',
   'join.body':
     'Wpisz swój ID dokładnie tak, jak podał administrator. Nie jest zapisywany — przy kolejnej wizycie potrzebny ponownie.',
+  'join.firstTimeTitle': 'Pierwszy raz?',
+  'join.firstTimeBody':
+    'Wybierz dowolny Player ID i hasło. Trafisz do kolejki zatwierdzeń administratora — po akceptacji jesteś w środku. Zapisz oba: każda sesja pyta o nie od nowa, nic nie jest przechowywane lokalnie. Administratorzy używają tego samego formularza z własnymi danymi.',
   'join.idLabel': 'Player ID',
   'join.idPlaceholder': 'np. king_of_clubs',
   'join.passwordLabel': 'Hasło',

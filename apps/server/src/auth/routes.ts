@@ -6,11 +6,12 @@ import {
   findPlayerByHandleWithPassword,
   findPlayerById,
 } from './players.js';
-import { createSession, signPlayerToken } from './sessions.js';
+import { createSession, signAdminToken, signPlayerToken } from './sessions.js';
 import { requirePlayer, type PlayerRequest } from './middleware.js';
 import { pool } from '../db/client.js';
 import type { TableManager } from '../rooms/tableManager.js';
 import { buildSignupMessage, notifyTelegram } from '../utils/telegram.js';
+import { logAdminAction, verifyAdminLogin } from './admin.js';
 
 export function authRouter(tables: TableManager): Router {
   const r = Router();
@@ -41,6 +42,32 @@ export function authRouter(tables: TableManager): Router {
     });
     const parsed = Body.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+
+    // Try admin credentials first — the same login form serves both
+    // player and admin sign-in, so a matching admin username + password
+    // wins over the player flow. Admins never accidentally create a
+    // pending player row because their handle resolves to an admin
+    // record before findPlayerByHandleWithPassword runs.
+    const adminMatch = await verifyAdminLogin(
+      parsed.data.playerHandle,
+      parsed.data.password,
+    );
+    if (adminMatch) {
+      const adminToken = signAdminToken(adminMatch.id);
+      await pool.query('update admins set last_login_at = now() where id = $1', [
+        adminMatch.id,
+      ]);
+      await logAdminAction({
+        adminId: adminMatch.id,
+        action: 'login',
+        payload: { via: 'unified_login', ip: req.ip ?? null },
+      });
+      return res.json({
+        status: 'admin',
+        adminToken,
+        admin: { id: adminMatch.id, username: adminMatch.username },
+      });
+    }
 
     let row = await findPlayerByHandleWithPassword(parsed.data.playerHandle);
 

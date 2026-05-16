@@ -88,6 +88,14 @@ function JoinForm() {
       password,
       displayName.trim() || undefined,
     );
+    // Server returns status='admin' when the handle+password matched an
+    // admin record. Stash the admin token and jump to the dashboard;
+    // same form, different destination — that's the unified login UX.
+    if (status === 200 && body.status === 'admin' && body.adminToken) {
+      window.sessionStorage.setItem('np_admin_token', body.adminToken);
+      router.replace('/admin');
+      return;
+    }
     if (status === 200 && body.token) {
       setSession(body.token, body.profile);
       router.replace('/lobby');
@@ -185,6 +193,18 @@ function JoinForm() {
               {t('join.title')}
             </h1>
           </div>
+        </div>
+
+        {/* Onboarding hint — covers the three things a first-time
+            player needs to know: create an ID, wait for admin
+            approval, write down ID + password because they're asked
+            every session. Same form serves admins too — their
+            credentials skip the player flow entirely. */}
+        <div className="mb-3 sm:mb-4 rounded-xl border border-gold/30 bg-gold/[0.05] px-3 py-2.5 text-[11px] sm:text-xs text-ink-secondary leading-snug">
+          <div className="text-gold font-display tracking-[0.2em] uppercase text-[10px] mb-1">
+            {t('join.firstTimeTitle')}
+          </div>
+          {t('join.firstTimeBody')}
         </div>
 
         <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4">
