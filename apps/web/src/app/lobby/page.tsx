@@ -18,6 +18,7 @@ import {
 import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { Eye } from '@/components/brand/Eye';
+import { BCoin } from '@/components/brand/BCoin';
 import { TableCard } from '@/components/lobby/TableCard';
 import { AdCarousel } from '@/components/lobby/AdCarousel';
 import { ChipRequestModal } from '@/components/table/ChipRequestModal';
@@ -266,7 +267,7 @@ export default function LobbyPage() {
               <Eye size={84} />
             </div>
             <h2 className="font-display text-2xl sm:text-3xl text-gold text-glow-gold tracking-[0.32em] mt-1">
-              BLUFFUMINATI
+              <BCoin />LUFFUMINATI
             </h2>
             <p className="text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic mt-0.5">
               by filipOS
@@ -278,6 +279,7 @@ export default function LobbyPage() {
                 label={t('lobby.hero.wallet')}
                 value={(profile?.chips ?? 0).toLocaleString()}
                 accent="gold"
+                prefix={<BCoin className="text-gold mr-1.5" />}
               />
               <div className="w-px h-10 bg-rim-bright/40 hidden sm:block" />
               <HeroStat
@@ -458,10 +460,14 @@ function HeroStat({
   label,
   value,
   accent,
+  prefix,
 }: {
   label: string;
   value: string;
   accent?: 'gold' | 'alert';
+  /** Optional inline icon shown immediately before the value — used
+   *  for the BCoin sigil on the Wallet tile. */
+  prefix?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center min-w-0">
@@ -470,7 +476,7 @@ function HeroStat({
       </span>
       <span
         className={clsx(
-          'font-display text-lg sm:text-2xl mt-0.5 font-mono',
+          'flex items-baseline font-display text-lg sm:text-2xl mt-0.5 font-mono',
           accent === 'gold'
             ? 'text-gold text-glow-gold'
             : accent === 'alert'
@@ -478,6 +484,7 @@ function HeroStat({
             : 'text-ink-primary',
         )}
       >
+        {prefix}
         {value}
       </span>
     </div>

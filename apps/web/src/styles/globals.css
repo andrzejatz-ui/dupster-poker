@@ -584,6 +584,26 @@ body::after {
     0 1px 2px rgba(0,0,0,0.45);
 }
 
+/* ---- BCoin sigil — capital B with a vertical stroke through it ----
+ * The brand's $-style currency mark. Same colour as currentColor so
+ * a parent text-gold gets a gold sigil, text-status-alert a red one.
+ * The stroke is a pseudo so the B itself keeps using the surrounding
+ * font (Inter ExtraBold) and visually matches sibling letters in a
+ * wordmark like "B|LUFFUMINATI".
+ */
+.bcoin::after {
+  content: '';
+  position: absolute;
+  top: -0.14em;
+  bottom: -0.14em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0.10em;
+  background: currentColor;
+  border-radius: 0.04em;
+  pointer-events: none;
+}
+
 /* ---- Lobby hero — cinematic gold-on-obsidian welcome panel ---- */
 .lobby-hero {
   position: relative;

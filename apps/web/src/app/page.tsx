@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { NeonCard } from '@/components/ui/NeonCard';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { Eye } from '@/components/brand/Eye';
+import { BCoin } from '@/components/brand/BCoin';
 import { Signature } from '@/components/ui/Signature';
 import { useT } from '@/i18n/context';
 
@@ -21,7 +22,9 @@ export default function Landing() {
             {t('landing.tagline')}
           </span>
           <h1 className="mt-2 font-display text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-[0.18em] text-gold text-glow-gold">
-            {t('landing.titleA')}
+            {/* First letter rendered as the brand's BCoin sigil so the
+                wordmark + currency symbol share one visual idea. */}
+            <BCoin />LUFFUMINATI
             {t('landing.titleB') ? <> {t('landing.titleB')}</> : null}
           </h1>
           <p className="mt-1 text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic">

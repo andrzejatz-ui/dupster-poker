@@ -88,7 +88,23 @@ export function InviteModal({ onClose }: Props) {
     }
   }
 
-  function openTelegram() {
+  /**
+   * Silent best-effort clipboard copy used by every share button as a
+   * safety net: if Telegram's intermediate share page fails to launch
+   * the tg:// app handler on a desktop without Telegram installed, or
+   * any other share target silently no-ops, the user still has the
+   * full invite message in their clipboard ready to paste anywhere.
+   */
+  async function safeCopy() {
+    try {
+      await navigator.clipboard.writeText(message);
+    } catch {
+      /* clipboard blocked — share UI still runs */
+    }
+  }
+
+  async function openTelegram() {
+    await safeCopy();
     const url = `https://t.me/share/url?url=${encodedBotUrl}&text=${encodedMessage}`;
     const tg = tgWebApp();
     // Inside Telegram, route through openTelegramLink so the share
@@ -101,7 +117,8 @@ export function InviteModal({ onClose }: Props) {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  function openWhatsApp() {
+  async function openWhatsApp() {
+    await safeCopy();
     const url = `https://wa.me/?text=${encodedMessage}`;
     const tg = tgWebApp();
     // openLink hands non-Telegram URLs off to the OS so the user's
@@ -114,7 +131,8 @@ export function InviteModal({ onClose }: Props) {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
-  function openSms() {
+  async function openSms() {
+    await safeCopy();
     const url = `sms:?&body=${encodedMessage}`;
     const tg = tgWebApp();
     if (tg?.openLink) {
