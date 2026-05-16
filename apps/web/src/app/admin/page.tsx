@@ -198,26 +198,30 @@ export default function AdminDashboard() {
   return (
     <>
       <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto space-y-6">
-        <header className="flex items-center justify-between pr-24 sm:pr-36">
+        {/* Header stacks vertically on phone (title + stats up top,
+            actions in a wrapping row below) so the Telegram WebView
+            doesn't crush the title under the button column. Side-by-
+            side starting at sm: where there's room. */}
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pr-24 sm:pr-36">
           <div className="flex items-center gap-3 min-w-0">
             <div className="opacity-80 shrink-0">
               <Eye size={32} />
             </div>
             <div className="min-w-0">
-            <h1 className="font-display text-3xl text-gold text-glow-gold">
-              {t('admin.title')}
-            </h1>
-            <p className="text-ink-muted text-xs">
-              {t('admin.counts', {
-                pending: pending.length,
-                approved: approved.length,
-                banned: banned.length,
-                tables: tables.filter(x => !x.archived_at).length,
-              })}
-            </p>
+              <h1 className="font-display text-xl sm:text-3xl text-gold text-glow-gold leading-tight">
+                {t('admin.title')}
+              </h1>
+              <p className="text-ink-muted text-[11px] sm:text-xs leading-snug">
+                {t('admin.counts', {
+                  pending: pending.length,
+                  approved: approved.length,
+                  banned: banned.length,
+                  tables: tables.filter(x => !x.archived_at).length,
+                })}
+              </p>
             </div>
           </div>
-          <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
+          <div className="flex gap-1.5 sm:gap-2 flex-wrap sm:justify-end">
             {hasPlayerSession && (
               <NeonButton
                 variant="gold"
@@ -300,10 +304,16 @@ export default function AdminDashboard() {
           )}
         </NeonCard>
 
-        {/* Approved + Banned */}
+        {/* Approved + Banned — desktop table, mobile card list.
+            Wide horizontal table on Mobile (Telegram-WebView) was
+            hiding the "delete / adjust chips / ban" buttons behind a
+            scrollbar nobody noticed. On mobile every row becomes a
+            stacked card with all actions visible. */}
         <NeonCard glow="gold">
           <SectionTitle title={t('admin.players')} count={approved.length + banned.length} />
-          <div className="overflow-x-auto -mx-2 px-2">
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto -mx-2 px-2">
             <table className="w-full text-sm min-w-[760px]">
               <thead>
                 <tr className="text-left text-ink-muted text-xs uppercase tracking-widest">
@@ -339,46 +349,73 @@ export default function AdminDashboard() {
                       {Number(p.chips).toLocaleString()}
                     </td>
                     <td className="text-right space-x-2 whitespace-nowrap">
-                      <NeonButton size="sm" variant="ghost" onClick={() => setDialog({ kind: 'password', player: p })}>
-                        {p.password ? t('admin.passwordReset') : t('admin.passwordSet')}
-                      </NeonButton>
-                      <NeonButton size="sm" variant="ghost" onClick={() => setDialog({ kind: 'chips', player: p })}>
-                        {t('admin.chipsAdjust')}
-                      </NeonButton>
-                      {p.seat_table_id && (
-                        <NeonButton
-                          size="sm"
-                          variant="danger"
-                          onClick={async () => {
-                            await adminCall(`/players/${p.id}/kick`, { method: 'POST' });
-                            refresh();
-                          }}
-                        >
-                          {t('admin.kick')}
-                        </NeonButton>
-                      )}
-                      <NeonButton
-                        size="sm"
-                        variant={p.status === 'banned' ? 'primary' : 'danger'}
-                        onClick={async () => {
-                          if (p.status === 'banned') {
-                            await adminCall(`/players/${p.id}/unban`, { method: 'POST' });
-                            refresh();
-                          } else {
-                            setDialog({ kind: 'ban', player: p });
-                          }
+                      <PlayerActions
+                        player={p}
+                        onAction={(kind) => setDialog({ kind, player: p })}
+                        onUnban={async () => {
+                          await adminCall(`/players/${p.id}/unban`, { method: 'POST' });
+                          refresh();
                         }}
-                      >
-                        {p.status === 'banned' ? t('admin.unban') : t('admin.ban')}
-                      </NeonButton>
-                      <NeonButton size="sm" variant="danger" onClick={() => setDialog({ kind: 'delete', player: p })}>
-                        {t('admin.delete')}
-                      </NeonButton>
+                        onKick={async () => {
+                          await adminCall(`/players/${p.id}/kick`, { method: 'POST' });
+                          refresh();
+                        }}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile card list — every action visible, no horizontal scroll */}
+          <div className="md:hidden space-y-3">
+            {[...approved, ...banned].map((p) => (
+              <div
+                key={p.id}
+                className="rounded-xl border border-rim-cool bg-obsidian-soft/40 p-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-sm truncate">{p.player_handle}</div>
+                    {p.display_name && (
+                      <div className="text-[11px] text-ink-secondary truncate">{p.display_name}</div>
+                    )}
+                  </div>
+                  <StatusPill status={p.status} />
+                </div>
+                <div className="flex items-baseline justify-between text-[11px]">
+                  <span className="text-ink-muted uppercase tracking-widest">{t('admin.col.chips')}</span>
+                  <span className="font-mono text-gold">{Number(p.chips).toLocaleString()}</span>
+                </div>
+                {p.seat_table_id && (
+                  <div className="text-[10px] uppercase tracking-widest text-gold/70">
+                    {t('admin.seatedAt')} · {Number(p.seat_stack ?? 0).toLocaleString()}
+                  </div>
+                )}
+                <div className="flex items-baseline justify-between text-[11px]">
+                  <span className="text-ink-muted uppercase tracking-widest">{t('admin.col.password')}</span>
+                  <PasswordCell value={p.password} />
+                </div>
+                <div className="text-[10px] text-ink-muted font-mono">
+                  {p.last_login_at ? new Date(p.last_login_at).toLocaleString() : '—'}
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-1 border-t border-rim-faint">
+                  <PlayerActions
+                    player={p}
+                    onAction={(kind) => setDialog({ kind, player: p })}
+                    onUnban={async () => {
+                      await adminCall(`/players/${p.id}/unban`, { method: 'POST' });
+                      refresh();
+                    }}
+                    onKick={async () => {
+                      await adminCall(`/players/${p.id}/kick`, { method: 'POST' });
+                      refresh();
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </NeonCard>
 
@@ -613,6 +650,54 @@ function ChipRequestRowCmp({
         </NeonButton>
       </div>
     </div>
+  );
+}
+
+/**
+ * Action-button cluster reused by the desktop table row and the mobile
+ * card list — single source of truth so the buttons (and their wiring)
+ * stay identical in both layouts. Renders Password / Adjust Chips /
+ * Kick (only when seated) / Ban or Unban / Delete.
+ */
+function PlayerActions({
+  player,
+  onAction,
+  onUnban,
+  onKick,
+}: {
+  player: PlayerRow;
+  onAction: (kind: 'password' | 'chips' | 'ban' | 'delete') => void;
+  onUnban: () => void;
+  onKick: () => void;
+}) {
+  const t = useT();
+  return (
+    <>
+      <NeonButton size="sm" variant="ghost" onClick={() => onAction('password')}>
+        {player.password ? t('admin.passwordReset') : t('admin.passwordSet')}
+      </NeonButton>
+      <NeonButton size="sm" variant="ghost" onClick={() => onAction('chips')}>
+        {t('admin.chipsAdjust')}
+      </NeonButton>
+      {player.seat_table_id && (
+        <NeonButton size="sm" variant="danger" onClick={onKick}>
+          {t('admin.kick')}
+        </NeonButton>
+      )}
+      <NeonButton
+        size="sm"
+        variant={player.status === 'banned' ? 'primary' : 'danger'}
+        onClick={() => {
+          if (player.status === 'banned') onUnban();
+          else onAction('ban');
+        }}
+      >
+        {player.status === 'banned' ? t('admin.unban') : t('admin.ban')}
+      </NeonButton>
+      <NeonButton size="sm" variant="danger" onClick={() => onAction('delete')}>
+        {t('admin.delete')}
+      </NeonButton>
+    </>
   );
 }
 
