@@ -152,7 +152,7 @@ function JoinForm() {
       <div className="relative z-10 max-w-md w-full mb-2 flex justify-between items-center gap-3">
         <Link
           href="/"
-          className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
+          className="tg-hide text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
         >
           ← {t('common.back')}
         </Link>

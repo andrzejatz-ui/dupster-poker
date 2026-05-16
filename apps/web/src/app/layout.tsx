@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import '@/styles/globals.css';
 import { I18nShell } from '@/components/ui/I18nShell';
+import { TelegramAdapter } from '@/components/ui/TelegramAdapter';
 
 export const metadata: Metadata = {
   title: 'DUPSTER · filipOS.arch',
@@ -25,6 +26,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen antialiased">
+        <TelegramAdapter />
         <I18nShell>{children}</I18nShell>
       </body>
     </html>

@@ -531,10 +531,18 @@ body {
  * action bar isn't hidden behind the URL toolbar on iOS Safari.
  */
 .viewport-fit {
-  height: 100dvh;
-  max-height: 100dvh;
+  /* --app-height is set by TelegramAdapter when running inside the
+     Telegram Mini App webview, where 100dvh would erroneously include
+     Telegram's own chrome and push the action bar offscreen. Outside
+     Telegram the fallback wins and we stay on plain 100dvh. */
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100dvh);
   overflow: hidden;
 }
+
+/* When opened inside Telegram, the back-link in /join + /admin/login
+   duplicates Telegram's own back button — hide ours. */
+.tg-mini .tg-hide { display: none !important; }
 
 /* ---- Ornamental gold rule (art-deco section divider) ----------- */
 .rule-ornament {
