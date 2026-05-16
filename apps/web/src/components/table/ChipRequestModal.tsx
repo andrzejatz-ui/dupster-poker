@@ -7,10 +7,17 @@ import { Modal } from '@/components/ui/Modal';
 import { useT } from '@/i18n/context';
 
 interface Props {
-  /** Big-blind size — used to pre-fill a sensible default request. */
+  /** 'topup' = ask admin for chips. 'cashout' = ask admin to take
+   *  chips back (symbolic). Drives all the copy + the suggested
+   *  default amount. */
+  kind: 'topup' | 'cashout';
+  /** Big-blind size — used to pre-fill the suggested top-up. */
   bigBlind: number;
-  /** Table's buy-in — also a reasonable default ask. */
+  /** Table's buy-in — also a reasonable default ask for top-up. */
   buyIn: number;
+  /** Player's current wallet balance — used to cap the cashout
+   *  default at "all the chips you currently have". */
+  walletBalance: number;
   onClose: () => void;
   /** Returns the server ack so the modal can show success/error. */
   onSubmit: (args: { amount?: number; message?: string }) => Promise<
@@ -20,15 +27,26 @@ interface Props {
 }
 
 /**
- * Player-facing "I'm out of chips, please grant me some" form. Pings
- * the admin via socket → DB row → Telegram bot. The amount is
- * optional (admin can override anyway); a short message is also
- * optional for context. Submit shows a "sent, wait for admin"
- * confirmation, then closes.
+ * Two-way wallet-request form. `kind` swaps every label / icon so the
+ * same component works for the "give me chips" and "take my chips
+ * back" flow. Submit pings the server which inserts a chip_requests
+ * row and notifies the admin via Telegram. The amount is optional —
+ * the admin can override at approval time.
  */
-export function ChipRequestModal({ bigBlind, buyIn, onClose, onSubmit }: Props) {
+export function ChipRequestModal({
+  kind,
+  bigBlind,
+  buyIn,
+  walletBalance,
+  onClose,
+  onSubmit,
+}: Props) {
   const t = useT();
-  const [amount, setAmount] = useState<number>(buyIn);
+  const ns = kind === 'cashout' ? 'cashoutRequest' : 'chipRequest';
+  // Sensible defaults: top-up pre-fills the table buy-in; cashout
+  // pre-fills the player's full current wallet.
+  const defaultAmount = kind === 'cashout' ? walletBalance : buyIn;
+  const [amount, setAmount] = useState<number>(defaultAmount);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +64,7 @@ export function ChipRequestModal({ bigBlind, buyIn, onClose, onSubmit }: Props) 
       setSent(true);
       setTimeout(onClose, 1800);
     } else if (res.error === 'already_pending') {
-      setError(t('chipRequest.errors.alreadyPending'));
+      setError(t(`${ns}.errors.alreadyPending`));
     } else {
       setError(res.error);
     }
@@ -54,11 +72,11 @@ export function ChipRequestModal({ bigBlind, buyIn, onClose, onSubmit }: Props) 
 
   if (sent) {
     return (
-      <Modal open onClose={onClose} title={t('chipRequest.sentTitle')}>
+      <Modal open onClose={onClose} title={t(`${ns}.sentTitle`)}>
         <div className="text-center py-4">
           <div className="text-3xl mb-3">📩</div>
           <p className="text-ink-secondary text-sm">
-            {t('chipRequest.sentBody')}
+            {t(`${ns}.sentBody`)}
           </p>
         </div>
       </Modal>
@@ -69,37 +87,38 @@ export function ChipRequestModal({ bigBlind, buyIn, onClose, onSubmit }: Props) 
     <Modal
       open
       onClose={onClose}
-      title={t('chipRequest.title')}
-      subtitle={t('chipRequest.subtitle')}
+      title={t(`${ns}.title`)}
+      subtitle={t(`${ns}.subtitle`)}
       footer={
         <>
           <NeonButton variant="ghost" onClick={onClose}>
             {t('common.cancel')}
           </NeonButton>
           <NeonButton variant="gold" onClick={submit} disabled={busy}>
-            {busy ? t('chipRequest.submitting') : t('chipRequest.submit')}
+            {busy ? t(`${ns}.submitting`) : t(`${ns}.submit`)}
           </NeonButton>
         </>
       }
     >
       <NeonInput
         id="req-amount"
-        label={t('chipRequest.amountLabel')}
+        label={t(`${ns}.amountLabel`)}
         type="number"
         inputMode="numeric"
         value={String(amount)}
         onChange={(e) => setAmount(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-        hint={t('chipRequest.amountHint', {
+        hint={t(`${ns}.amountHint`, {
           bb: (bigBlind * 50).toLocaleString(),
+          wallet: walletBalance.toLocaleString(),
         })}
         error={error}
       />
       <NeonInput
         id="req-message"
-        label={t('chipRequest.messageLabel')}
+        label={t(`${ns}.messageLabel`)}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        hint={t('chipRequest.messageHint')}
+        hint={t(`${ns}.messageHint`)}
       />
     </Modal>
   );

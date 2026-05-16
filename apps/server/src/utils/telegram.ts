@@ -211,17 +211,20 @@ export function buildWelcomeMessage(args: {
 }
 
 /**
- * Builds the message body for a player's chip-top-up request. Always
- * routed via the same admin bot used for new-signup alerts; the
- * admin clicks the dashboard link and approves / rejects from there.
+ * Builds the message body for a player wallet request. `kind` flips
+ * the headline + emoji + verb so the admin can see at a glance
+ * whether they're being asked to add chips (💰 topup) or process a
+ * cashout (📤 cashout). Same dashboard link in both cases.
  */
-export function buildChipRequestMessage(args: {
+export function buildWalletRequestMessage(args: {
+  kind: 'topup' | 'cashout';
   handle: string;
   displayName: string | null;
   amount: number | null;
   userMessage: string | null;
   createdAt: Date;
 }): string {
+  const isCashout = args.kind === 'cashout';
   const base = adminBaseUrl();
   const link = base ? `${base}/admin` : null;
   const created = args.createdAt.toLocaleString('de-DE', {
@@ -230,14 +233,18 @@ export function buildChipRequestMessage(args: {
     timeStyle: 'short',
   });
   const lines = [
-    `💰 <b>Chip-Anfrage</b>`,
+    isCashout
+      ? `📤 <b>Auszahlungs-Anfrage</b>`
+      : `💰 <b>Chip-Anfrage</b>`,
     `Spieler: <code>${escapeHtml(args.handle)}</code>`,
   ];
   if (args.displayName) lines.push(`Name: ${escapeHtml(args.displayName)}`);
   if (args.amount && args.amount > 0) {
-    lines.push(`Gewünscht: <b>${args.amount.toLocaleString('de-DE')}</b> Chips`);
+    lines.push(
+      `${isCashout ? 'Möchte auszahlen' : 'Gewünscht'}: <b>${args.amount.toLocaleString('de-DE')}</b> Chips`,
+    );
   } else {
-    lines.push(`Gewünscht: <i>keine Angabe</i>`);
+    lines.push(`Betrag: <i>keine Angabe</i>`);
   }
   if (args.userMessage) {
     lines.push(`Nachricht: ${escapeHtml(args.userMessage)}`);
@@ -245,4 +252,19 @@ export function buildChipRequestMessage(args: {
   lines.push(`Zeit: ${created}`);
   if (link) lines.push(`\n👉 <a href="${link}">Im Admin-Dashboard prüfen</a>`);
   return lines.join('\n');
+}
+
+/**
+ * @deprecated Use buildWalletRequestMessage with kind='topup'. Kept
+ * as a thin wrapper so the existing /auth/join handler doesn't have
+ * to change in this commit.
+ */
+export function buildChipRequestMessage(args: {
+  handle: string;
+  displayName: string | null;
+  amount: number | null;
+  userMessage: string | null;
+  createdAt: Date;
+}): string {
+  return buildWalletRequestMessage({ kind: 'topup', ...args });
 }

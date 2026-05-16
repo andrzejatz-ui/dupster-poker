@@ -183,6 +183,22 @@ export interface ClientToServerEvents {
         | { ok: false; error: string; code?: string },
     ) => void,
   ) => void;
+  /**
+   * Mirror of chip_request, the other direction. Player asks the
+   * admin to cash chips out — purely symbolic since the money is
+   * fake, but it gives the wallet a real two-way flow. Same DB
+   * table (chip_requests, kind='cashout'), same Telegram bot ping,
+   * same admin-dashboard approval card. On approve the admin
+   * deducts the chips instead of granting them.
+   */
+  'client:player:cashout_request': (
+    payload: { amount?: number; message?: string },
+    ack: (
+      res:
+        | { ok: true; requestId: string }
+        | { ok: false; error: string; code?: string },
+    ) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {

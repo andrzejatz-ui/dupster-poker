@@ -6,7 +6,7 @@ import { logger } from '../utils/logger.js';
 import { pool } from '../db/client.js';
 import { isSessionActive, touchSession, verifyPlayerToken } from '../auth/sessions.js';
 import { findPlayerById } from '../auth/players.js';
-import { buildChipRequestMessage, notifyTelegram } from '../utils/telegram.js';
+import { buildWalletRequestMessage, notifyTelegram } from '../utils/telegram.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -223,9 +223,19 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       ack(ok ? { ok: true } : { ok: false, error: 'not_seated' });
     });
 
-    // ---- Wallet empty — ask the admin for more chips. The admin sees
-    //      the row live in the dashboard and as a Telegram bot push.
-    socket.on('client:player:chip_request', async (payload, ack) => {
+    // ---- Wallet requests (top-up + cashout) ------------------------
+    //      Both directions go through the same chip_requests pipeline;
+    //      `kind` flips the chip-grant direction at approve time and
+    //      the icon on the Telegram alert.
+    async function handleWalletRequest(
+      kind: 'topup' | 'cashout',
+      payload: { amount?: number; message?: string } | undefined,
+      ack: (
+        res:
+          | { ok: true; requestId: string }
+          | { ok: false; error: string; code?: string },
+      ) => void,
+    ) {
       try {
         const amount = payload?.amount && payload.amount > 0
           ? Math.floor(payload.amount) : null;
@@ -234,7 +244,8 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
           : null;
 
         // One open request at a time per player — keeps the admin's
-        // queue clean and prevents accidental double-asks.
+        // queue clean and prevents accidental double-asks. The lock
+        // covers BOTH top-up and cashout so a player can't queue both.
         const open = await pool.query<{ id: string }>(
           "select id from chip_requests where player_id = $1 and status = 'pending' limit 1",
           [socket.data.playerId],
@@ -244,9 +255,9 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
         }
 
         const ins = await pool.query<{ id: string }>(
-          `insert into chip_requests (player_id, amount, message)
-           values ($1, $2, $3) returning id`,
-          [socket.data.playerId, amount, message],
+          `insert into chip_requests (player_id, amount, message, kind)
+           values ($1, $2, $3, $4) returning id`,
+          [socket.data.playerId, amount, message, kind],
         );
         const requestId = ins.rows[0]!.id;
 
@@ -254,7 +265,8 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
         const profile = await findPlayerById(socket.data.playerId);
         if (profile) {
           void notifyTelegram(
-            buildChipRequestMessage({
+            buildWalletRequestMessage({
+              kind,
               handle: profile.handle,
               displayName: profile.displayName,
               amount,
@@ -266,10 +278,17 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
         ack({ ok: true, requestId });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown';
-        logger.error({ err, playerId: socket.data.playerId }, 'chip_request failed');
+        logger.error({ err, kind, playerId: socket.data.playerId }, 'wallet_request failed');
         ack({ ok: false, error: msg });
       }
-    });
+    }
+
+    socket.on('client:player:chip_request', (payload, ack) =>
+      handleWalletRequest('topup', payload, ack),
+    );
+    socket.on('client:player:cashout_request', (payload, ack) =>
+      handleWalletRequest('cashout', payload, ack),
+    );
 
     // ---- Mid-session top-up: pull from wallet to seat stack ---------
     socket.on('client:player:topup', async (payload, ack) => {

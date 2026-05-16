@@ -49,8 +49,9 @@ export default function LobbyPage() {
   const [filterTier, setFilterTier] = useState<'all' | 'micro' | 'low' | 'mid' | 'high' | 'nosebleed'>('all');
   /** Future-product tab — only the cash one is active today. */
   const [activeTab, setActiveTab] = useState<'cash' | 'tournament' | 'sng'>('cash');
-  /** Chip-request modal — opens when wallet runs dry or via header button. */
-  const [chipReqOpen, setChipReqOpen] = useState(false);
+  /** Wallet modal state — `null` is closed, else carries the kind so
+   *  the same component handles both top-up requests and cashouts. */
+  const [walletReqOpen, setWalletReqOpen] = useState<null | 'topup' | 'cashout'>(null);
   /** Invite-a-friend modal — opens from the header button. */
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -129,18 +130,22 @@ export default function LobbyPage() {
     );
   }
 
-  /** Sends the same chip_request the table page uses — Promise wrapper
-   *  so ChipRequestModal can await the ack and toast a result. */
-  function sendChipRequest(args: { amount?: number; message?: string }): Promise<
-    | { ok: true }
-    | { ok: false; error: string }
-  > {
+  /** Two-way wallet request. Same socket event family, kind decides
+   *  whether it's a top-up (chip_request) or a cashout. Returned
+   *  Promise lets the modal await the server ack + show success. */
+  function sendWalletRequest(
+    kind: 'topup' | 'cashout',
+    args: { amount?: number; message?: string },
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
     return new Promise((resolve) => {
       if (!socket) {
         resolve({ ok: false, error: 'no_socket' });
         return;
       }
-      socket.emit('client:player:chip_request', args, (res) => {
+      const event = kind === 'cashout'
+        ? 'client:player:cashout_request'
+        : 'client:player:chip_request';
+      socket.emit(event, args, (res) => {
         if (res.ok) resolve({ ok: true });
         else resolve({ ok: false, error: res.error });
       });
@@ -241,7 +246,12 @@ export default function LobbyPage() {
             </NeonButton>
           )}
           {!pending && (profile?.chips ?? 0) > 0 && (
-            <NeonButton variant="ghost" size="sm" onClick={() => setChipReqOpen(true)}>
+            <NeonButton variant="ghost" size="sm" onClick={() => setWalletReqOpen('cashout')}>
+              💸 <span className="hidden sm:inline ml-1">{t('action.cashout')}</span>
+            </NeonButton>
+          )}
+          {!pending && (
+            <NeonButton variant="ghost" size="sm" onClick={() => setWalletReqOpen('topup')}>
               🙋 <span className="hidden sm:inline ml-1">{t('action.requestChips')}</span>
             </NeonButton>
           )}
@@ -321,7 +331,7 @@ export default function LobbyPage() {
           <NeonButton
             variant="gold"
             size="md"
-            onClick={() => setChipReqOpen(true)}
+            onClick={() => setWalletReqOpen('topup')}
             className="shrink-0"
           >
             🙋 {t('action.requestChips')}
@@ -437,12 +447,14 @@ export default function LobbyPage() {
         </Modal>
       )}
 
-      {chipReqOpen && (
+      {walletReqOpen !== null && (
         <ChipRequestModal
+          kind={walletReqOpen}
           bigBlind={tables[0]?.bigBlind ?? 10}
           buyIn={tables[0]?.buyIn ?? 500}
-          onClose={() => setChipReqOpen(false)}
-          onSubmit={sendChipRequest}
+          walletBalance={profile?.chips ?? 0}
+          onClose={() => setWalletReqOpen(null)}
+          onSubmit={(args) => sendWalletRequest(walletReqOpen, args)}
         />
       )}
 

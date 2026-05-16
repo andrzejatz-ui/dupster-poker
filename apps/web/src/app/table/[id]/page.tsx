@@ -546,8 +546,10 @@ export default function TablePage() {
 
       {chipReqOpen && (
         <ChipRequestModal
+          kind="topup"
           bigBlind={state.bigBlind}
           buyIn={state.buyIn}
+          walletBalance={walletBalance}
           onClose={() => setChipReqOpen(false)}
           onSubmit={sendChipRequest}
         />

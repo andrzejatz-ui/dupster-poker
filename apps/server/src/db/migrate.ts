@@ -113,6 +113,16 @@ export async function runMigrations(): Promise<void> {
       name: 'chip_requests.player_status index',
       sql: 'create index if not exists chip_requests_status_idx on chip_requests(status, created_at desc)',
     },
+    {
+      // Two-way wallet flow. 'topup' (default) — player asks for more
+      // chips; admin approval grants them. 'cashout' — player asks to
+      // hand chips back; admin approval deducts them. Same audit and
+      // notification pipeline, different signed delta on approve.
+      name: 'chip_requests.kind column',
+      sql: `alter table chip_requests
+              add column if not exists kind text not null default 'topup'
+              check (kind in ('topup','cashout'))`,
+    },
     // future: add more idempotent migrations here
   ];
 

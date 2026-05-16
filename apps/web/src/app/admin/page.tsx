@@ -53,6 +53,7 @@ interface ChipRequestRow {
   amount: string | null;
   message: string | null;
   status: 'pending' | 'approved' | 'rejected';
+  kind: 'topup' | 'cashout';
   created_at: string;
   player_id: string;
   player_handle: string;
@@ -605,10 +606,36 @@ function ChipRequestRowCmp({
   const t = useT();
   const asked = req.amount ? Number(req.amount) : 0;
   const [amount, setAmount] = useState<number>(asked > 0 ? asked : 1000);
+  const isCashout = req.kind === 'cashout';
+  // Visual distinction between the two flows — gold border for chip
+  // top-up requests, soft red for cashout requests so the admin
+  // glances and instantly knows which direction chips will flow.
+  const cardTone = isCashout
+    ? 'border-status-alert/45 bg-status-alert/[0.06]'
+    : 'border-gold/40 bg-obsidian-soft/60';
+  const kindLabel = isCashout
+    ? t('admin.chipRequests.cashoutLabel')
+    : t('admin.chipRequests.topupLabel');
+  const kindColor = isCashout
+    ? 'text-status-alert/85 border-status-alert/40 bg-status-alert/10'
+    : 'text-gold border-gold/40 bg-gold/10';
+  const askedText = isCashout
+    ? (asked > 0
+        ? t('admin.chipRequests.wantsCashout', { amount: asked.toLocaleString() })
+        : t('admin.chipRequests.wantsCashoutNoAmount'))
+    : (asked > 0
+        ? t('admin.chipRequests.asked', { amount: asked.toLocaleString() })
+        : t('admin.chipRequests.askedNoAmount'));
   return (
-    <div className="rounded-xl border border-gold/40 bg-obsidian-soft/60 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+    <div className={clsx('rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-3', cardTone)}>
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={clsx(
+            'inline-block text-[9px] uppercase tracking-[0.22em] font-display px-1.5 py-0.5 rounded border',
+            kindColor,
+          )}>
+            {isCashout ? '📤' : '💰'} {kindLabel}
+          </span>
           <span className="font-display text-gold text-sm sm:text-base truncate">
             {req.display_name ?? req.player_handle}
           </span>
@@ -620,9 +647,7 @@ function ChipRequestRowCmp({
           </span>
         </div>
         <div className="text-xs text-ink-secondary mt-1">
-          {asked > 0
-            ? t('admin.chipRequests.asked', { amount: asked.toLocaleString() })
-            : t('admin.chipRequests.askedNoAmount')}
+          {askedText}
           {req.message && (
             <>
               {' — '}
@@ -643,7 +668,7 @@ function ChipRequestRowCmp({
           className="w-28 px-2 py-1 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold text-right"
         />
         <NeonButton size="sm" variant="gold" onClick={() => onApprove(amount)}>
-          {t('admin.chipRequests.approve')}
+          {isCashout ? t('admin.chipRequests.approveCashout') : t('admin.chipRequests.approve')}
         </NeonButton>
         <NeonButton size="sm" variant="danger" onClick={onReject}>
           {t('admin.chipRequests.reject')}

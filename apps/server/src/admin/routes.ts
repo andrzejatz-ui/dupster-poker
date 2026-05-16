@@ -1053,7 +1053,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
    */
   r.get('/chip-requests', requireAdmin, async (_req, res) => {
     const q = await pool.query(
-      `select r.id, r.amount, r.message, r.status, r.created_at,
+      `select r.id, r.amount, r.message, r.status, r.kind, r.created_at,
               r.resolved_at, r.granted_amount,
               p.id          as player_id,
               p.player_handle,
@@ -1073,8 +1073,8 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const parsed = Body.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
     try {
-      const row = await pool.query<{ player_id: string; status: string }>(
-        'select player_id, status from chip_requests where id = $1',
+      const row = await pool.query<{ player_id: string; status: string; kind: string }>(
+        'select player_id, status, kind from chip_requests where id = $1',
         [req.params.id],
       );
       if (row.rowCount === 0) return res.status(404).json({ error: 'not_found' });
@@ -1082,14 +1082,33 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         return res.status(409).json({ error: 'already_resolved' });
       }
       const playerId = row.rows[0]!.player_id;
+      const kind = row.rows[0]!.kind;
 
-      await moveChips({
-        playerId,
-        delta: parsed.data.amount,
-        reason: 'admin_grant',
-        adminId: req.adminId,
-        note: `chip_request approved (id ${req.params.id})`,
-      });
+      // Sign flips with kind: top-up adds chips, cashout removes them.
+      const signedDelta =
+        kind === 'cashout' ? -parsed.data.amount : parsed.data.amount;
+      const reason =
+        kind === 'cashout' ? 'cash_out' as const : 'admin_grant' as const;
+
+      try {
+        await moveChips({
+          playerId,
+          delta: signedDelta,
+          reason,
+          adminId: req.adminId,
+          note: `${kind}_request approved (id ${req.params.id})`,
+        });
+      } catch (err) {
+        // moveChips throws 'insufficient_chips' if a cashout exceeds
+        // the player's current wallet — surface that cleanly so the
+        // admin can adjust the amount.
+        const msg = err instanceof Error ? err.message : 'unknown';
+        if (msg === 'insufficient_chips') {
+          return res.status(409).json({ error: 'insufficient_chips' });
+        }
+        throw err;
+      }
+
       await pool.query(
         `update chip_requests
            set status='approved', resolved_at=now(), resolved_by=$2, granted_amount=$3
@@ -1098,23 +1117,23 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       );
 
       // Pop the new balance to the player's open sockets so the lobby
-      // / table header reflects the grant immediately.
+      // / table header reflects the change immediately.
       try {
         const fresh = await findPlayerById(playerId);
         if (fresh) {
           emitToPlayer(io, playerId, 'server:account:chip_update', {
             chips: fresh.chips,
-            delta: parsed.data.amount,
-            reason: 'admin_grant',
+            delta: signedDelta,
+            reason,
           });
         }
       } catch { /* non-fatal */ }
 
       await logAdminAction({
         adminId: req.adminId!,
-        action: 'approve_chip_request',
+        action: kind === 'cashout' ? 'approve_cashout_request' : 'approve_chip_request',
         targetPlayerId: playerId,
-        payload: { requestId: req.params.id, amount: parsed.data.amount },
+        payload: { requestId: req.params.id, kind, amount: parsed.data.amount },
       });
       res.json({ ok: true });
     } catch (err) {
