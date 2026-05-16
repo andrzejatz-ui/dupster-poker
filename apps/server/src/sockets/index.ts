@@ -116,6 +116,12 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
         if (!profile || profile.status !== 'approved') {
           return ack({ ok: false, error: 'not_approved' });
         }
+        // Test rooms are bootstrapped by the /admin/test-room endpoint
+        // with the admin already seated. They never accept lobby joins.
+        const target = tables.get(payload.tableId);
+        if (target?.cfg.isTestRoom) {
+          return ack({ ok: false, error: 'no_table' });
+        }
         await tables.sitPlayer({
           tableId: payload.tableId,
           seatIndex: payload.seatIndex,
@@ -286,16 +292,20 @@ export function disconnectPlayer(io: IOType, playerId: string, reason: string): 
 }
 
 function summarize(list: PokerTable[]): TableSummary[] {
-  return list.map((t) => ({
-    id: t.cfg.tableId,
-    name: t.cfg.name,
-    smallBlind: t.cfg.smallBlind,
-    bigBlind: t.cfg.bigBlind,
-    buyIn: t.cfg.buyIn,
-    seated: t.seats.size,
-    maxPlayers: t.cfg.maxPlayers,
-    inHand: t.phase !== 'waiting',
-  }));
+  return list
+    // Test rooms never appear in the player-facing lobby — admins reach
+    // them via the admin dashboard's "Test Room" shortcut.
+    .filter((t) => !t.cfg.isTestRoom)
+    .map((t) => ({
+      id: t.cfg.tableId,
+      name: t.cfg.name,
+      smallBlind: t.cfg.smallBlind,
+      bigBlind: t.cfg.bigBlind,
+      buyIn: t.cfg.buyIn,
+      seated: t.seats.size,
+      maxPlayers: t.cfg.maxPlayers,
+      inHand: t.phase !== 'waiting',
+    }));
 }
 
 async function findCurrentSeat(

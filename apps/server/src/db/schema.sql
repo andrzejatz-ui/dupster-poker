@@ -57,6 +57,9 @@ create table if not exists tables (
   buy_in           bigint not null,
   max_players      int not null check (max_players between 2 and 9),
   allow_spectators boolean not null default false,
+  -- Admin-only sandbox tables seated with bots. Archived on every
+  -- server restart since their in-memory bots can't survive a reboot.
+  is_test_room     boolean not null default false,
   created_at       timestamptz not null default now(),
   created_by       uuid not null references admins(id),
   archived_at      timestamptz

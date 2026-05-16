@@ -123,6 +123,29 @@ export default function AdminDashboard() {
     }
   }
 
+  /**
+   * Spin up a private bot table and drop the admin into it. Reuses the
+   * admin's play-handle (prompting via Settings if it's still empty),
+   * tops up chips for the buy-in, and navigates straight to the table.
+   * Bot opponents are server-driven; the admin can fold, raise, sit out,
+   * etc. exactly as they would against humans.
+   */
+  async function startTestRoom() {
+    if (!me?.playHandle) {
+      setDialog({ kind: 'settings' });
+      return;
+    }
+    const r = await adminCall('/test-room', { method: 'POST', body: JSON.stringify({}) });
+    if (r.status === 200 && r.body.token) {
+      setSession(r.body.token, r.body.profile);
+      router.push(`/table/${r.body.tableId}`);
+    } else if (r.body.error === 'no_handle_configured') {
+      setDialog({ kind: 'settings' });
+    } else {
+      alert(r.body.error ?? 'failed');
+    }
+  }
+
   async function pauseToggle(table: TableRow) {
     await adminCall(`/tables/${table.id}/${table.is_paused ? 'resume' : 'pause'}`, { method: 'POST' });
     refresh();
@@ -148,6 +171,9 @@ export default function AdminDashboard() {
           <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
             <NeonButton variant="gold" size="sm" onClick={startPlaying}>
               ▶ {me?.playHandle ? `${t('admin.play')} · ${me.playHandle}` : t('admin.play')}
+            </NeonButton>
+            <NeonButton variant="ghost" size="sm" onClick={startTestRoom}>
+              ▶ {t('admin.testRoom')}
             </NeonButton>
             <NeonButton variant="ghost" size="sm" onClick={() => setDialog({ kind: 'settings' })}>
               ⚙ {t('admin.settings')}

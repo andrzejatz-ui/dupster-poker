@@ -225,6 +225,158 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     });
   });
 
+  /* ---- Test room (admin-only sandbox with bot opponents) --------- */
+
+  /**
+   * One-click spin-up of a private bot table. Creates a fresh `tables`
+   * row flagged `is_test_room=true` (hidden from the public lobby),
+   * seats the admin's player at seat 0 via a real buy-in (we top them
+   * up if needed), and fills the rest of the seats with in-memory
+   * bots. Returns the player token + tableId so the front-end can stash
+   * the session and navigate straight to /table/<id>. Test rooms are
+   * archived on every server boot — they're disposable by design.
+   */
+  r.post('/test-room', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({
+      maxPlayers: z.number().int().min(2).max(8).default(6),
+      smallBlind: z.number().int().positive().default(50),
+      bigBlind: z.number().int().positive().default(100),
+      buyIn: z.number().int().positive().default(10000),
+    });
+    const parsed = Body.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const { maxPlayers, smallBlind, bigBlind, buyIn } = parsed.data;
+    if (bigBlind <= smallBlind) {
+      return res.status(400).json({ error: 'big_blind_must_exceed_small' });
+    }
+
+    // Resolve the admin's play handle (mint the player if needed). We
+    // mirror /admin/play's logic so the same admin can have a single
+    // play-handle that's reused across both shortcuts.
+    const meRow = await pool.query<{ play_handle: string | null }>(
+      'select play_handle from admins where id = $1',
+      [req.adminId],
+    );
+    const handle = meRow.rows[0]?.play_handle ?? null;
+    if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
+
+    let player = await findPlayerByHandle(handle);
+    if (!player) {
+      await pool.query(
+        `insert into players (player_handle, status, chips, approved_at, approved_by)
+         values ($1, 'approved', 0, now(), $2)`,
+        [handle, req.adminId],
+      );
+      player = await findPlayerByHandle(handle);
+      if (!player) return res.status(500).json({ error: 'create_failed' });
+    } else if (player.status !== 'approved') {
+      await pool.query(
+        `update players set status='approved', approved_at=now(), approved_by=$2,
+           banned_at=null, banned_reason=null where id=$1`,
+        [player.id, req.adminId],
+      );
+      player = await findPlayerByHandle(handle);
+      if (!player) return res.status(500).json({ error: 'reapprove_failed' });
+    }
+
+    // If the admin is already seated somewhere, kick them out first so
+    // sitPlayer's "unique player per seat" invariant holds.
+    const seatRow = await pool.query<{ table_id: string; seat_index: number }>(
+      'select table_id, seat_index from table_seats where player_id = $1',
+      [player.id],
+    );
+    if ((seatRow.rowCount ?? 0) > 0) {
+      const { table_id, seat_index } = seatRow.rows[0]!;
+      try {
+        await tables.leavePlayer({ tableId: table_id, seatIndex: seat_index, playerId: player.id });
+      } catch { /* best-effort */ }
+    }
+
+    // Top the admin up to at least the buy-in. We don't drain the
+    // surplus — they keep whatever chips they had.
+    if (player.chips < buyIn) {
+      await moveChips({
+        playerId: player.id,
+        delta: buyIn - player.chips,
+        reason: 'admin_grant',
+        adminId: req.adminId,
+        note: 'test-room top-up',
+      });
+    }
+
+    // Insert the table row, flagged as a test room.
+    const ins = await pool.query<{ id: string }>(
+      `insert into tables
+         (name, small_blind, big_blind, buy_in, max_players,
+          allow_spectators, created_by, is_test_room)
+       values ($1,$2,$3,$4,$5,false,$6,true) returning id`,
+      [
+        `Test Room · ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`,
+        smallBlind, bigBlind, buyIn, maxPlayers, req.adminId,
+      ],
+    );
+    const tableId = ins.rows[0]!.id;
+
+    tables.addTable(new PokerTable({
+      tableId,
+      name: `Test Room`,
+      smallBlind,
+      bigBlind,
+      buyIn,
+      maxPlayers,
+      allowSpectators: false,
+      turnTimerMs: config.TURN_TIMER_MS,
+      isTestRoom: true,
+    }));
+
+    // Seat the admin first so they always land on seat 0. `defer:true`
+    // suppresses the auto-dealer until every bot is at the table —
+    // otherwise the hand starts as soon as 2 seats are filled and the
+    // remaining bots get marked sitting-out for the first deal.
+    await tables.sitPlayer({
+      tableId,
+      seatIndex: 0,
+      playerId: player.id,
+      displayName: player.displayName ?? player.handle,
+      avatarUrl: player.avatarUrl ?? null,
+      defer: true,
+    });
+    for (let i = 1; i < maxPlayers; i++) {
+      tables.sitBot({ tableId, seatIndex: i, defer: true });
+    }
+    tables.beginPlay(tableId);
+
+    // Mint a player session for the admin so the browser can connect to
+    // the table over Socket.IO. Same two-step trick as /admin/play.
+    const tempToken = signPlayerToken(player.id, 'pending');
+    const sessionId = await createSession({
+      playerId: player.id,
+      token: tempToken,
+      ip: req.ip ?? null,
+      userAgent: req.header('user-agent') ?? null,
+    });
+    const token = signPlayerToken(player.id, sessionId);
+
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'create_test_room',
+      targetTableId: tableId,
+      targetPlayerId: player.id,
+      payload: { maxPlayers, smallBlind, bigBlind, buyIn },
+    });
+
+    res.json({
+      tableId,
+      token,
+      profile: {
+        id: player.id,
+        handle: player.handle,
+        displayName: player.displayName,
+        chips: player.chips,
+      },
+    });
+  });
+
   /* ---- Players --------------------------------------------------- */
 
   r.get('/players', requireAdmin, async (req, res) => {

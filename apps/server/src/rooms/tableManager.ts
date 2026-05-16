@@ -1,7 +1,19 @@
+import { ulid } from 'ulid';
 import { logger } from '../utils/logger.js';
 import { pool, withTx } from '../db/client.js';
 import { moveChipsInTx } from '../db/chips.js';
-import { PokerTable, type TableConfig } from '../poker/engine.js';
+import {
+  BOT_PLAYER_PREFIX,
+  isBotPlayerId,
+  PokerTable,
+  type TableConfig,
+} from '../poker/engine.js';
+import { decideBotAction } from '../poker/bot.js';
+
+const BOT_NAMES = [
+  'Bot Alex', 'Bot Sam', 'Bot Riley', 'Bot Casey',
+  'Bot Morgan', 'Bot Drew', 'Bot Jamie', 'Bot Quinn',
+];
 
 /**
  * Single-process in-memory registry of PokerTable instances. For horizontal
@@ -10,6 +22,8 @@ import { PokerTable, type TableConfig } from '../poker/engine.js';
 export class TableManager {
   private tables = new Map<string, PokerTable>();
   private turnTimers = new Map<string, NodeJS.Timeout>();
+  /** Pending think-delay timer for bot seats — at most one per table. */
+  private botTimers = new Map<string, NodeJS.Timeout>();
   /** Listener fired on every state change so the socket layer can broadcast. */
   onStateChange: (tableId: string) => void = () => {};
   onHandResult: (tableId: string, payload: ReturnType<PokerTable['resolveShowdown']>) => void = () => {};
@@ -24,8 +38,15 @@ export class TableManager {
     await this.cleanupStaleSeats();
 
     const r = await pool.query(`select id, name, small_blind, big_blind, buy_in,
-      max_players, allow_spectators from tables where archived_at is null`);
+      max_players, allow_spectators, is_test_room from tables where archived_at is null`);
     for (const row of r.rows) {
+      // Test rooms don't survive a restart — their bot seats live only
+      // in memory and the admin's session is gone. Archive on load so
+      // they vanish from /admin/tables and aren't reloaded next time.
+      if (row.is_test_room) {
+        await pool.query('update tables set archived_at = now() where id = $1', [row.id]);
+        continue;
+      }
       const cfg: TableConfig = {
         tableId: row.id,
         name: row.name,
@@ -35,6 +56,7 @@ export class TableManager {
         maxPlayers: row.max_players,
         turnTimerMs,
         allowSpectators: row.allow_spectators,
+        isTestRoom: false,
       };
       this.tables.set(row.id, new PokerTable(cfg));
     }
@@ -164,6 +186,12 @@ export class TableManager {
     playerId: string;
     displayName: string;
     avatarUrl?: string | null;
+    /**
+     * When true, suppress the automatic maybeStartHand call so the caller
+     * can batch multiple seatings (e.g. the test-room bootstrap) and
+     * trigger the first hand once everyone is seated.
+     */
+    defer?: boolean;
   }): Promise<{ seatIndex: number }> {
     const table = this.tables.get(args.tableId);
     if (!table) throw new Error('table_not_found');
@@ -217,32 +245,123 @@ export class TableManager {
     });
 
     this.onStateChange(args.tableId);
-    this.maybeStartHand(args.tableId);
+    if (!args.defer) this.maybeStartHand(args.tableId);
     return { seatIndex: chosen };
   }
 
-  async leavePlayer(args: { tableId: string; seatIndex: number; playerId: string }): Promise<void> {
+  async leavePlayer(args: {
+    tableId: string;
+    seatIndex: number;
+    playerId: string;
+    /** Set when called from closeTable's drain loop — suppresses the
+     *  test-room auto-teardown path so we don't recurse. */
+    suppressTestRoomTeardown?: boolean;
+  }): Promise<void> {
     const table = this.tables.get(args.tableId);
     if (!table) throw new Error('table_not_found');
     const left = table.leave(args.seatIndex);
     if (!left) return;
 
-    await withTx(async (c) => {
-      await c.query(
-        'delete from table_seats where table_id = $1 and seat_index = $2',
-        [args.tableId, args.seatIndex],
+    // Bot seats are pure in-memory; the players FK would reject any
+    // ledger or table_seats write keyed on their synthetic id.
+    if (!isBotPlayerId(args.playerId)) {
+      await withTx(async (c) => {
+        await c.query(
+          'delete from table_seats where table_id = $1 and seat_index = $2',
+          [args.tableId, args.seatIndex],
+        );
+        if (left.stack > 0) {
+          await moveChipsInTx(c, {
+            playerId: args.playerId,
+            delta: BigInt(left.stack),
+            reason: 'cash_out',
+            refTableId: args.tableId,
+          });
+        }
+      });
+    }
+
+    this.onStateChange(args.tableId);
+
+    // Test rooms exist for the admin — bots alone shouldn't keep
+    // dealing forever. If the human just left, tear it down.
+    if (
+      table.cfg.isTestRoom &&
+      !isBotPlayerId(args.playerId) &&
+      !args.suppressTestRoomTeardown
+    ) {
+      const humansLeft = [...table.seats.values()].some(
+        (s) => !isBotPlayerId(s.playerId),
       );
-      if (left.stack > 0) {
-        await moveChipsInTx(c, {
-          playerId: args.playerId,
-          delta: BigInt(left.stack),
-          reason: 'cash_out',
-          refTableId: args.tableId,
-        });
+      if (!humansLeft) {
+        try {
+          await this.closeTable(args.tableId);
+          await pool.query(
+            'update tables set archived_at = now() where id = $1 and archived_at is null',
+            [args.tableId],
+          );
+        } catch (err) {
+          logger.error({ err, tableId: args.tableId }, 'test-room teardown failed');
+        }
       }
+    }
+  }
+
+  /**
+   * In-memory bot seat for a test room. No DB rows are written; the seat
+   * vanishes when the table is closed (no cleanup needed). Returns the
+   * seat index that was used so the caller can chain multiple bots.
+   */
+  sitBot(args: {
+    tableId: string;
+    seatIndex?: number;
+    name?: string;
+    /** Suppress auto-start so the caller can batch-seat the table. */
+    defer?: boolean;
+  }): { seatIndex: number } {
+    const table = this.tables.get(args.tableId);
+    if (!table) throw new Error('table_not_found');
+    if (!table.cfg.isTestRoom) {
+      // Belt-and-braces: never seat bots at a real-money table by mistake.
+      throw new Error('not_a_test_room');
+    }
+
+    let chosen = args.seatIndex ?? -1;
+    if (chosen < 0 || chosen >= table.cfg.maxPlayers || table.seats.has(chosen)) {
+      chosen = -1;
+      for (let i = 0; i < table.cfg.maxPlayers; i++) {
+        if (!table.seats.has(i)) { chosen = i; break; }
+      }
+    }
+    if (chosen < 0) throw new Error('table_full');
+
+    const playerId = `${BOT_PLAYER_PREFIX}${ulid()}`;
+    const displayName = args.name ?? BOT_NAMES[chosen % BOT_NAMES.length]!;
+    table.sit({
+      seatIndex: chosen,
+      playerId,
+      displayName,
+      avatarUrl: null,
+      stack: table.cfg.buyIn,
+      isBot: true,
     });
 
     this.onStateChange(args.tableId);
+    if (!args.defer) {
+      this.maybeStartHand(args.tableId);
+      this.scheduleBotIfNeeded(args.tableId);
+    }
+    return { seatIndex: chosen };
+  }
+
+  /**
+   * Public entrypoint to kick off auto-dealing on a freshly seated table.
+   * The test-room bootstrap defers the per-seat maybeStartHand calls and
+   * then triggers exactly one start once everyone is in place.
+   */
+  beginPlay(tableId: string): void {
+    this.maybeStartHand(tableId);
+    this.scheduleBotIfNeeded(tableId);
   }
 
   applyAction(args: {
@@ -258,6 +377,7 @@ export class TableManager {
     this.onStateChange(args.tableId);
 
     if (table.phase === 'showdown') this.finalizeHand(args.tableId);
+    else this.scheduleBotIfNeeded(args.tableId);
     return res;
   }
 
@@ -272,7 +392,58 @@ export class TableManager {
     if (started) {
       this.scheduleTurnTimer(tableId);
       this.onStateChange(tableId);
+      this.scheduleBotIfNeeded(tableId);
     }
+  }
+
+  /**
+   * If the seat currently to-act is a bot, queue its action behind a
+   * randomized think delay so the table feels alive instead of robotic.
+   * Called whenever the to-act pointer might have moved: after every
+   * applied action, after each new hand starts, after sitBot, after the
+   * turn-timer fires. Cancels any previous bot timer on the same table.
+   */
+  private scheduleBotIfNeeded(tableId: string): void {
+    const table = this.tables.get(tableId);
+    if (!table) return;
+    const prev = this.botTimers.get(tableId);
+    if (prev) { clearTimeout(prev); this.botTimers.delete(tableId); }
+    if (table.isPaused) return;
+    if (table.toActSeat === null) return;
+    const seat = table.seats.get(table.toActSeat);
+    if (!seat || !seat.isBot) return;
+    const legal = table.legalActionsFor(seat.seatIndex);
+    if (!legal) return;
+
+    const decision = decideBotAction({ table, seat, legal });
+    const seatToAct = seat.seatIndex;
+    const handAtSchedule = table.handId;
+
+    const timer = setTimeout(() => {
+      this.botTimers.delete(tableId);
+      const t = this.tables.get(tableId);
+      if (!t) return;
+      if (t.handId !== handAtSchedule) return;
+      if (t.toActSeat !== seatToAct) return;
+      if (t.isPaused) return;
+      try {
+        const res = t.applyAction(seatToAct, decision.action, `bot:${ulid()}`);
+        this.scheduleTurnTimer(tableId);
+        this.onStateChange(tableId);
+        if (t.phase === 'showdown') {
+          void this.finalizeHand(tableId);
+        } else {
+          this.scheduleBotIfNeeded(tableId);
+        }
+        if (!res.ok) {
+          logger.warn({ tableId, seatToAct, res }, 'bot action rejected');
+        }
+      } catch (err) {
+        logger.error({ err, tableId, seatToAct }, 'bot action threw');
+      }
+    }, decision.thinkMs);
+
+    this.botTimers.set(tableId, timer);
   }
 
   /**
@@ -338,6 +509,11 @@ export class TableManager {
       clearTimeout(t);
       this.turnTimers.delete(tableId);
     }
+    const b = this.botTimers.get(tableId);
+    if (b) {
+      clearTimeout(b);
+      this.botTimers.delete(tableId);
+    }
     // Freeze the deadline so the UI shows the pause cleanly.
     table.toActDeadline = null;
     this.onStateChange(tableId);
@@ -351,6 +527,7 @@ export class TableManager {
     if (table.toActSeat !== null) {
       table.toActDeadline = Date.now() + table.cfg.turnTimerMs;
       this.scheduleTurnTimer(tableId);
+      this.scheduleBotIfNeeded(tableId);
     } else {
       this.maybeStartHand(tableId);
     }
@@ -366,11 +543,16 @@ export class TableManager {
   async closeTable(tableId: string): Promise<{ ok: boolean }> {
     const table = this.tables.get(tableId);
     if (!table) return { ok: false };
-    // Cancel any pending turn timer.
+    // Cancel any pending turn / bot timer.
     const t = this.turnTimers.get(tableId);
     if (t) {
       clearTimeout(t);
       this.turnTimers.delete(tableId);
+    }
+    const b = this.botTimers.get(tableId);
+    if (b) {
+      clearTimeout(b);
+      this.botTimers.delete(tableId);
     }
     // Snapshot seats then call leavePlayer for each so the cash_out
     // ledger row is written by the same path used in normal flow.
@@ -380,7 +562,12 @@ export class TableManager {
     }));
     for (const s of seats) {
       try {
-        await this.leavePlayer({ tableId, seatIndex: s.seatIndex, playerId: s.playerId });
+        await this.leavePlayer({
+          tableId,
+          seatIndex: s.seatIndex,
+          playerId: s.playerId,
+          suppressTestRoomTeardown: true,
+        });
       } catch (err) {
         logger.error({ err, tableId, seatIndex: s.seatIndex }, 'leave failed during table close');
       }
@@ -415,6 +602,8 @@ export class TableManager {
             // Don't `await` here — setTimeout callback isn't async-aware.
             // finalizeHand swallows its own errors.
             void this.finalizeHand(tableId);
+          } else {
+            this.scheduleBotIfNeeded(tableId);
           }
         } catch (err) {
           logger.error({ err, tableId }, 'turn-timer handler failed');
@@ -457,16 +646,20 @@ export class TableManager {
           ],
         );
 
-        // Persist seat stack updates (so a crash doesn't wipe winnings)
+        // Persist seat stack updates (so a crash doesn't wipe winnings).
+        // Bots have no table_seats row — skip them.
         for (const seat of table.seats.values()) {
+          if (isBotPlayerId(seat.playerId)) continue;
           await c.query(
             'update table_seats set stack = $1 where table_id = $2 and seat_index = $3',
             [seat.stack, tableId, seat.seatIndex],
           );
         }
 
-        // Hand results
+        // Hand results. Bots aren't in `players`, so the FK would
+        // reject any hand_results row keyed on their synthetic id.
         for (const seat of table.seats.values()) {
+          if (isBotPlayerId(seat.playerId)) continue;
           const win = result.payouts.get(seat.seatIndex) ?? 0;
           if (seat.holeCards) {
             await c.query(

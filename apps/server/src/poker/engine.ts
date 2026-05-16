@@ -29,6 +29,18 @@ export interface Seat {
   isPaused: boolean;
   hasActedThisStreet: boolean;
   isReconnecting: boolean;
+  /**
+   * Server-controlled AI seat for admin-only test rooms. Bots have no DB
+   * row in `players` / `table_seats`, so every persistence path needs to
+   * skip them. Identified by the `bot:` playerId prefix as well.
+   */
+  isBot: boolean;
+}
+
+/** Bot playerIds carry this prefix so DB-write paths can skip them safely. */
+export const BOT_PLAYER_PREFIX = 'bot:';
+export function isBotPlayerId(playerId: string): boolean {
+  return playerId.startsWith(BOT_PLAYER_PREFIX);
 }
 
 export interface HandActionRecord {
@@ -71,6 +83,13 @@ export interface TableConfig {
   maxPlayers: number;
   turnTimerMs: number;
   allowSpectators: boolean;
+  /**
+   * Admin-only test rooms with bot opponents. Hidden from the regular
+   * lobby listing; only reachable via the admin dashboard's test-room
+   * shortcut. Bots seated here have no `players` / `table_seats` rows
+   * and are skipped by every persistence path.
+   */
+  isTestRoom?: boolean;
 }
 
 export class PokerTable {
@@ -111,6 +130,7 @@ export class PokerTable {
     displayName: string;
     avatarUrl?: string | null;
     stack: number;
+    isBot?: boolean;
   }): void {
     if (this.seats.has(args.seatIndex)) throw new Error('seat_taken');
     if (args.seatIndex < 0 || args.seatIndex >= this.cfg.maxPlayers)
@@ -133,6 +153,7 @@ export class PokerTable {
       isPaused: false,
       hasActedThisStreet: false,
       isReconnecting: false,
+      isBot: args.isBot ?? isBotPlayerId(args.playerId),
     });
   }
 
@@ -743,6 +764,7 @@ export class PokerTable {
               : undefined,
           isToAct: this.toActSeat === s.seatIndex,
           isReconnecting: s.isReconnecting,
+          isBot: s.isBot,
         };
       });
 

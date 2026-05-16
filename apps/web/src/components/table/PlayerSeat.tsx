@@ -83,6 +83,11 @@ export function PlayerSeat({
             {t('seat.recon')}
           </span>
         )}
+        {seat.isBot && (
+          <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded bg-ink-muted/85 text-obsidian-bg text-[9px] font-display tracking-widest">
+            BOT
+          </span>
+        )}
         {seat.isAllIn && (
           <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-gold text-obsidian-bg text-[9px] font-display tracking-widest">
             {t('seat.allIn')}

@@ -30,6 +30,8 @@ export interface PublicSeat {
   isToAct: boolean;
   /** Reconnect-Grace läuft. UI zeigt Spinner. */
   isReconnecting: boolean;
+  /** Server-controlled bot seat in an admin-only test room. */
+  isBot?: boolean;
 }
 
 export interface PublicSidePot {

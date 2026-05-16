@@ -55,6 +55,12 @@ export async function runMigrations(): Promise<void> {
           )
       `,
     },
+    {
+      // Admin-only test rooms with bots. Hidden from the lobby listing
+      // for every non-admin so regular players never see them.
+      name: 'tables.is_test_room column',
+      sql: 'alter table tables add column if not exists is_test_room boolean not null default false',
+    },
     // future: add more idempotent migrations here
   ];
 
