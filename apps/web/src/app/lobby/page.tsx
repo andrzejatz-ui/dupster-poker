@@ -18,6 +18,8 @@ import {
 import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { Eye } from '@/components/brand/Eye';
+import { TableCard } from '@/components/lobby/TableCard';
+import { AdCarousel } from '@/components/lobby/AdCarousel';
 import { getAdminToken } from '@/lib/admin';
 import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
@@ -115,17 +117,66 @@ export default function LobbyPage() {
     );
   }
 
+  // ---- Lobby stats strip — small live counters that read like a
+  //      real cash-game lobby's "44 tables · 312 players online" line.
+  const totalSeated = tables.reduce((sum, tbl) => sum + tbl.seated, 0);
+  const totalSeats = tables.reduce((sum, tbl) => sum + tbl.maxPlayers, 0);
+  const inHandCount = tables.filter((tbl) => tbl.inHand).length;
+
+  // ---- Fake-ad copy — all decorative, the disclaimers ARE the joke.
+  //      Localised via i18n so de/pl users see appropriate copy.
+  const ads = [
+    {
+      kicker: t('lobby.ads.tournament.kicker'),
+      headline: t('lobby.ads.tournament.headline'),
+      body: t('lobby.ads.tournament.body'),
+      disclaimer: t('lobby.ads.tournament.disclaimer'),
+      icon: '🏆',
+      tone: 'gold' as const,
+    },
+    {
+      kicker: t('lobby.ads.tiltInsurance.kicker'),
+      headline: t('lobby.ads.tiltInsurance.headline'),
+      body: t('lobby.ads.tiltInsurance.body'),
+      disclaimer: t('lobby.ads.tiltInsurance.disclaimer'),
+      icon: '🧊',
+      tone: 'smoky' as const,
+    },
+    {
+      kicker: t('lobby.ads.botCoach.kicker'),
+      headline: t('lobby.ads.botCoach.headline'),
+      body: t('lobby.ads.botCoach.body'),
+      disclaimer: t('lobby.ads.botCoach.disclaimer'),
+      icon: '🤖',
+      tone: 'smoky' as const,
+    },
+    {
+      kicker: t('lobby.ads.brand.kicker'),
+      headline: t('lobby.ads.brand.headline'),
+      body: t('lobby.ads.brand.body'),
+      icon: '👁',
+      tone: 'gold' as const,
+    },
+    {
+      kicker: t('lobby.ads.limited.kicker'),
+      headline: t('lobby.ads.limited.headline'),
+      body: t('lobby.ads.limited.body'),
+      disclaimer: t('lobby.ads.limited.disclaimer'),
+      icon: '⚡',
+      tone: 'alert' as const,
+    },
+  ];
+
   return (
-    <main className="viewport-fit flex flex-col px-3 sm:px-6 pt-3 sm:pt-5 pb-2 max-w-6xl mx-auto w-full">
-      <header className="flex items-center justify-between mb-3 sm:mb-5 pr-24 sm:pr-36 gap-3 shrink-0">
+    <main className="min-h-dvh flex flex-col px-3 sm:px-6 pt-3 sm:pt-5 pb-3 max-w-6xl mx-auto w-full">
+      {/* Header */}
+      <header className="flex items-center justify-between mb-3 sm:mb-4 pr-24 sm:pr-36 gap-3 shrink-0">
         <button
           type="button"
           onClick={() => setProfileOpen(true)}
           className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-rim-bright hover:border-gold/70 transition surface-strong flex items-center justify-center"
           aria-label={t('lobby.editProfile')}
         >
-          {/* Brand Eye in its default sentinel look — the eye IS the
-              user's avatar across the app. No photo is pushed inside. */}
           <Eye size={70} />
         </button>
         <div className="flex-1 min-w-0">
@@ -136,14 +187,7 @@ export default function LobbyPage() {
             <h1 className="font-display text-xl sm:text-2xl text-gold text-glow-gold truncate">{t('lobby.title')}</h1>
           </div>
           <p className="text-ink-muted text-[11px] sm:text-xs truncate">
-            {t('lobby.signedInAs')} <span className="font-mono text-ink-secondary">{profile?.handle}</span>
-            {profile?.chips != null && (
-              <>
-                {' '}· <span className="text-gold">
-                  {profile.chips.toLocaleString()} {t('lobby.chipsSuffix')}
-                </span>
-              </>
-            )}
+            <span className="font-mono text-ink-secondary">{profile?.handle}</span>
             {' '}· <span className="text-ink-muted">{status}</span>
           </p>
         </div>
@@ -159,7 +203,48 @@ export default function LobbyPage() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+      {/* Hero / wallet — premium gold panel that anchors the page */}
+      {!pending && (
+        <div className="surface-strong rounded-2xl shadow-gold-strong px-4 sm:px-5 py-3 sm:py-4 mb-3 sm:mb-4 shrink-0 relative overflow-hidden">
+          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-gold/[0.06] blur-3xl pointer-events-none" />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-gold/70 font-display">
+                {t('lobby.hero.kicker')}
+              </div>
+              <div className="font-display text-base sm:text-xl text-ink-primary mt-0.5 truncate">
+                {t('lobby.hero.welcome', { name: profile?.displayName ?? profile?.handle ?? '—' })}
+              </div>
+            </div>
+            <div className="flex items-baseline gap-1.5 shrink-0">
+              <span className="text-[10px] uppercase tracking-[0.32em] text-ink-muted font-display">
+                {t('lobby.hero.wallet')}
+              </span>
+              <span className="chip-bet font-display text-xl sm:text-2xl text-gold text-glow-gold">
+                {(profile?.chips ?? 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+          {/* Live stats row */}
+          <div className="mt-3 pt-3 border-t border-rim-faint flex items-center gap-4 sm:gap-6 text-[10px] sm:text-[11px] font-mono">
+            <div className="flex items-baseline gap-1">
+              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.tables')}</span>
+              <span className="text-gold">{tables.length}</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.seated')}</span>
+              <span className="text-gold">{totalSeated}<span className="text-ink-muted">/{totalSeats}</span></span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.inHand')}</span>
+              <span className="text-status-alert">{inHandCount}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tables grid — flex-1 so it takes available vertical space */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 sm:space-y-4">
         {pending ? (
           <NeonCard glow="cyan" strong className="text-center">
             <h2 className="text-xl font-display mb-2">{t('lobby.pending.title')}</h2>
@@ -170,43 +255,23 @@ export default function LobbyPage() {
             <p className="text-white/55">{t('lobby.empty')}</p>
           </NeonCard>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-5">
-            {tables.map((tbl) => (
-              <NeonCard key={tbl.id} glow="blue" className="flex flex-col gap-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-display text-lg sm:text-xl">{tbl.name}</h3>
-                    <p className="text-white/50 text-xs font-mono mt-1">
-                      SB {tbl.smallBlind} / BB {tbl.bigBlind} · {t('lobby.buyIn')} {tbl.buyIn.toLocaleString()}
-                    </p>
-                  </div>
-                  <span
-                    className={`text-[10px] uppercase tracking-widest font-display px-2 py-1 rounded-md border ${
-                      tbl.inHand
-                        ? 'text-status-alert border-status-alert/40 bg-status-alert/10'
-                        : 'text-status-success border-status-success/40 bg-status-success/10'
-                    }`}
-                  >
-                    {tbl.inHand ? t('lobby.inHand') : t('lobby.waiting')}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60 text-sm">
-                    {t('lobby.playersCount')} {tbl.seated}/{tbl.maxPlayers}
-                  </span>
-                  <NeonButton
-                    onClick={() => join(tbl)}
-                    disabled={tbl.seated >= tbl.maxPlayers}
-                  >
-                    {t('lobby.join')}
-                  </NeonButton>
-                </div>
-              </NeonCard>
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              {tables.map((tbl) => (
+                <TableCard key={tbl.id} table={tbl} onJoin={() => join(tbl)} />
+              ))}
+            </div>
+            {/* Fun-ad carousel — rotates between five branded jokes
+                every 6.5s. Purely decorative; the disclaimers ARE the
+                joke. Adds the "this is a real product" texture
+                modern poker apps lean on. */}
+            <div className="mt-2 sm:mt-3">
+              <AdCarousel ads={ads} />
+            </div>
+          </>
         )}
       </div>
-      <Signature className="shrink-0 mt-2" />
+      <Signature className="shrink-0 mt-3" />
 
       {profileOpen && (
         <Modal

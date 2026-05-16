@@ -91,6 +91,42 @@ const en = {
   'lobby.inHand': 'Hand in progress',
   'lobby.waiting': 'Waiting',
   'lobby.join': 'Join',
+  'lobby.tableFull': 'Table full',
+  'lobby.stakes': 'Stakes',
+  'lobby.hero.kicker': 'Welcome back',
+  'lobby.hero.welcome': 'Hey {name} — pick a table.',
+  'lobby.hero.wallet': 'Wallet',
+  'lobby.stats.tables': 'Tables',
+  'lobby.stats.seated': 'Seated',
+  'lobby.stats.inHand': 'In hand',
+  'lobby.ads.tournament.kicker': 'Featured tournament',
+  'lobby.ads.tournament.headline': 'Bluffuminati Open · Sunday Midnight',
+  'lobby.ads.tournament.body':
+    'Freeroll, 50K virtual chip pool, full ring nine-handed. Late reg until break 2.',
+  'lobby.ads.tournament.disclaimer':
+    '* fictional event — Sunday is when you tell the admin to please set it up',
+  'lobby.ads.tiltInsurance.kicker': 'New product',
+  'lobby.ads.tiltInsurance.headline': 'Tilt Insurance™ — your chips, your peace',
+  'lobby.ads.tiltInsurance.body':
+    'Premium-tier protection against your own decisions. Refunds rage-calls within 24 h.',
+  'lobby.ads.tiltInsurance.disclaimer':
+    '* not actually a product, please play within your bankroll',
+  'lobby.ads.botCoach.kicker': 'Coaching corner',
+  'lobby.ads.botCoach.headline': 'Bluffbert · Available for personal coaching',
+  'lobby.ads.botCoach.body':
+    'World-class bot has decided to share his secrets. First session free.',
+  'lobby.ads.botCoach.disclaimer':
+    '* Bluffbert is a heuristic algorithm and cannot actually coach you',
+  'lobby.ads.brand.kicker': 'About',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.body':
+    'Private Texas Hold\'em, invite-only, built with paranoia and a lot of gold.',
+  'lobby.ads.limited.kicker': 'Limited time',
+  'lobby.ads.limited.headline': 'Double-blind nights · Friday only',
+  'lobby.ads.limited.body':
+    'Same buy-in, 2× the blinds. Action quadruples. Recommended only after coffee.',
+  'lobby.ads.limited.disclaimer':
+    '* Friday is the only day this exists. Mostly because Friday is a vibe.',
 
   // Table
   'table.phaseLabel': 'Table',
@@ -336,6 +372,42 @@ const de: Record<keyof typeof en, string> = {
   'lobby.inHand': 'Hand läuft',
   'lobby.waiting': 'Wartend',
   'lobby.join': 'Beitreten',
+  'lobby.tableFull': 'Tisch voll',
+  'lobby.stakes': 'Stakes',
+  'lobby.hero.kicker': 'Willkommen zurück',
+  'lobby.hero.welcome': 'Hey {name} — such dir einen Tisch aus.',
+  'lobby.hero.wallet': 'Wallet',
+  'lobby.stats.tables': 'Tische',
+  'lobby.stats.seated': 'Sitzen',
+  'lobby.stats.inHand': 'In Hand',
+  'lobby.ads.tournament.kicker': 'Featured Turnier',
+  'lobby.ads.tournament.headline': 'Bluffuminati Open · Sonntag um Mitternacht',
+  'lobby.ads.tournament.body':
+    'Freeroll, 50K Chip-Prize-Pool, Full-Ring 9-handed. Spätreg bis Pause 2.',
+  'lobby.ads.tournament.disclaimer':
+    '* fiktives Event — Sonntag ist wann du den Admin bittest, es einzurichten',
+  'lobby.ads.tiltInsurance.kicker': 'Neues Produkt',
+  'lobby.ads.tiltInsurance.headline': 'Tilt-Versicherung™ — deine Chips, deine Ruhe',
+  'lobby.ads.tiltInsurance.body':
+    'Premium-Schutz vor deinen eigenen Entscheidungen. Rage-Calls werden binnen 24 h erstattet.',
+  'lobby.ads.tiltInsurance.disclaimer':
+    '* kein echtes Produkt, bitte im Rahmen deiner Bankroll spielen',
+  'lobby.ads.botCoach.kicker': 'Coaching-Ecke',
+  'lobby.ads.botCoach.headline': 'Bluffbert · Verfügbar für 1-zu-1-Coaching',
+  'lobby.ads.botCoach.body':
+    'Weltklasse-Bot teilt jetzt seine Geheimnisse. Erste Session gratis.',
+  'lobby.ads.botCoach.disclaimer':
+    '* Bluffbert ist ein heuristischer Algorithmus und kann dich nicht wirklich coachen',
+  'lobby.ads.brand.kicker': 'About',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.body':
+    'Privates Texas Hold\'em, invite-only, gebaut mit Paranoia und viel Gold.',
+  'lobby.ads.limited.kicker': 'Limited Time',
+  'lobby.ads.limited.headline': 'Double-Blind Nights · nur Freitags',
+  'lobby.ads.limited.body':
+    'Gleicher Buy-in, doppelte Blinds. Action vervierfacht sich. Nur empfohlen nach Kaffee.',
+  'lobby.ads.limited.disclaimer':
+    '* Freitag ist der einzige Tag an dem es das gibt. Vor allem weil Freitag eine Stimmung ist.',
 
   'table.phaseLabel': 'Tisch',
   'table.leave': 'Verlassen',
@@ -571,6 +643,42 @@ const pl: Record<keyof typeof en, string> = {
   'lobby.inHand': 'Trwa rozdanie',
   'lobby.waiting': 'Oczekiwanie',
   'lobby.join': 'Dołącz',
+  'lobby.tableFull': 'Stół pełny',
+  'lobby.stakes': 'Stawki',
+  'lobby.hero.kicker': 'Witaj z powrotem',
+  'lobby.hero.welcome': 'Hej {name} — wybierz stół.',
+  'lobby.hero.wallet': 'Portfel',
+  'lobby.stats.tables': 'Stoły',
+  'lobby.stats.seated': 'Siedzi',
+  'lobby.stats.inHand': 'W rozdaniu',
+  'lobby.ads.tournament.kicker': 'Polecany turniej',
+  'lobby.ads.tournament.headline': 'Bluffuminati Open · Niedziela o północy',
+  'lobby.ads.tournament.body':
+    'Freeroll, pula 50K wirtualnych żetonów, full ring 9-osobowy. Późna rejestracja do 2. przerwy.',
+  'lobby.ads.tournament.disclaimer':
+    '* event fikcyjny — niedziela to dzień kiedy poprosisz admina o jego ustawienie',
+  'lobby.ads.tiltInsurance.kicker': 'Nowy produkt',
+  'lobby.ads.tiltInsurance.headline': 'Ubezpieczenie od tilta™ — twoje żetony, twój spokój',
+  'lobby.ads.tiltInsurance.body':
+    'Ochrona premium przed twoimi własnymi decyzjami. Zwrot za rage-calle w ciągu 24 h.',
+  'lobby.ads.tiltInsurance.disclaimer':
+    '* to nie jest prawdziwy produkt, graj w ramach swojego bankrolla',
+  'lobby.ads.botCoach.kicker': 'Kącik coachingu',
+  'lobby.ads.botCoach.headline': 'Bluffbert · Dostępny do coachingu 1-na-1',
+  'lobby.ads.botCoach.body':
+    'Bot światowej klasy dzieli się swoimi sekretami. Pierwsza sesja gratis.',
+  'lobby.ads.botCoach.disclaimer':
+    '* Bluffbert to algorytm heurystyczny i nie może cię naprawdę uczyć',
+  'lobby.ads.brand.kicker': 'O nas',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.body':
+    'Prywatny Texas Hold\'em, tylko z zaproszenia, zbudowany z paranoi i sporej ilości złota.',
+  'lobby.ads.limited.kicker': 'Limitowane',
+  'lobby.ads.limited.headline': 'Double-Blind Nights · tylko w piątki',
+  'lobby.ads.limited.body':
+    'Ten sam buy-in, podwójne blindy. Akcja rośnie czterokrotnie. Polecane tylko po kawie.',
+  'lobby.ads.limited.disclaimer':
+    '* piątek to jedyny dzień gdy to istnieje. Głównie dlatego, że piątek to vibe.',
 
   'table.phaseLabel': 'Stół',
   'table.leave': 'Opuść',
