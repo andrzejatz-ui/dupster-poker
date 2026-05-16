@@ -21,6 +21,7 @@ import { Eye } from '@/components/brand/Eye';
 import { TableCard } from '@/components/lobby/TableCard';
 import { AdCarousel } from '@/components/lobby/AdCarousel';
 import { ChipRequestModal } from '@/components/table/ChipRequestModal';
+import { InviteModal } from '@/components/lobby/InviteModal';
 import { getAdminToken } from '@/lib/admin';
 import { useT } from '@/i18n/context';
 import clsx from 'clsx';
@@ -49,6 +50,8 @@ export default function LobbyPage() {
   const [activeTab, setActiveTab] = useState<'cash' | 'tournament' | 'sng'>('cash');
   /** Chip-request modal — opens when wallet runs dry or via header button. */
   const [chipReqOpen, setChipReqOpen] = useState(false);
+  /** Invite-a-friend modal — opens from the header button. */
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   // If the profile arrived from session storage without an avatar but
   // we have a cached one from a previous sign-in, hydrate it instantly
@@ -231,6 +234,11 @@ export default function LobbyPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {!pending && (
+            <NeonButton variant="ghost" size="sm" onClick={() => setInviteOpen(true)}>
+              👥 <span className="hidden sm:inline ml-1">{t('lobby.invite')}</span>
+            </NeonButton>
+          )}
           {!pending && (profile?.chips ?? 0) > 0 && (
             <NeonButton variant="ghost" size="sm" onClick={() => setChipReqOpen(true)}>
               🙋 <span className="hidden sm:inline ml-1">{t('action.requestChips')}</span>
@@ -435,6 +443,8 @@ export default function LobbyPage() {
           onSubmit={sendChipRequest}
         />
       )}
+
+      {inviteOpen && <InviteModal onClose={() => setInviteOpen(false)} />}
     </main>
   );
 }
