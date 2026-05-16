@@ -74,51 +74,55 @@ export function PlayerSeat({
         </div>
       )}
 
-      {/* Avatar disc */}
-      <div
-        className={clsx(
-          'relative w-14 h-14 sm:w-24 sm:h-24 rounded-full surface-strong flex items-center justify-center overflow-hidden',
-          'transition-shadow duration-200',
-          seat.isToAct && 'ring-toact',
-          seat.hasFolded && 'opacity-40 grayscale',
-        )}
-      >
-        {isMine ? (
-          // Viewer's own seat → render the brand Eye in its default
-          // sentinel look (gold iris + dark pupil tracking the cursor).
-          // The eye IS the avatar — we don't push any photo into it.
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Eye size={110} />
-          </div>
-        ) : seat.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={seat.avatarUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        ) : (
-          <div className="font-display text-xs sm:text-lg">
-            {seat.displayName.slice(0, 2).toUpperCase()}
-          </div>
-        )}
+      {/* Avatar disc — split into two containers so the status badges
+          (BOT, ALL-IN, RECON, PAUSED) can hang past the circle's edge
+          without being eaten by the avatar-side overflow-hidden. */}
+      <div className="relative w-14 h-14 sm:w-24 sm:h-24">
+        <div
+          className={clsx(
+            'absolute inset-0 rounded-full surface-strong flex items-center justify-center overflow-hidden',
+            'transition-shadow duration-200',
+            seat.isToAct && 'ring-toact',
+            seat.hasFolded && 'opacity-40 grayscale',
+          )}
+        >
+          {isMine ? (
+            // Viewer's own seat → render the brand Eye in its default
+            // sentinel look (gold iris + dark pupil tracking the cursor).
+            // The eye IS the avatar — we don't push any photo into it.
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Eye size={110} />
+            </div>
+          ) : seat.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={seat.avatarUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="font-display text-xs sm:text-lg">
+              {seat.displayName.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+        </div>
         {seat.isReconnecting && (
-          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-status-alert/85 text-[9px] font-display tracking-widest">
+          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-status-alert/85 text-[9px] font-display tracking-widest z-10">
             {t('seat.recon')}
           </span>
         )}
         {seat.isBot && (
-          <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded bg-ink-muted/85 text-obsidian-bg text-[9px] font-display tracking-widest">
+          <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded bg-ink-muted/85 text-obsidian-bg text-[9px] font-display tracking-widest z-10">
             BOT
           </span>
         )}
         {seat.isAllIn && (
-          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-gold text-obsidian-bg text-[9px] font-display tracking-widest">
+          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-gold text-obsidian-bg text-[9px] font-display tracking-widest z-10">
             {t('seat.allIn')}
           </span>
         )}
         {seat.isPaused && (
-          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-status-warning/85 text-obsidian-bg text-[9px] font-display tracking-widest">
+          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-status-warning/85 text-obsidian-bg text-[9px] font-display tracking-widest z-10">
             {t('seat.paused')}
           </span>
         )}
