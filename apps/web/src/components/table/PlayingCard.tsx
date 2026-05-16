@@ -3,7 +3,7 @@ import type { Card } from '@neon-poker/shared/poker';
 
 interface Props {
   card?: Card | null;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'board';
   faceDown?: boolean;
   /** Add a subtle hover lift — set on the viewer's own hole cards. */
   hoverable?: boolean;
@@ -24,12 +24,16 @@ const sizes = {
   sm: 'w-9 h-12 text-[10px] sm:w-11 sm:h-16 sm:text-xs',
   md: 'w-12 h-16 text-sm sm:w-16 sm:h-20 sm:text-lg',
   lg: 'w-14 h-20 text-base sm:w-24 sm:h-32 sm:text-2xl',
+  // Board variant — tight on mobile so five fit across the felt without
+  // overflowing the centre, full-size on desktop. Used by Board.tsx.
+  board: 'w-10 h-14 text-[10px] sm:w-24 sm:h-32 sm:text-2xl',
 };
 
 const suitSize = {
   sm: 'text-lg sm:text-2xl',
   md: 'text-xl sm:text-3xl',
   lg: 'text-3xl sm:text-4xl',
+  board: 'text-xl sm:text-4xl',
 };
 
 export function PlayingCard({ card, size = 'md', faceDown = false, hoverable = false, className }: Props) {

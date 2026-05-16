@@ -373,29 +373,46 @@ export default function TablePage() {
         </aside>
       </div>
 
-      {/* Mobile chat drawer — slides up from the right, dismissable. */}
+      {/* Mobile chat drawer — bottom sheet on phones so the way back to
+          the table is always a thumb-reachable "← Back to table" bar at
+          the top of the sheet plus a sticky close button at the bottom.
+          Previously a thin tap target meant "I went into chat and can't
+          get back" was a real complaint. */}
       {chatOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 flex" onClick={() => setChatOpen(false)}>
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" />
+        <div
+          className="lg:hidden fixed inset-0 z-40 flex flex-col"
+          onClick={() => setChatOpen(false)}
+        >
+          <div className="flex-1 bg-black/55 backdrop-blur-sm" />
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm h-full bg-ink-950/95 border-l border-rim-bright shadow-2xl flex flex-col"
+            className="w-full h-[78%] bg-ink-950/97 border-t border-rim-bright shadow-2xl flex flex-col rounded-t-2xl"
           >
-            <div className="flex items-center justify-between px-3 py-2 border-b border-rim-faint shrink-0">
-              <span className="font-display text-[11px] uppercase tracking-[0.3em] text-gold">
-                {t('chat.title')}
+            {/* Prominent back/close bar — full-width tap target, gold
+                arrow, large text, plus the dragging affordance pill. */}
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              className="shrink-0 w-full flex flex-col items-center pt-2 pb-2.5 border-b border-rim-faint hover:bg-gold/5"
+            >
+              <span className="w-10 h-1 rounded-full bg-rim-bright mb-2" aria-hidden />
+              <span className="flex items-center gap-2 font-display text-[12px] uppercase tracking-[0.28em] text-gold">
+                <span className="text-base leading-none">←</span>
+                {t('chat.backToTable')}
               </span>
-              <button
-                onClick={() => setChatOpen(false)}
-                className="text-ink-muted text-lg leading-none px-2 hover:text-gold"
-                aria-label="close"
-              >
-                ×
-              </button>
-            </div>
+            </button>
             <div className="flex-1 min-h-0 p-2">
               <ChatBox lines={chat} onSend={sendChat} />
             </div>
+            {/* Sticky bottom close — second exit point so even after the
+                user scrolls deep into the chat, getting back is one tap. */}
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              className="shrink-0 mx-3 mb-3 py-2 rounded-xl border border-gold/55 bg-gold/10 hover:bg-gold/15 font-display text-[11px] uppercase tracking-[0.28em] text-gold text-glow-gold"
+            >
+              {t('chat.closeAndBack')}
+            </button>
           </div>
         </div>
       )}

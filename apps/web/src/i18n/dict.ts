@@ -131,6 +131,8 @@ const en = {
   'chat.empty': 'Quiet so far.',
   'chat.placeholder': 'Say something…',
   'chat.send': 'Send',
+  'chat.backToTable': 'Back to table',
+  'chat.closeAndBack': 'Close chat',
 
   // Admin login
   'admin.login.title': 'Admin access',
@@ -332,6 +334,8 @@ const de: Record<keyof typeof en, string> = {
   'chat.empty': 'Noch ruhig hier.',
   'chat.placeholder': 'Sag was …',
   'chat.send': 'Senden',
+  'chat.backToTable': 'Zurück zum Tisch',
+  'chat.closeAndBack': 'Chat schließen',
 
   'admin.login.title': 'Admin-Zugang',
   'admin.login.body':
@@ -530,6 +534,8 @@ const pl: Record<keyof typeof en, string> = {
   'chat.empty': 'Cicho na razie.',
   'chat.placeholder': 'Napisz coś…',
   'chat.send': 'Wyślij',
+  'chat.backToTable': 'Powrót do stołu',
+  'chat.closeAndBack': 'Zamknij czat',
 
   'admin.login.title': 'Dostęp administratora',
   'admin.login.body':

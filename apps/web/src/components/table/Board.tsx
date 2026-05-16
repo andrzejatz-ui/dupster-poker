@@ -44,23 +44,24 @@ export function Board({ board, pot, handToken = null, winningCards = null }: Pro
 
   const slots = [0, 1, 2, 3, 4];
   return (
-    <div className="flex flex-col items-center gap-2 sm:gap-3 w-48 sm:w-80 relative">
+    <div className="flex flex-col items-center gap-1.5 sm:gap-3 w-fit sm:w-80 relative">
       {/* Croupier eye + laser flash */}
       <div className="relative flex flex-col items-center">
         {flash > 0 && <span key={flash} className="laser-flash" aria-hidden />}
-        <Eye size={56} className="opacity-90 relative z-10" />
+        <Eye size={48} className="opacity-90 relative z-10 sm:hidden" />
+        <Eye size={56} className="opacity-90 relative z-10 hidden sm:block" />
       </div>
 
-      <div className="rule-ornament w-full font-display tracking-[0.4em]">
+      <div className="rule-ornament w-full font-display tracking-[0.4em] text-[8px] sm:text-[9px]">
         ◆ {t('table.pot')} ◆
       </div>
-      <div className="flex items-end justify-center gap-2 sm:gap-3">
+      <div className="flex items-end justify-center gap-1.5 sm:gap-3">
         <PotPile amount={pot} />
-        <div className="font-display text-xl sm:text-3xl text-gold text-glow-gold leading-none pb-0.5">
+        <div className="font-display text-base sm:text-3xl text-gold text-glow-gold leading-none pb-0.5">
           {pot.toLocaleString()}
         </div>
       </div>
-      <div className="flex gap-1 sm:gap-2 mt-1 sm:mt-2">
+      <div className="flex gap-1 sm:gap-2 mt-0.5 sm:mt-2">
         {slots.map((i) => {
           const card = board[i];
           const isWinning = !!(card && winningCards && winningCards.has(card));
@@ -68,13 +69,13 @@ export function Board({ board, pot, handToken = null, winningCards = null }: Pro
             <PlayingCard
               key={i}
               card={card}
-              size="lg"
+              size="board"
               className={clsx(isWinning && 'card-winning')}
             />
           ) : (
             <div
               key={i}
-              className="w-14 h-20 sm:w-24 sm:h-32 rounded-lg border border-white/10 border-dashed opacity-40"
+              className="w-10 h-14 sm:w-24 sm:h-32 rounded-lg border border-white/10 border-dashed opacity-40"
             />
           );
         })}
