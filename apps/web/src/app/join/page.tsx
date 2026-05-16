@@ -8,6 +8,7 @@ import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Eye } from '@/components/brand/Eye';
 import { Signature } from '@/components/ui/Signature';
+import { BrandFooter } from '@/components/ui/BrandFooter';
 import { joinAsPlayer } from '@/lib/api';
 import { setSession, recallAvatar } from '@/lib/session';
 import { useT } from '@/i18n/context';
@@ -255,6 +256,7 @@ function JoinForm() {
         </form>
       </NeonCard>
       <Signature className="relative z-10 mt-3" />
+      <BrandFooter className="relative z-10 mt-2 mb-1" />
     </main>
   );
 }

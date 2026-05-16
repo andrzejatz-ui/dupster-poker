@@ -16,7 +16,7 @@ export function Signature({ className }: Props) {
         className,
       )}
     >
-      <span className="text-gold/60">by filipOS</span>
+      <span className="text-gold/60">by filipOS®</span>
     </div>
   );
 }

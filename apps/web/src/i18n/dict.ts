@@ -33,7 +33,7 @@ const en = {
   'landing.tagline': 'Private Tables · Play Money · Own Infrastructure',
   'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
-  'landing.byline': 'by filipOS',
+  'landing.byline': 'by filipOS®',
   'landing.intro':
     "Texas Hold'em in a private lobby. Access is invite-only and gated by an approved Player ID. Cards are dealt exclusively on the server.",
   'landing.welcome': 'Welcome to the table',
@@ -127,7 +127,7 @@ const en = {
   'invite.step1': 'Copy the invite with the gold button.',
   'invite.step2': 'Open any chat (Telegram, WhatsApp, SMS, …) and paste it for your friend.',
   'invite.message':
-    '🎰 Join me on Bluffuminati — private Texas Hold\'em, play-money chips, invite-only.\n\n→ {web}\n\nOr via Telegram: {bot}',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Featured tournament',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Sunday Midnight',
   'lobby.ads.tournament.body':
@@ -147,7 +147,7 @@ const en = {
   'lobby.ads.botCoach.disclaimer':
     '* Bluffbert is a heuristic algorithm and cannot actually coach you',
   'lobby.ads.brand.kicker': 'About',
-  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS®',
   'lobby.ads.brand.body':
     'Private Texas Hold\'em, invite-only, built with paranoia and a lot of gold.',
   'lobby.ads.limited.kicker': 'Limited time',
@@ -363,7 +363,7 @@ const de: Record<keyof typeof en, string> = {
   'landing.tagline': 'Private Tische · Play Money · Eigene Infrastruktur',
   'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
-  'landing.byline': 'by filipOS',
+  'landing.byline': 'by filipOS®',
   'landing.intro':
     'Texas Hold’em in einer privaten Lobby. Zugang nur per Invite-Link und genehmigter Player-ID. Karten werden ausschließlich serverseitig verteilt.',
   'landing.welcome': 'Willkommen am Tisch',
@@ -455,7 +455,7 @@ const de: Record<keyof typeof en, string> = {
   'invite.step1': 'Mit dem goldenen Knopf die Einladung kopieren.',
   'invite.step2': 'In irgendeinem Chat (Telegram, WhatsApp, SMS, …) deinem Freund einfügen.',
   'invite.message':
-    '🎰 Komm zu Bluffuminati — privates Texas Hold\'em, Play-Money-Chips, invite-only.\n\n→ {web}\n\nOder via Telegram: {bot}',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Featured Turnier',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Sonntag um Mitternacht',
   'lobby.ads.tournament.body':
@@ -475,7 +475,7 @@ const de: Record<keyof typeof en, string> = {
   'lobby.ads.botCoach.disclaimer':
     '* Bluffbert ist ein heuristischer Algorithmus und kann dich nicht wirklich coachen',
   'lobby.ads.brand.kicker': 'About',
-  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS®',
   'lobby.ads.brand.body':
     'Privates Texas Hold\'em, invite-only, gebaut mit Paranoia und viel Gold.',
   'lobby.ads.limited.kicker': 'Limited Time',
@@ -681,7 +681,7 @@ const pl: Record<keyof typeof en, string> = {
   'landing.tagline': 'Prywatne stoły · Żetony bez wartości · Własna infrastruktura',
   'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
-  'landing.byline': 'by filipOS',
+  'landing.byline': 'by filipOS®',
   'landing.intro':
     'Texas Hold’em w prywatnym lobby. Dostęp wyłącznie przez link z zaproszeniem i zatwierdzony Player ID. Karty są rozdawane wyłącznie po stronie serwera.',
   'landing.welcome': 'Witaj przy stole',
@@ -773,7 +773,7 @@ const pl: Record<keyof typeof en, string> = {
   'invite.step1': 'Tapnij złoty przycisk, by skopiować zaproszenie.',
   'invite.step2': 'Otwórz dowolny czat (Telegram, WhatsApp, SMS, …) i wklej je znajomemu.',
   'invite.message':
-    '🎰 Dołącz do mnie w Bluffuminati — prywatny Texas Hold\'em, żetony bez wartości, tylko z zaproszenia.\n\n→ {web}\n\nLub przez Telegram: {bot}',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Polecany turniej',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Niedziela o północy',
   'lobby.ads.tournament.body':
@@ -793,7 +793,7 @@ const pl: Record<keyof typeof en, string> = {
   'lobby.ads.botCoach.disclaimer':
     '* Bluffbert to algorytm heurystyczny i nie może cię naprawdę uczyć',
   'lobby.ads.brand.kicker': 'O nas',
-  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS',
+  'lobby.ads.brand.headline': 'Bluffuminati · by filipOS®',
   'lobby.ads.brand.body':
     'Prywatny Texas Hold\'em, tylko z zaproszenia, zbudowany z paranoi i sporej ilości złota.',
   'lobby.ads.limited.kicker': 'Limitowane',

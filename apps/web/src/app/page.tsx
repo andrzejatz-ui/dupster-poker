@@ -6,6 +6,7 @@ import { NeonButton } from '@/components/ui/NeonButton';
 import { Eye } from '@/components/brand/Eye';
 import { BCoin } from '@/components/brand/BCoin';
 import { Signature } from '@/components/ui/Signature';
+import { BrandFooter } from '@/components/ui/BrandFooter';
 import { useT } from '@/i18n/context';
 
 export default function Landing() {
@@ -53,6 +54,7 @@ export default function Landing() {
           {t('landing.build')}
         </p>
         <Signature className="mt-2" />
+        <BrandFooter className="mt-2 mb-1" />
       </div>
     </main>
   );

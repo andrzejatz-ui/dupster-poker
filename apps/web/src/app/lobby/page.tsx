@@ -17,6 +17,7 @@ import {
 } from '@/lib/session';
 import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
+import { BrandFooter } from '@/components/ui/BrandFooter';
 import { Eye } from '@/components/brand/Eye';
 import { BCoin } from '@/components/brand/BCoin';
 import { TableCard } from '@/components/lobby/TableCard';
@@ -280,7 +281,7 @@ export default function LobbyPage() {
               <BCoin />LUFFUMINATI
             </h2>
             <p className="text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic mt-0.5">
-              by filipOS
+              by filipOS®
             </p>
 
             {/* Stat row */}
@@ -427,6 +428,7 @@ export default function LobbyPage() {
         )}
       </div>
       <Signature className="shrink-0 mt-3" />
+      <BrandFooter className="shrink-0 mt-2 mb-1" />
 
       {profileOpen && (
         <Modal
