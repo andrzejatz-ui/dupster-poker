@@ -260,7 +260,7 @@ export default function LobbyPage() {
             <h2 className="font-display text-2xl sm:text-3xl text-gold text-glow-gold tracking-[0.32em] mt-1">
               BLUFFUMINATI
             </h2>
-            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.4em] text-gold/65 font-display mt-0.5">
+            <p className="text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic mt-0.5">
               by filipOS
             </p>
 
