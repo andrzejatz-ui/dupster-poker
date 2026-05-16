@@ -74,21 +74,17 @@ export function HandResultBanner({
     labelBySeat.set(w.seatIndex, w.handLabel ?? labelBySeat.get(w.seatIndex) ?? null);
   }
 
-  // Build the roster: every revealed seat + every winner (winners may
-  // have folded-uncalled, in which case there's no revealed entry).
-  const seatsInRoster = new Set<number>();
-  for (const r of revealed) seatsInRoster.add(r.seatIndex);
-  for (const w of winners) seatsInRoster.add(w.seatIndex);
+  // Build the roster: only seats that actually won chips. Losers'
+  // hands stay visible at their own seats via the per-seat hand-label
+  // chip — duplicating them inside the banner used to push it tall
+  // enough to swallow the community board, which the user can't have.
+  // Split pots (multiple seats with amount > 0) still get one row each.
   const revealedBySeat = new Map<number, Revealed>();
   for (const r of revealed) revealedBySeat.set(r.seatIndex, r);
-
-  // Sort: winners first by amount desc, then losers by seat order.
-  const orderedSeats = [...seatsInRoster].sort((a, b) => {
-    const wa = winningsBySeat.get(a) ?? 0;
-    const wb = winningsBySeat.get(b) ?? 0;
-    if (wa !== wb) return wb - wa;
-    return a - b;
-  });
+  const orderedSeats = [...winningsBySeat.entries()]
+    .filter(([, amt]) => amt > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([seatIndex]) => seatIndex);
 
   const topWinnerSeat = orderedSeats.find((s) => (winningsBySeat.get(s) ?? 0) > 0);
   const headline =
@@ -118,23 +114,19 @@ export function HandResultBanner({
           </p>
         )}
 
-        {/* Per-seat comparison — the actual proof of why this hand won */}
-        <div className="space-y-1.5 max-h-[28vh] overflow-y-auto pr-0.5">
+        {/* Winner row(s) — split-pot safe but never tall enough to
+            swallow the board. Losers' cards + hand-label chips are
+            already visible at their own seats around the felt. */}
+        <div className="space-y-1">
           {orderedSeats.map((seatIndex) => {
             const winning = winningsBySeat.get(seatIndex) ?? 0;
-            const isWinner = winning > 0;
             const rev = revealedBySeat.get(seatIndex);
             const label = labelBySeat.get(seatIndex) ?? rev?.handLabel ?? null;
             const name = nameForSeat(seatIndex);
             return (
               <div
                 key={seatIndex}
-                className={clsx(
-                  'flex items-center gap-2 rounded-lg px-2 py-1 border',
-                  isWinner
-                    ? 'border-gold/55 bg-gold/[0.10] shadow-gold-soft'
-                    : 'border-rim-faint bg-obsidian-soft/60 opacity-80',
-                )}
+                className="flex items-center gap-2 rounded-lg px-2 py-1 border border-gold/55 bg-gold/[0.10] shadow-gold-soft"
               >
                 {/* Hole cards — undeniable evidence of what the seat held */}
                 {rev ? (
@@ -148,14 +140,7 @@ export function HandResultBanner({
 
                 {/* Name + hand category */}
                 <div className="flex-1 min-w-0">
-                  <div
-                    className={clsx(
-                      'font-display tracking-wide truncate leading-tight',
-                      isWinner
-                        ? 'text-gold text-glow-gold text-sm'
-                        : 'text-ink-secondary text-xs',
-                    )}
-                  >
+                  <div className="font-display tracking-wide truncate leading-tight text-gold text-glow-gold text-sm">
                     {name}
                   </div>
                   {label && (
@@ -167,15 +152,9 @@ export function HandResultBanner({
 
                 {/* Outcome */}
                 <div className="shrink-0 text-right">
-                  {isWinner ? (
-                    <div className="chip-bet font-mono text-gold text-xs sm:text-sm">
-                      +{winning.toLocaleString()}
-                    </div>
-                  ) : (
-                    <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink-muted">
-                      {t('history.banner.lost')}
-                    </div>
-                  )}
+                  <div className="chip-bet font-mono text-gold text-xs sm:text-sm">
+                    +{winning.toLocaleString()}
+                  </div>
                 </div>
               </div>
             );
