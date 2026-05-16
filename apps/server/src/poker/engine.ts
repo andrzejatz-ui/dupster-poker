@@ -690,27 +690,50 @@ export class PokerTable {
 
   /* -------- Personalised public view -------- */
 
+  /**
+   * True when at least two players are live but no further wagering is
+   * possible — i.e. everyone live is all-in, or exactly one live seat
+   * still has chips and they've already matched the highest bet. This
+   * mirrors the live-poker "cards on their backs" rule and unlocks
+   * face-up hole cards for spectators during the run-out.
+   */
+  private isAllInRunout(): boolean {
+    const live = [...this.seats.values()].filter((s) => !s.hasFolded);
+    if (live.length < 2) return false;
+    const canStillBet = live.filter((s) => !s.isAllIn && s.stack > 0);
+    if (canStillBet.length === 0) return true;
+    if (canStillBet.length === 1) {
+      return canStillBet[0]!.currentBet >= this.currentBet;
+    }
+    return false;
+  }
+
   publicViewFor(viewerSeat: number | null): PublicTableState {
+    const allInRunout = this.isAllInRunout();
     const seats: PublicSeat[] = [...this.seats.values()]
       .sort((a, b) => a.seatIndex - b.seatIndex)
-      .map((s) => ({
-        seatIndex: s.seatIndex,
-        playerId: s.playerId,
-        displayName: s.displayName,
-        avatarUrl: s.avatarUrl,
-        stack: s.stack,
-        currentBet: s.currentBet,
-        hasFolded: s.hasFolded,
-        isAllIn: s.isAllIn,
-        isSittingOut: s.isSittingOut,
-        isPaused: s.isPaused,
-        holeCards:
-          viewerSeat !== null && s.seatIndex === viewerSeat && s.holeCards
-            ? (s.holeCards as [Card, Card])
-            : undefined,
-        isToAct: this.toActSeat === s.seatIndex,
-        isReconnecting: s.isReconnecting,
-      }));
+      .map((s) => {
+        const isOwn = viewerSeat !== null && s.seatIndex === viewerSeat;
+        const exposeForRunout = allInRunout && !s.hasFolded;
+        return {
+          seatIndex: s.seatIndex,
+          playerId: s.playerId,
+          displayName: s.displayName,
+          avatarUrl: s.avatarUrl,
+          stack: s.stack,
+          currentBet: s.currentBet,
+          hasFolded: s.hasFolded,
+          isAllIn: s.isAllIn,
+          isSittingOut: s.isSittingOut,
+          isPaused: s.isPaused,
+          holeCards:
+            (isOwn || exposeForRunout) && s.holeCards
+              ? (s.holeCards as [Card, Card])
+              : undefined,
+          isToAct: this.toActSeat === s.seatIndex,
+          isReconnecting: s.isReconnecting,
+        };
+      });
 
     const contributions: PotContribution[] = [...this.seats.values()].map((s) => ({
       seatIndex: s.seatIndex,

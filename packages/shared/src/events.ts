@@ -18,7 +18,12 @@ export interface PublicSeat {
   isAllIn: boolean;
   isSittingOut: boolean;
   isPaused: boolean;
-  /** Eigene Hole Cards. Bei fremden Sitzen IMMER undefined. */
+  /**
+   * Eigene Hole Cards — bei fremden Sitzen normalerweise undefined.
+   * Ausnahme: All-in-Runout (kein weiterer Einsatz mehr möglich) — dann
+   * deckt der Server die Karten aller noch lebenden Sitze auf, analog
+   * zur Live-Poker-Regel "Cards on their backs".
+   */
   holeCards?: [Card, Card];
   /** Bei Showdown gerevealte Karten anderer Spieler. */
   revealedCards?: [Card, Card];
