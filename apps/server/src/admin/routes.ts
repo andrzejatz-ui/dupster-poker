@@ -1073,8 +1073,13 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const parsed = Body.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
     try {
-      const row = await pool.query<{ player_id: string; status: string; kind: string }>(
-        'select player_id, status, kind from chip_requests where id = $1',
+      const row = await pool.query<{
+        player_id: string;
+        status: string;
+        kind: string;
+        amount: string | null;
+      }>(
+        'select player_id, status, kind, amount from chip_requests where id = $1',
         [req.params.id],
       );
       if (row.rowCount === 0) return res.status(404).json({ error: 'not_found' });
@@ -1083,25 +1088,47 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       }
       const playerId = row.rows[0]!.player_id;
       const kind = row.rows[0]!.kind;
+      const held = row.rows[0]!.amount === null ? 0 : Number(row.rows[0]!.amount);
+      const granted = parsed.data.amount;
 
-      // Sign flips with kind: top-up adds chips, cashout removes them.
-      const signedDelta =
-        kind === 'cashout' ? -parsed.data.amount : parsed.data.amount;
-      const reason =
-        kind === 'cashout' ? 'cash_out' as const : 'admin_grant' as const;
-
+      // Top-up: a flat positive grant at approve time, sized by the
+      // amount the admin entered (defaulting to the player's ask).
+      // Cashout: the chips are ALREADY out of the wallet (held in
+      // escrow on request). We don't deduct again here — we just
+      // refund any unused portion if the admin approves less than was
+      // held, and refuse if they try to approve more (admins shouldn't
+      // be able to conjure chips through a cashout approval).
+      let chipDelta = 0;
+      let chipReason: 'admin_grant' | 'cash_out_refund' | null = null;
       try {
-        await moveChips({
-          playerId,
-          delta: signedDelta,
-          reason,
-          adminId: req.adminId,
-          note: `${kind}_request approved (id ${req.params.id})`,
-        });
+        if (kind === 'cashout') {
+          if (granted > held) {
+            return res.status(409).json({ error: 'exceeds_held_amount' });
+          }
+          const refund = held - granted;
+          if (refund > 0) {
+            await moveChips({
+              playerId,
+              delta: refund,
+              reason: 'cash_out_refund',
+              adminId: req.adminId,
+              note: `cashout_partial_refund:${req.params.id} held=${held} granted=${granted}`,
+            });
+            chipDelta = refund;
+            chipReason = 'cash_out_refund';
+          }
+        } else {
+          await moveChips({
+            playerId,
+            delta: granted,
+            reason: 'admin_grant',
+            adminId: req.adminId,
+            note: `topup_request approved (id ${req.params.id})`,
+          });
+          chipDelta = granted;
+          chipReason = 'admin_grant';
+        }
       } catch (err) {
-        // moveChips throws 'insufficient_chips' if a cashout exceeds
-        // the player's current wallet — surface that cleanly so the
-        // admin can adjust the amount.
         const msg = err instanceof Error ? err.message : 'unknown';
         if (msg === 'insufficient_chips') {
           return res.status(409).json({ error: 'insufficient_chips' });
@@ -1113,27 +1140,33 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         `update chip_requests
            set status='approved', resolved_at=now(), resolved_by=$2, granted_amount=$3
          where id=$1`,
-        [req.params.id, req.adminId, parsed.data.amount],
+        [req.params.id, req.adminId, granted],
       );
 
-      // Pop the new balance to the player's open sockets so the lobby
-      // / table header reflects the change immediately.
+      // Push wallet update + clear the pending banner on the player's
+      // open sockets. chip_update only fires when something actually
+      // moved (refund or topup grant); the banner update always fires.
       try {
-        const fresh = await findPlayerById(playerId);
-        if (fresh) {
-          emitToPlayer(io, playerId, 'server:account:chip_update', {
-            chips: fresh.chips,
-            delta: signedDelta,
-            reason,
-          });
+        if (chipReason) {
+          const fresh = await findPlayerById(playerId);
+          if (fresh) {
+            emitToPlayer(io, playerId, 'server:account:chip_update', {
+              chips: fresh.chips,
+              delta: chipDelta,
+              reason: chipReason,
+            });
+          }
         }
+        emitToPlayer(io, playerId, 'server:account:wallet_request_update', {
+          request: null,
+        });
       } catch { /* non-fatal */ }
 
       await logAdminAction({
         adminId: req.adminId!,
         action: kind === 'cashout' ? 'approve_cashout_request' : 'approve_chip_request',
         targetPlayerId: playerId,
-        payload: { requestId: req.params.id, kind, amount: parsed.data.amount },
+        payload: { requestId: req.params.id, kind, amount: granted, held },
       });
       res.json({ ok: true });
     } catch (err) {
@@ -1144,25 +1177,71 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
   });
 
   r.post('/chip-requests/:id/reject', requireAdmin, async (req: AdminRequest, res) => {
-    const row = await pool.query<{ status: string; player_id: string }>(
-      'select status, player_id from chip_requests where id = $1',
+    const row = await pool.query<{
+      status: string;
+      player_id: string;
+      kind: string;
+      amount: string | null;
+    }>(
+      'select status, player_id, kind, amount from chip_requests where id = $1',
       [req.params.id],
     );
     if (row.rowCount === 0) return res.status(404).json({ error: 'not_found' });
     if (row.rows[0]!.status !== 'pending') {
       return res.status(409).json({ error: 'already_resolved' });
     }
+    const playerId = row.rows[0]!.player_id;
+    const kind = row.rows[0]!.kind;
+    const held = row.rows[0]!.amount === null ? 0 : Number(row.rows[0]!.amount);
+
+    // Cashout: chips were taken at request time. Rejection puts them
+    // back. Top-up: nothing was moved, nothing to undo.
+    let refunded = 0;
+    if (kind === 'cashout' && held > 0) {
+      try {
+        await moveChips({
+          playerId,
+          delta: held,
+          reason: 'cash_out_refund',
+          adminId: req.adminId,
+          note: `cashout_rejected:${req.params.id} refunded`,
+        });
+        refunded = held;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.error({ err, id: req.params.id }, 'cashout reject refund failed');
+        return res.status(500).json({ error: msg });
+      }
+    }
+
     await pool.query(
       `update chip_requests
          set status='rejected', resolved_at=now(), resolved_by=$2
        where id=$1`,
       [req.params.id, req.adminId],
     );
+
+    try {
+      if (refunded > 0) {
+        const fresh = await findPlayerById(playerId);
+        if (fresh) {
+          emitToPlayer(io, playerId, 'server:account:chip_update', {
+            chips: fresh.chips,
+            delta: refunded,
+            reason: 'cash_out_refund',
+          });
+        }
+      }
+      emitToPlayer(io, playerId, 'server:account:wallet_request_update', {
+        request: null,
+      });
+    } catch { /* non-fatal */ }
+
     await logAdminAction({
       adminId: req.adminId!,
       action: 'reject_chip_request',
-      targetPlayerId: row.rows[0]!.player_id,
-      payload: { requestId: req.params.id },
+      targetPlayerId: playerId,
+      payload: { requestId: req.params.id, kind, refunded },
     });
     res.json({ ok: true });
   });

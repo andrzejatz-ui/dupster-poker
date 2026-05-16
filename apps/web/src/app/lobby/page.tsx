@@ -27,7 +27,7 @@ import { InviteModal } from '@/components/lobby/InviteModal';
 import { getAdminToken } from '@/lib/admin';
 import { useT } from '@/i18n/context';
 import clsx from 'clsx';
-import type { TableSummary } from '@neon-poker/shared/events';
+import type { TableSummary, PendingWalletRequest } from '@neon-poker/shared/events';
 
 export default function LobbyPage() {
   const t = useT();
@@ -53,6 +53,12 @@ export default function LobbyPage() {
   /** Wallet modal state — `null` is closed, else carries the kind so
    *  the same component handles both top-up requests and cashouts. */
   const [walletReqOpen, setWalletReqOpen] = useState<null | 'topup' | 'cashout'>(null);
+  /** Player's currently open wallet request. Drives the pending-banner
+   *  at the top of the lobby + the wallet-balance display (which
+   *  already reflects the held chips). Server pushes updates via
+   *  server:account:wallet_request_update. */
+  const [pendingRequest, setPendingRequest] = useState<PendingWalletRequest | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   /** Invite-a-friend modal — opens from the header button. */
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -94,6 +100,11 @@ export default function LobbyPage() {
         clearSession();
         router.replace('/join');
       }
+      if (hello.status === 'approved') {
+        // Hydrate the pending-request banner so a refresh during a
+        // pending cashout keeps showing the "auszahlung schwebt" state.
+        setPendingRequest(hello.pendingRequest ?? null);
+      }
     });
     socket.on('server:lobby:tables', (p) => setTables(p.tables));
     socket.emit('client:lobby:list', (r) => setTables(r.tables));
@@ -105,6 +116,10 @@ export default function LobbyPage() {
         setStoredProfile(next);
         return next;
       });
+    });
+
+    socket.on('server:account:wallet_request_update', (p) => {
+      setPendingRequest(p.request);
     });
 
     socket.on('server:account:banned', () => {
@@ -133,7 +148,9 @@ export default function LobbyPage() {
 
   /** Two-way wallet request. Same socket event family, kind decides
    *  whether it's a top-up (chip_request) or a cashout. Returned
-   *  Promise lets the modal await the server ack + show success. */
+   *  Promise lets the modal await the server ack + show success.
+   *  Cashout also triggers an immediate chip-hold on the server, so
+   *  the wallet balance drops as soon as this resolves successfully. */
   function sendWalletRequest(
     kind: 'topup' | 'cashout',
     args: { amount?: number; message?: string },
@@ -150,6 +167,23 @@ export default function LobbyPage() {
         if (res.ok) resolve({ ok: true });
         else resolve({ ok: false, error: res.error });
       });
+    });
+  }
+
+  /** Cancel the player's own pending wallet request. Server refunds
+   *  held cashout chips, marks the row cancelled, and pushes a
+   *  wallet_request_update event so the banner disappears. */
+  function cancelPendingRequest() {
+    if (!socket) return;
+    setCancelBusy(true);
+    socket.emit('client:player:wallet_request_cancel', (res) => {
+      setCancelBusy(false);
+      if (!res.ok) {
+        alert(res.error ?? 'cancel_failed');
+      }
+      // No optimistic update — wait for server:account:wallet_request_update
+      // + server:account:chip_update which the server emits inside the
+      // same TX so the UI stays in sync with the authoritative state.
     });
   }
 
@@ -246,12 +280,12 @@ export default function LobbyPage() {
               👥 <span className="hidden sm:inline ml-1">{t('lobby.invite')}</span>
             </NeonButton>
           )}
-          {!pending && (profile?.chips ?? 0) > 0 && (
+          {!pending && (profile?.chips ?? 0) > 0 && !pendingRequest && (
             <NeonButton variant="ghost" size="sm" onClick={() => setWalletReqOpen('cashout')}>
               💸 <span className="hidden sm:inline ml-1">{t('action.cashout')}</span>
             </NeonButton>
           )}
-          {!pending && (
+          {!pending && !pendingRequest && (
             <NeonButton variant="ghost" size="sm" onClick={() => setWalletReqOpen('topup')}>
               🙋 <span className="hidden sm:inline ml-1">{t('action.requestChips')}</span>
             </NeonButton>
@@ -313,12 +347,66 @@ export default function LobbyPage() {
         </section>
       )}
 
+      {/* ───────────── PENDING WALLET REQUEST BANNER ─────────────
+          Shows whenever an open chip_requests row exists for this
+          player. Cashout banner is the main case: the chips are
+          already gone from the wallet (held in escrow), and the
+          player can cancel here to get them back, or wait for the
+          admin to approve. Top-up banner is purely informational —
+          no chips moved yet. */}
+      {!pending && pendingRequest && (
+        <div
+          className={clsx(
+            'surface-strong rounded-2xl px-4 sm:px-5 py-3 sm:py-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3 shrink-0',
+            pendingRequest.kind === 'cashout'
+              ? 'border border-status-alert/55 shadow-[0_0_24px_-12px_rgba(255,80,80,0.45)]'
+              : 'border border-gold/55 shadow-gold-strong',
+          )}
+        >
+          <div className="text-3xl shrink-0">
+            {pendingRequest.kind === 'cashout' ? '📤' : '🕒'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className={clsx(
+              'font-display text-sm sm:text-base',
+              pendingRequest.kind === 'cashout' ? 'text-status-alert' : 'text-gold text-glow-gold',
+            )}>
+              {pendingRequest.kind === 'cashout'
+                ? t('lobby.pendingRequest.cashoutTitle', {
+                    amount: (pendingRequest.amount ?? 0).toLocaleString(),
+                  })
+                : t('lobby.pendingRequest.topupTitle', {
+                    amount: pendingRequest.amount
+                      ? pendingRequest.amount.toLocaleString()
+                      : '',
+                  })}
+            </div>
+            <div className="text-[11px] sm:text-xs text-ink-secondary mt-0.5">
+              {pendingRequest.kind === 'cashout'
+                ? t('lobby.pendingRequest.cashoutBody')
+                : t('lobby.pendingRequest.topupBody')}
+            </div>
+          </div>
+          <NeonButton
+            variant="ghost"
+            size="md"
+            onClick={cancelPendingRequest}
+            disabled={cancelBusy}
+            className="shrink-0"
+          >
+            {cancelBusy
+              ? t('common.loading')
+              : t('lobby.pendingRequest.cancel')}
+          </NeonButton>
+        </div>
+      )}
+
       {/* ───────────── CHIP-REQUEST PANEL (wallet empty) ─────────────
           Only renders when the wallet is below a single big-blind unit
           across all tables — at that point the player can't even buy
           into the cheapest game. Big gold-bordered nudge to ping the
           admin for chips. */}
-      {!pending && profile && profile.chips < 50 && tables.length > 0 && (
+      {!pending && !pendingRequest && profile && profile.chips < 50 && tables.length > 0 && (
         <div className="surface-strong rounded-2xl border border-gold/55 px-4 sm:px-5 py-3 sm:py-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-gold-strong shrink-0">
           <div className="text-3xl shrink-0">💸</div>
           <div className="flex-1 min-w-0">

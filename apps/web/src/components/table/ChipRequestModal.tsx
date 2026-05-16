@@ -54,6 +54,13 @@ export function ChipRequestModal({
 
   async function submit() {
     setError(null);
+    // Cashout must specify how many chips to hold — the server can't
+    // escrow "some chips". Top-up keeps the optional-amount semantics
+    // since the admin chooses the grant at approve time anyway.
+    if (kind === 'cashout' && amount <= 0) {
+      setError(t(`${ns}.errors.amountRequired`));
+      return;
+    }
     setBusy(true);
     const res = await onSubmit({
       amount: amount > 0 ? amount : undefined,
@@ -65,6 +72,10 @@ export function ChipRequestModal({
       setTimeout(onClose, 1800);
     } else if (res.error === 'already_pending') {
       setError(t(`${ns}.errors.alreadyPending`));
+    } else if (res.error === 'insufficient_chips') {
+      setError(t(`${ns}.errors.insufficientChips`));
+    } else if (res.error === 'amount_required') {
+      setError(t(`${ns}.errors.amountRequired`));
     } else {
       setError(res.error);
     }

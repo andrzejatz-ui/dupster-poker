@@ -104,12 +104,24 @@ export interface BannedHello {
   reason: string | null;
 }
 
+export interface PendingWalletRequest {
+  id: string;
+  kind: 'topup' | 'cashout';
+  amount: number | null;
+  message: string | null;
+  createdAt: number;
+}
+
 export interface ApprovedHello {
   status: 'approved';
   playerId: string;
   displayName: string;
   chips: number;
   isAdmin: boolean;
+  /** The player's currently open wallet request, if any. Lets the
+   *  lobby show the "cashout pending" banner immediately on connect
+   *  instead of waiting for a separate round-trip. */
+  pendingRequest: PendingWalletRequest | null;
 }
 
 export type Hello = PendingHello | BannedHello | ApprovedHello;
@@ -199,6 +211,19 @@ export interface ClientToServerEvents {
         | { ok: false; error: string; code?: string },
     ) => void,
   ) => void;
+  /**
+   * Player cancels their own pending wallet request. For a cashout the
+   * held chips are refunded to the wallet; for a topup the row is
+   * simply marked cancelled. Either way the request leaves the admin's
+   * pending queue.
+   */
+  'client:player:wallet_request_cancel': (
+    ack: (
+      res:
+        | { ok: true }
+        | { ok: false; error: string; code?: string },
+    ) => void,
+  ) => void;
 }
 
 export interface ServerToClientEvents {
@@ -273,6 +298,16 @@ export interface ServerToClientEvents {
   'server:account:left_table': (payload: {
     tableId: string;
     reason: 'kicked' | 'table_closed';
+  }) => void;
+  /**
+   * Player's pending wallet request changed state — either a fresh
+   * request was just created (request: not null) or the request was
+   * resolved / cancelled (request: null). The lobby uses this to
+   * render or hide the "cashout pending" banner live, without
+   * polling.
+   */
+  'server:account:wallet_request_update': (payload: {
+    request: PendingWalletRequest | null;
   }) => void;
 }
 

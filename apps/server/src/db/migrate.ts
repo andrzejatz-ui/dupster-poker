@@ -123,6 +123,32 @@ export async function runMigrations(): Promise<void> {
               add column if not exists kind text not null default 'topup'
               check (kind in ('topup','cashout'))`,
     },
+    {
+      // Cashout hold/escrow: chips leave the wallet at request time so
+      // the wallet immediately reflects the pending cashout. The held
+      // amount is refunded if the player cancels or the admin rejects.
+      // chip_ledger needs the two new reasons in its CHECK constraint.
+      name: 'chip_ledger.reason allows cash_out_hold + cash_out_refund',
+      sql: `do $$ begin
+        alter table chip_ledger drop constraint if exists chip_ledger_reason_check;
+        alter table chip_ledger add constraint chip_ledger_reason_check
+          check (reason in (
+            'admin_grant','admin_revoke','admin_set',
+            'buy_in','cash_out','cash_out_hold','cash_out_refund',
+            'win','lose'
+          ));
+      end $$`,
+    },
+    {
+      // Player-initiated cancellation lives as 'cancelled' so the audit
+      // trail distinguishes admin rejections from player withdrawals.
+      name: "chip_requests.status allows 'cancelled'",
+      sql: `do $$ begin
+        alter table chip_requests drop constraint if exists chip_requests_status_check;
+        alter table chip_requests add constraint chip_requests_status_check
+          check (status in ('pending','approved','rejected','cancelled'));
+      end $$`,
+    },
     // future: add more idempotent migrations here
   ];
 

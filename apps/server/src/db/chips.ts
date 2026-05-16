@@ -7,6 +7,12 @@ export type ChipLedgerReason =
   | 'admin_set'
   | 'buy_in'
   | 'cash_out'
+  /** Player requested a cashout — chips leave the wallet immediately
+   *  and are held in escrow until the admin resolves the request. */
+  | 'cash_out_hold'
+  /** Held cashout returned to the wallet (admin rejection, player
+   *  cancellation, or partial approval refunding the unused amount). */
+  | 'cash_out_refund'
   | 'win'
   | 'lose';
 
