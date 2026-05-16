@@ -12,6 +12,7 @@ import { Eye } from '@/components/brand/Eye';
 import { adminCall, clearAdminToken, getAdminToken } from '@/lib/admin';
 import { setSession, getToken } from '@/lib/session';
 import { useT } from '@/i18n/context';
+import clsx from 'clsx';
 
 interface PlayerRow {
   id: string;
