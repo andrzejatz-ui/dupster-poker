@@ -389,28 +389,92 @@ body::after {
 }
 .chip-stack-grow { animation: chipStackGrow 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-/* ---- Laser beam (eye → seat) ----------------------------------- */
-@keyframes laserDraw {
-  0%   { stroke-dashoffset: 110; opacity: 0; }
-  18%  { opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
+/* ---- Pot-payout chip cascade ----------------------------------- */
+/*
+ * Replaces the old red/gold laser pair (which read as "Eye grabs from
+ * loser, gold leg delivers to winner" — confusing because losers
+ * already pushed their chips to the pot).
+ *
+ * Now: a brief gold shockwave at the pot, then a handful of bevelled
+ * gold chip discs glide from centre → winner seat along a curve, with
+ * staggered delays so it looks like a real chip push. Each .chip-fly
+ * is an absolutely-positioned div inside an overlay div that fills the
+ * felt; the keyframe animates `left`/`top` (which resolve against the
+ * parent box, so the % coordinates match the seat positions).
+ */
+@keyframes potBurst {
+  0%   { opacity: 0;   transform: translate(-50%, -50%) scale(0.4); }
+  20%  { opacity: 0.85; }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(2.2); }
 }
-@keyframes laserFade {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
+.pot-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 90px;
+  height: 90px;
+  margin: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,232,170,0.55) 0%,
+    rgba(212,175,55,0.30) 40%,
+    transparent 75%);
+  filter: blur(2px);
+  transform: translate(-50%, -50%);
+  animation: potBurst 700ms ease-out forwards;
 }
-.laser-line {
-  stroke-dasharray: 110;
-  stroke-dashoffset: 110;
-  animation:
-    laserDraw 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
-    laserFade 380ms ease-out 1100ms forwards;
+
+@keyframes chipFly {
+  0% {
+    left: 50%;
+    top: 50%;
+    opacity: 0;
+    transform: translate(calc(-50% + var(--jitter-x, 0px)),
+                         calc(-50% + var(--jitter-y, 0px)))
+               scale(0.55);
+  }
+  12% { opacity: 1; transform: translate(calc(-50% + var(--jitter-x, 0px)),
+                                         calc(-50% + var(--jitter-y, 0px)))
+                                scale(1); }
+  85% { opacity: 1; }
+  100% {
+    left: var(--target-x, 50%);
+    top: var(--target-y, 50%);
+    opacity: 0;
+    transform: translate(calc(-50% + var(--jitter-x, 0px)),
+                         calc(-50% + var(--jitter-y, 0px)))
+               scale(1.05);
+  }
 }
-.laser-line--gold {
-  /* gold leg fires later, after the red 'grab' */
-  animation:
-    laserDraw 380ms cubic-bezier(0.22, 1, 0.36, 1) 900ms forwards,
-    laserFade 420ms ease-out 1900ms forwards;
+.chip-fly {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 28%,
+      #fff3b8 0%,
+      #e6c265 28%,
+      #b8962e 62%,
+      #6a4f10 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(255,255,255,0.30),
+    inset 0 -1px 1px rgba(0,0,0,0.40),
+    0 2px 4px rgba(0,0,0,0.55),
+    0 0 10px rgba(212,175,55,0.45);
+  /* Forward fill so the chip ends invisible at the seat (opacity 0 in
+     final keyframe); we don't want it to snap back to the pot. */
+  animation: chipFly 1500ms cubic-bezier(0.34, 0.04, 0.36, 1) forwards;
+}
+
+@media (max-width: 640px) {
+  .chip-fly { width: 10px; height: 10px; }
+  .pot-burst { width: 60px; height: 60px; }
 }
 
 /* ---- Stacked-chip bet badge (a chip glyph + amount) ------------ */
