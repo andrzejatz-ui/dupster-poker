@@ -84,13 +84,11 @@ export function PlayerSeat({
         )}
       >
         {isMine ? (
-          // Viewer's own seat → render the avatar as the brand Eye so
-          // the player's face follows the cursor like everywhere else
-          // in the app. Eye picks up the image from session storage if
-          // not passed in; we pass seat.avatarUrl explicitly to stay
-          // accurate when an avatar has just been changed.
+          // Viewer's own seat → render the brand Eye in its default
+          // sentinel look (gold iris + dark pupil tracking the cursor).
+          // The eye IS the avatar — we don't push any photo into it.
           <div className="absolute inset-0 flex items-center justify-center">
-            <Eye imageUrl={seat.avatarUrl ?? null} size={110} />
+            <Eye size={110} />
           </div>
         ) : seat.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

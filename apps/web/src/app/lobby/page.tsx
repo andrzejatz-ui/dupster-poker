@@ -115,11 +115,9 @@ export default function LobbyPage() {
           className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border border-rim-bright hover:border-gold/70 transition surface-strong flex items-center justify-center"
           aria-label={t('lobby.editProfile')}
         >
-          {/* Always render the brand Eye so the avatar is consistent
-              with the rest of the app — Eye auto-picks up the player's
-              image from session storage and falls back to the gold iris
-              when none has been uploaded. */}
-          <Eye imageUrl={profile?.avatarUrl ?? null} size={70} />
+          {/* Brand Eye in its default sentinel look — the eye IS the
+              user's avatar across the app. No photo is pushed inside. */}
+          <Eye size={70} />
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

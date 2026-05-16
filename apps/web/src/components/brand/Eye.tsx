@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import clsx from 'clsx';
-import { getProfile, recallAvatar, recallLastAvatar } from '@/lib/session';
 
 interface Props {
   size?: number;
   className?: string;
   /**
-   * Optional image to use as the iris. Caller-supplied wins; otherwise
-   * the component auto-detects the current player's avatar from the
-   * session profile (or the cached avatar by handle). If still nothing,
-   * falls back to the original gold iris + dark pupil.
+   * Optional image to use as the iris. When set, the almond renders
+   * the picture instead of the gold iris and shifts a few SVG units
+   * with the pointer. When omitted (the default everywhere now), the
+   * eye renders its original gold-iris + dark-pupil sentinel look —
+   * which is what the brand intends.
    */
   imageUrl?: string | null;
 }
@@ -39,35 +39,11 @@ export function Eye({ size = 32, className, imageUrl }: Props) {
   const highlightRef = useRef<SVGCircleElement>(null);
   const imageRef = useRef<SVGImageElement>(null);
 
-  // Auto-detect the avatar URL from session if none was passed in. We
-  // refresh once on mount and again when the page regains focus — enough
-  // to catch a user changing their avatar in another tab without paying
-  // for a permanent storage listener on every Eye instance.
-  const [resolvedImg, setResolvedImg] = useState<string | null>(imageUrl ?? null);
-  useEffect(() => {
-    if (imageUrl !== undefined) {
-      setResolvedImg(imageUrl);
-      return;
-    }
-    const sniff = () => {
-      const p = getProfile();
-      const fromProfile = p?.avatarUrl ?? null;
-      const fromCache = p?.handle ? recallAvatar(p.handle) : null;
-      // Final fallback: a handle-agnostic localStorage slot mirrored on
-      // every login. Lets the avatar persist on landing / join pages
-      // where there's no session profile yet (or after sign-out + fresh
-      // Telegram-WebApp launch in a new tab).
-      const fromGlobal = recallLastAvatar();
-      setResolvedImg(fromProfile ?? fromCache ?? fromGlobal ?? null);
-    };
-    sniff();
-    window.addEventListener('focus', sniff);
-    window.addEventListener('storage', sniff);
-    return () => {
-      window.removeEventListener('focus', sniff);
-      window.removeEventListener('storage', sniff);
-    };
-  }, [imageUrl]);
+  // Caller-supplied image wins; otherwise stay on the gold iris look.
+  // (Earlier versions auto-pulled the player's avatar from session
+  // storage — reverted because the brand Eye is meant to be an eye,
+  // not a portrait window.)
+  const resolvedImg = imageUrl ?? null;
 
   useEffect(() => {
     const CX = 50;
