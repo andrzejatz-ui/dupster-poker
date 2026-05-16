@@ -157,16 +157,22 @@ function JoinForm() {
 
   return (
     <main className="min-h-dvh flex flex-col items-center justify-start sm:justify-center px-4 py-4 sm:py-6 overflow-y-auto">
-      <div className="relative z-10 max-w-md w-full mb-2 flex justify-between items-center gap-3">
+      {/* Header strip — back-link on the left, prominent Eye centered
+          above the form so it's always visible even on tight Telegram
+          mobile viewports where the back link is hidden. */}
+      <div className="relative z-10 max-w-md w-full mb-3 sm:mb-4 flex items-center gap-3">
         <Link
           href="/"
-          className="tg-hide text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
+          className="tg-hide text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display shrink-0"
         >
           ← {t('common.back')}
         </Link>
-        <div className="opacity-80 shrink-0">
-          <Eye size={28} />
+        <div className="flex-1 flex justify-center">
+          <Eye size={56} />
         </div>
+        {/* Spacer balances the layout when back-link is shown so the
+            eye stays centered. Same width as the typical back-link. */}
+        <div className="tg-hide shrink-0 w-[60px]" aria-hidden />
       </div>
       <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full">
         <div className="mb-4 sm:mb-5 flex items-start gap-3">

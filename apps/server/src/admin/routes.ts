@@ -163,16 +163,22 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const existing = await findPlayerByHandle(handle);
     const created = !existing;
 
-    // Same resurrect-or-create as /test-room: a previously soft-deleted
-    // row holds the unique player_handle slot but findPlayerByHandle
-    // filters it out, so a plain INSERT trips a 23505. ON CONFLICT
-    // clears deleted_at + re-approves atomically.
+    // Resurrect-or-create: a previously soft-deleted row holds the
+    // unique player_handle slot but findPlayerByHandle filters it
+    // out, so a plain INSERT trips a 23505. ON CONFLICT clears
+    // deleted_at + re-approves atomically.
+    //
+    // IMPORTANT: do NOT touch display_name on the update branch —
+    // the admin's chosen profile name should survive every Play
+    // shortcut. display_name only gets the supplied value on the
+    // initial INSERT path. To change it later, the admin edits
+    // their profile in the lobby (via /auth/profile), nothing
+    // here clobbers it.
     await pool.query(
       `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
        values ($1, $2, 'approved', 0, now(), $3)
        on conflict (player_handle) do update set
          status        = 'approved',
-         display_name  = coalesce(excluded.display_name, players.display_name),
          approved_at   = now(),
          approved_by   = excluded.approved_by,
          banned_at     = null,

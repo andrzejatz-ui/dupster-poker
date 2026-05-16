@@ -24,7 +24,7 @@ export default function Landing() {
             {t('landing.titleA')}
             {t('landing.titleB') ? <> {t('landing.titleB')}</> : null}
           </h1>
-          <p className="mt-1 text-[10px] sm:text-xs uppercase tracking-[0.4em] text-gold/60 font-display">
+          <p className="mt-1 text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic">
             {t('landing.byline')}
           </p>
           <p className="mt-2 sm:mt-3 text-ink-secondary text-sm sm:text-base max-w-xl mx-auto">{t('landing.intro')}</p>
