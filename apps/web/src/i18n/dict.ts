@@ -30,8 +30,9 @@ const en = {
 
   // Landing
   'landing.tagline': 'Private Tables · Play Money · Own Infrastructure',
-  'landing.titleA': 'DUPSTER',
+  'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
+  'landing.byline': 'by filipOS',
   'landing.intro':
     "Texas Hold'em in a private lobby. Access is invite-only and gated by an approved Player ID. Cards are dealt exclusively on the server.",
   'landing.welcome': 'Welcome to the table',
@@ -273,8 +274,9 @@ const de: Record<keyof typeof en, string> = {
   'common.connecting': 'Verbinde',
 
   'landing.tagline': 'Private Tische · Play Money · Eigene Infrastruktur',
-  'landing.titleA': 'DUPSTER',
+  'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
+  'landing.byline': 'by filipOS',
   'landing.intro':
     'Texas Hold’em in einer privaten Lobby. Zugang nur per Invite-Link und genehmigter Player-ID. Karten werden ausschließlich serverseitig verteilt.',
   'landing.welcome': 'Willkommen am Tisch',
@@ -504,8 +506,9 @@ const pl: Record<keyof typeof en, string> = {
   'common.connecting': 'Łączenie',
 
   'landing.tagline': 'Prywatne stoły · Żetony bez wartości · Własna infrastruktura',
-  'landing.titleA': 'DUPSTER',
+  'landing.titleA': 'BLUFFUMINATI',
   'landing.titleB': '',
+  'landing.byline': 'by filipOS',
   'landing.intro':
     'Texas Hold’em w prywatnym lobby. Dostęp wyłącznie przez link z zaproszeniem i zatwierdzony Player ID. Karty są rozdawane wyłącznie po stronie serwera.',
   'landing.welcome': 'Witaj przy stole',

@@ -46,14 +46,14 @@ export function PlayingCard({ card, size = 'md', faceDown = false, hoverable = f
           className,
         )}
       >
-        {/* Vertical "DUPSTER" wordmark on the card back. Letter
+        {/* Vertical "BLUFFUMINATI" wordmark on the card back. Letter
             spacing + rotation kept tight so it reads as a sigil
             rather than a paragraph even at the smallest card size. */}
         <span
-          className="text-gold/75 font-display tracking-[0.18em] uppercase whitespace-nowrap select-none text-[7px] sm:text-[9px]"
+          className="text-gold/75 font-display tracking-[0.14em] uppercase whitespace-nowrap select-none text-[6px] sm:text-[8px]"
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
-          Dupster
+          Bluffuminati
         </span>
       </div>
     );

@@ -4,10 +4,10 @@ import { I18nShell } from '@/components/ui/I18nShell';
 import { TelegramAdapter } from '@/components/ui/TelegramAdapter';
 
 export const metadata: Metadata = {
-  title: 'DUPSTER · filipOS.arch',
-  description: 'Private Texas Hold’em — invite only, play-money chips · filipOS.arch',
-  authors: [{ name: 'filipOS.arch' }],
-  applicationName: 'DUPSTER',
+  title: 'Bluffuminati · by filipOS',
+  description: 'Private Texas Hold’em — invite only, play-money chips · by filipOS',
+  authors: [{ name: 'filipOS' }],
+  applicationName: 'Bluffuminati',
 };
 
 export default function RootLayout({
