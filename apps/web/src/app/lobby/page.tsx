@@ -20,8 +20,10 @@ import { Signature } from '@/components/ui/Signature';
 import { Eye } from '@/components/brand/Eye';
 import { TableCard } from '@/components/lobby/TableCard';
 import { AdCarousel } from '@/components/lobby/AdCarousel';
+import { ChipRequestModal } from '@/components/table/ChipRequestModal';
 import { getAdminToken } from '@/lib/admin';
 import { useT } from '@/i18n/context';
+import clsx from 'clsx';
 import type { TableSummary } from '@neon-poker/shared/events';
 
 export default function LobbyPage() {
@@ -41,6 +43,12 @@ export default function LobbyPage() {
   useEffect(() => {
     setIsAdmin(getAdminToken() !== null);
   }, []);
+  /** Stake-tier filter — controls which table cards are visible. */
+  const [filterTier, setFilterTier] = useState<'all' | 'micro' | 'low' | 'mid' | 'high' | 'nosebleed'>('all');
+  /** Future-product tab — only the cash one is active today. */
+  const [activeTab, setActiveTab] = useState<'cash' | 'tournament' | 'sng'>('cash');
+  /** Chip-request modal — opens when wallet runs dry or via header button. */
+  const [chipReqOpen, setChipReqOpen] = useState(false);
 
   // If the profile arrived from session storage without an avatar but
   // we have a cached one from a previous sign-in, hydrate it instantly
@@ -117,6 +125,37 @@ export default function LobbyPage() {
     );
   }
 
+  /** Sends the same chip_request the table page uses — Promise wrapper
+   *  so ChipRequestModal can await the ack and toast a result. */
+  function sendChipRequest(args: { amount?: number; message?: string }): Promise<
+    | { ok: true }
+    | { ok: false; error: string }
+  > {
+    return new Promise((resolve) => {
+      if (!socket) {
+        resolve({ ok: false, error: 'no_socket' });
+        return;
+      }
+      socket.emit('client:player:chip_request', args, (res) => {
+        if (res.ok) resolve({ ok: true });
+        else resolve({ ok: false, error: res.error });
+      });
+    });
+  }
+
+  /** Same stake-tier classification as TableCard so the filter
+   *  pills match the kicker labels on the cards. */
+  function stakeTier(bb: number): 'micro' | 'low' | 'mid' | 'high' | 'nosebleed' {
+    if (bb <= 10) return 'micro';
+    if (bb <= 100) return 'low';
+    if (bb <= 500) return 'mid';
+    if (bb <= 2000) return 'high';
+    return 'nosebleed';
+  }
+  const visibleTables = tables.filter((tbl) =>
+    filterTier === 'all' ? true : stakeTier(tbl.bigBlind) === filterTier,
+  );
+
   // ---- Lobby stats strip — small live counters that read like a
   //      real cash-game lobby's "44 tables · 312 players online" line.
   const totalSeated = tables.reduce((sum, tbl) => sum + tbl.seated, 0);
@@ -192,6 +231,11 @@ export default function LobbyPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {!pending && (profile?.chips ?? 0) > 0 && (
+            <NeonButton variant="ghost" size="sm" onClick={() => setChipReqOpen(true)}>
+              🙋 <span className="hidden sm:inline ml-1">{t('action.requestChips')}</span>
+            </NeonButton>
+          )}
           {isAdmin && (
             <NeonButton variant="gold" size="sm" onClick={() => router.push('/admin')}>
               🛡 {t('common.backToAdmin')}
@@ -203,48 +247,139 @@ export default function LobbyPage() {
         </div>
       </header>
 
-      {/* Hero / wallet — premium gold panel that anchors the page */}
+      {/* ───────────── CINEMATIC HERO ─────────────────
+          Big eye with halo, brand wordmark, wallet + live counters.
+          The .lobby-hero CSS adds a drifting gold glow + soft pulse
+          so the panel feels alive without distracting. */}
       {!pending && (
-        <div className="surface-strong rounded-2xl shadow-gold-strong px-4 sm:px-5 py-3 sm:py-4 mb-3 sm:mb-4 shrink-0 relative overflow-hidden">
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-gold/[0.06] blur-3xl pointer-events-none" />
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="min-w-0">
-              <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-gold/70 font-display">
-                {t('lobby.hero.kicker')}
-              </div>
-              <div className="font-display text-base sm:text-xl text-ink-primary mt-0.5 truncate">
-                {t('lobby.hero.welcome', { name: profile?.displayName ?? profile?.handle ?? '—' })}
-              </div>
+        <section className="lobby-hero px-4 sm:px-6 py-5 sm:py-7 mb-4 shrink-0">
+          <div className="relative flex flex-col items-center text-center">
+            <div className="hero-eye-halo mb-2">
+              <Eye size={84} />
             </div>
-            <div className="flex items-baseline gap-1.5 shrink-0">
-              <span className="text-[10px] uppercase tracking-[0.32em] text-ink-muted font-display">
-                {t('lobby.hero.wallet')}
-              </span>
-              <span className="chip-bet font-display text-xl sm:text-2xl text-gold text-glow-gold">
-                {(profile?.chips ?? 0).toLocaleString()}
-              </span>
+            <h2 className="font-display text-2xl sm:text-3xl text-gold text-glow-gold tracking-[0.32em] mt-1">
+              BLUFFUMINATI
+            </h2>
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.4em] text-gold/65 font-display mt-0.5">
+              by filipOS
+            </p>
+
+            {/* Stat row */}
+            <div className="mt-4 sm:mt-5 flex items-end justify-center gap-5 sm:gap-8 flex-wrap">
+              <HeroStat
+                label={t('lobby.hero.wallet')}
+                value={(profile?.chips ?? 0).toLocaleString()}
+                accent="gold"
+              />
+              <div className="w-px h-10 bg-rim-bright/40 hidden sm:block" />
+              <HeroStat
+                label={t('lobby.stats.tables')}
+                value={String(tables.length)}
+              />
+              <div className="w-px h-10 bg-rim-bright/40 hidden sm:block" />
+              <HeroStat
+                label={t('lobby.stats.seated')}
+                value={`${totalSeated}/${totalSeats}`}
+              />
+              <div className="w-px h-10 bg-rim-bright/40 hidden sm:block" />
+              <HeroStat
+                label={t('lobby.stats.inHand')}
+                value={String(inHandCount)}
+                accent="alert"
+              />
             </div>
           </div>
-          {/* Live stats row */}
-          <div className="mt-3 pt-3 border-t border-rim-faint flex items-center gap-4 sm:gap-6 text-[10px] sm:text-[11px] font-mono">
-            <div className="flex items-baseline gap-1">
-              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.tables')}</span>
-              <span className="text-gold">{tables.length}</span>
+        </section>
+      )}
+
+      {/* ───────────── CHIP-REQUEST PANEL (wallet empty) ─────────────
+          Only renders when the wallet is below a single big-blind unit
+          across all tables — at that point the player can't even buy
+          into the cheapest game. Big gold-bordered nudge to ping the
+          admin for chips. */}
+      {!pending && profile && profile.chips < 50 && tables.length > 0 && (
+        <div className="surface-strong rounded-2xl border border-gold/55 px-4 sm:px-5 py-3 sm:py-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3 shadow-gold-strong shrink-0">
+          <div className="text-3xl shrink-0">💸</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display text-sm sm:text-base text-gold text-glow-gold">
+              {t('lobby.outOfChips.title')}
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.seated')}</span>
-              <span className="text-gold">{totalSeated}<span className="text-ink-muted">/{totalSeats}</span></span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-ink-muted uppercase tracking-widest">{t('lobby.stats.inHand')}</span>
-              <span className="text-status-alert">{inHandCount}</span>
+            <div className="text-[11px] sm:text-xs text-ink-secondary mt-0.5">
+              {t('lobby.outOfChips.body')}
             </div>
           </div>
+          <NeonButton
+            variant="gold"
+            size="md"
+            onClick={() => setChipReqOpen(true)}
+            className="shrink-0"
+          >
+            🙋 {t('action.requestChips')}
+          </NeonButton>
         </div>
       )}
 
-      {/* Tables grid — flex-1 so it takes available vertical space */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 sm:space-y-4">
+      {/* ───────────── TAB BAR ─────────────────────────
+          Three product tabs — only "Cash games" is active today, the
+          others carry a Coming Soon badge so the page reads as a real
+          poker client setting up future product lines. */}
+      {!pending && (
+        <nav className="flex items-center gap-2 sm:gap-4 border-b border-rim-faint mb-3 sm:mb-4 shrink-0 overflow-x-auto">
+          <button
+            type="button"
+            className={clsx('lobby-tab', activeTab === 'cash' && 'lobby-tab--active')}
+            onClick={() => setActiveTab('cash')}
+          >
+            {t('lobby.tabs.cash')}
+          </button>
+          <button
+            type="button"
+            className="lobby-tab lobby-tab--locked"
+            onClick={(e) => e.preventDefault()}
+            disabled
+          >
+            {t('lobby.tabs.tournaments')}
+            <span className="lobby-tab__badge">{t('lobby.tabs.soon')}</span>
+          </button>
+          <button
+            type="button"
+            className="lobby-tab lobby-tab--locked"
+            onClick={(e) => e.preventDefault()}
+            disabled
+          >
+            {t('lobby.tabs.sng')}
+            <span className="lobby-tab__badge">{t('lobby.tabs.soon')}</span>
+          </button>
+        </nav>
+      )}
+
+      {/* ───────────── FILTER PILLS ───────────────────
+          Stake-tier filter; the labels match the kicker label on each
+          TableCard so it's visually consistent. */}
+      {!pending && tables.length > 0 && (
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4 overflow-x-auto pb-1 shrink-0">
+          {(['all', 'micro', 'low', 'mid', 'high', 'nosebleed'] as const).map((tier) => {
+            const count = tier === 'all'
+              ? tables.length
+              : tables.filter((tbl) => stakeTier(tbl.bigBlind) === tier).length;
+            if (tier !== 'all' && count === 0) return null;
+            return (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => setFilterTier(tier)}
+                className={clsx('filter-pill', filterTier === tier && 'filter-pill--active')}
+              >
+                {t(`lobby.filter.${tier}`)}
+                <span className="ml-1.5 opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ───────────── TABLE GRID + AD CAROUSEL ────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4">
         {pending ? (
           <NeonCard glow="cyan" strong className="text-center">
             <h2 className="text-xl font-display mb-2">{t('lobby.pending.title')}</h2>
@@ -254,17 +389,17 @@ export default function LobbyPage() {
           <NeonCard className="text-center">
             <p className="text-white/55">{t('lobby.empty')}</p>
           </NeonCard>
+        ) : visibleTables.length === 0 ? (
+          <NeonCard className="text-center">
+            <p className="text-white/55">{t('lobby.noFilterMatch')}</p>
+          </NeonCard>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              {tables.map((tbl) => (
+              {visibleTables.map((tbl) => (
                 <TableCard key={tbl.id} table={tbl} onJoin={() => join(tbl)} />
               ))}
             </div>
-            {/* Fun-ad carousel — rotates between five branded jokes
-                every 6.5s. Purely decorative; the disclaimers ARE the
-                joke. Adds the "this is a real product" texture
-                modern poker apps lean on. */}
             <div className="mt-2 sm:mt-3">
               <AdCarousel ads={ads} />
             </div>
@@ -291,6 +426,50 @@ export default function LobbyPage() {
           />
         </Modal>
       )}
+
+      {chipReqOpen && (
+        <ChipRequestModal
+          bigBlind={tables[0]?.bigBlind ?? 10}
+          buyIn={tables[0]?.buyIn ?? 500}
+          onClose={() => setChipReqOpen(false)}
+          onSubmit={sendChipRequest}
+        />
+      )}
     </main>
+  );
+}
+
+/**
+ * Compact stat tile for the hero — uppercase label above, mono value
+ * below, optional accent colour. Stack of these reads as a casino-style
+ * info strip ("Wallet · Tables · Seated · In hand").
+ */
+function HeroStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: 'gold' | 'alert';
+}) {
+  return (
+    <div className="flex flex-col items-center min-w-0">
+      <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.32em] text-ink-muted font-display">
+        {label}
+      </span>
+      <span
+        className={clsx(
+          'font-display text-lg sm:text-2xl mt-0.5 font-mono',
+          accent === 'gold'
+            ? 'text-gold text-glow-gold'
+            : accent === 'alert'
+            ? 'text-status-alert'
+            : 'text-ink-primary',
+        )}
+      >
+        {value}
+      </span>
+    </div>
   );
 }

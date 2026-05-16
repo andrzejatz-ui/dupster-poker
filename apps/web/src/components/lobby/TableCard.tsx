@@ -65,10 +65,10 @@ export function TableCard({ table, onJoin }: Props) {
         </div>
       </div>
 
-      {/* Seat dots + count */}
-      <div className="flex items-center gap-2">
-        <SeatDots seated={table.seated} max={table.maxPlayers} />
-        <span className="text-[11px] text-ink-muted font-mono">
+      {/* Player avatar dots + count */}
+      <div className="flex items-center gap-2 -ml-0.5">
+        <AvatarDots seated={table.seated} max={table.maxPlayers} />
+        <span className="text-[10px] text-ink-muted font-mono whitespace-nowrap">
           {table.seated}/{table.maxPlayers}
         </span>
         <NeonButton
@@ -114,20 +114,25 @@ function StatusPill({ inHand, full }: { inHand: boolean; full: boolean }) {
   );
 }
 
-/** Row of small seat indicators (filled = seated, hollow = empty). */
-function SeatDots({ seated, max }: { seated: number; max: number }) {
+/**
+ * Stack of small avatar-disc indicators. Seated slots show a faceless
+ * dark disc with a gold rim (player privacy preserved in the lobby —
+ * the server doesn't expose seated handles in TableSummary anyway).
+ * Empty slots are dashed outlines.
+ */
+function AvatarDots({ seated, max }: { seated: number; max: number }) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center -space-x-1.5">
       {Array.from({ length: max }).map((_, i) => (
         <span
           key={i}
           className={clsx(
-            'w-2 h-2 rounded-full border',
-            i < seated
-              ? 'bg-gold border-gold shadow-gold-soft'
-              : 'bg-transparent border-rim-bright',
+            'avatar-dot ring-1 ring-obsidian-bg',
+            i >= seated && 'avatar-dot--empty',
           )}
-        />
+        >
+          {i < seated ? '·' : ''}
+        </span>
       ))}
     </div>
   );

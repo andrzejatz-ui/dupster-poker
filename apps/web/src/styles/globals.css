@@ -584,6 +584,167 @@ body::after {
     0 1px 2px rgba(0,0,0,0.45);
 }
 
+/* ---- Lobby hero — cinematic gold-on-obsidian welcome panel ---- */
+.lobby-hero {
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212,175,55,0.08) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(20, 16, 8, 0.5) 0%, rgba(14, 14, 18, 0.8) 100%);
+  border: 1px solid rgba(212,175,55,0.20);
+  border-radius: 24px;
+  box-shadow:
+    0 30px 80px -30px rgba(0,0,0,0.85),
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    inset 0 0 60px rgba(212,175,55,0.04);
+  overflow: hidden;
+}
+.lobby-hero::before {
+  /* Slow drifting gold glow — adds quiet motion without distracting */
+  content: '';
+  position: absolute;
+  width: 70%;
+  height: 200%;
+  left: 15%;
+  top: -50%;
+  pointer-events: none;
+  background: radial-gradient(ellipse,
+    rgba(212,175,55,0.08) 0%,
+    rgba(212,175,55,0.04) 30%,
+    transparent 60%);
+  filter: blur(40px);
+  animation: heroDrift 14s ease-in-out infinite alternate;
+}
+.lobby-hero::after {
+  /* Thin gold rim glow — quiet pulse */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 80px rgba(212,175,55,0.05);
+  animation: heroPulse 5s ease-in-out infinite;
+}
+@keyframes heroDrift {
+  0%   { transform: translate(-10%, 0) scale(1); opacity: 0.6; }
+  100% { transform: translate(10%, 5%) scale(1.15); opacity: 1; }
+}
+@keyframes heroPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+/* Hero eye halo — softly pulsing gold ring behind the big eye */
+.hero-eye-halo {
+  position: relative;
+}
+.hero-eye-halo::before {
+  content: '';
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(212,175,55,0.20) 0%,
+    rgba(212,175,55,0.05) 50%,
+    transparent 75%);
+  filter: blur(12px);
+  pointer-events: none;
+  animation: heroPulse 4s ease-in-out infinite;
+}
+
+/* ---- Lobby tab bar -------------------------------------------- */
+.lobby-tab {
+  position: relative;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-ink-mute);
+  cursor: pointer;
+  transition: color 200ms ease-out;
+  white-space: nowrap;
+}
+.lobby-tab:hover { color: var(--color-ink); }
+.lobby-tab--active {
+  color: var(--color-gold);
+}
+.lobby-tab--active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(212,175,55,0.85), transparent);
+  border-radius: 2px;
+}
+.lobby-tab--locked {
+  color: var(--color-ink-dim);
+  cursor: not-allowed;
+}
+.lobby-tab--locked .lobby-tab__badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(212,175,55,0.08);
+  border: 1px solid rgba(212,175,55,0.18);
+  color: rgba(212,175,55,0.55);
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  vertical-align: middle;
+}
+
+/* ---- Lobby filter pills --------------------------------------- */
+.filter-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: 1px solid var(--rim-bright);
+  color: var(--color-ink-mute);
+  background: transparent;
+  cursor: pointer;
+  transition: all 180ms ease-out;
+  white-space: nowrap;
+}
+.filter-pill:hover {
+  border-color: rgba(212,175,55,0.45);
+  color: var(--color-ink);
+}
+.filter-pill--active {
+  border-color: rgba(212,175,55,0.70);
+  background: rgba(212,175,55,0.12);
+  color: var(--color-gold);
+  box-shadow: 0 0 14px -4px rgba(212,175,55,0.40);
+}
+
+/* ---- Avatar dot — small circle showing a seated player's initials ---- */
+.avatar-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.10), transparent 50%),
+    linear-gradient(135deg, #2a2620 0%, #14110a 100%);
+  border: 1px solid rgba(212,175,55,0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: rgba(212,175,55,0.85);
+  box-shadow: 0 2px 6px -2px rgba(0,0,0,0.6);
+}
+.avatar-dot--empty {
+  background: transparent;
+  border: 1px dashed rgba(212,175,55,0.18);
+  color: transparent;
+}
+
 /* ---- Lobby ad-carousel fade-in --------------------------------- */
 @keyframes adFade {
   0%   { opacity: 0; transform: translateY(4px); }
