@@ -242,8 +242,11 @@ export default function TablePage() {
               const seat = base && reveal && !base.holeCards
                 ? { ...base, revealedCards: reveal.holeCards }
                 : base;
-              const isWinningSeat =
-                result?.winners.some((w) => w.seatIndex === idx && w.amount > 0) ?? false;
+              const winningAmount =
+                result?.winners
+                  .filter((w) => w.seatIndex === idx && w.amount > 0)
+                  .reduce((s, w) => s + w.amount, 0) ?? 0;
+              const isWinningSeat = winningAmount > 0;
               return (
                 <div
                   key={idx}
@@ -258,6 +261,7 @@ export default function TablePage() {
                     handLabel={reveal?.handLabel ?? null}
                     winningCards={reveal?.bestCards ?? null}
                     isWinningSeat={isWinningSeat}
+                    winningAmount={winningAmount}
                   />
                 </div>
               );
@@ -274,7 +278,6 @@ export default function TablePage() {
             {result && (
               <HandResultBanner
                 winners={result.winners}
-                revealed={result.revealed}
                 nameForSeat={(i) =>
                   state.seats.find((s) => s.seatIndex === i)?.displayName ?? `#${i}`
                 }

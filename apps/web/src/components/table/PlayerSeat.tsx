@@ -18,6 +18,8 @@ interface Props {
   winningCards?: Card[] | null;
   /** True if this seat actually won chips this hand (gold accent + emphasised label). */
   isWinningSeat?: boolean;
+  /** Chips this seat won this hand — shown as a floating "+X" gold badge above the avatar. */
+  winningAmount?: number;
 }
 
 /**
@@ -31,6 +33,7 @@ export function PlayerSeat({
   handLabel = null,
   winningCards = null,
   isWinningSeat = false,
+  winningAmount = 0,
 }: Props) {
   const t = useT();
   if (!seat) {
@@ -54,6 +57,15 @@ export function PlayerSeat({
       {isButton && (
         <div className="dealer-chip absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-xs font-display font-bold flex items-center justify-center z-10">
           D
+        </div>
+      )}
+
+      {/* Floating "+winnings" badge during the result window — the
+          banner is intentionally small now, so the actual chip number
+          is delivered right at the winning seat. */}
+      {winningAmount > 0 && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 chip-bet font-mono text-gold text-[11px] sm:text-sm bg-gold/10 border border-gold/55 rounded-full px-2.5 py-0.5 shadow-gold-soft animate-amber-pulse whitespace-nowrap">
+          +{winningAmount.toLocaleString()}
         </div>
       )}
 
