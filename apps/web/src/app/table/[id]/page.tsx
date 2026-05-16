@@ -13,8 +13,10 @@ import { ChatBox, type ChatLine } from '@/components/table/ChatBox';
 import { HandResultBanner } from '@/components/table/HandResultBanner';
 import { HistoryModal } from '@/components/table/HistoryModal';
 import { ChipTransferOverlay } from '@/components/table/ChipTransferOverlay';
+import { TopUpModal } from '@/components/table/TopUpModal';
 import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
+import { getProfile, setStoredProfile } from '@/lib/session';
 import { getToken } from '@/lib/session';
 import { playCashRegister, playChatDing, playGameOver } from '@/lib/sounds';
 import type { Card } from '@neon-poker/shared/poker';
@@ -47,11 +49,17 @@ export default function TablePage() {
   const [result, setResult] = useState<ResultSnapshot | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [topUpOpen, setTopUpOpen] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
   const [, force] = useState(0);
   /** Live mirror of state.mySeatIndex so the socket-event closures
    *  can pick the right post-hand sound without re-subscribing. */
   const mySeatRef = useRef<number | null>(null);
+  /** Wallet balance kept in sync with chip_update broadcasts so the
+   *  Top-up modal can preview "wallet after" without round-trips. */
+  const [walletBalance, setWalletBalance] = useState<number>(
+    () => getProfile()?.chips ?? 0,
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +107,13 @@ export default function TablePage() {
       }
     });
     socket.on('server:table:error', (e) => alert(e.message));
+    socket.on('server:account:chip_update', (p) => {
+      // Keep the local wallet mirror fresh and persist to session storage
+      // so the lobby + header reads stay consistent if the player navigates.
+      setWalletBalance(p.chips);
+      const cur = getProfile();
+      if (cur) setStoredProfile({ ...cur, chips: p.chips });
+    });
     socket.on('server:table:hand:result', (payload) => {
       if (payload.tableId !== id) return;
       setResult({
@@ -158,6 +173,24 @@ export default function TablePage() {
     socket.emit('client:table:leave', { tableId: id }, () => router.push('/lobby'));
   }
 
+  /** Wraps the topup socket emit in a Promise so the modal can await the
+   *  server's verdict and decide whether to close or show the error. */
+  function sendTopUp(amount: number): Promise<
+    | { ok: true; newStack: number }
+    | { ok: false; error: string }
+  > {
+    return new Promise((resolve) => {
+      if (!socket) {
+        resolve({ ok: false, error: 'no_socket' });
+        return;
+      }
+      socket.emit('client:player:topup', { amount }, (res) => {
+        if (res.ok) resolve({ ok: true, newStack: res.newStack });
+        else resolve({ ok: false, error: res.error });
+      });
+    });
+  }
+
   function togglePause() {
     if (!socket) return;
     const mySeat = state?.mySeatIndex !== null && state?.mySeatIndex !== undefined
@@ -203,6 +236,20 @@ export default function TablePage() {
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <span className="hidden sm:inline text-xs font-mono text-ink-muted">{t('table.handNumber')}{state.handNumber}</span>
+          {state.mySeatIndex !== null && state.canTopUp && (() => {
+            const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
+            const stack = mySeat?.stack ?? 0;
+            // Hide the button when there's nothing meaningful to add —
+            // wallet empty OR stack already at the cap.
+            const canAddSomething =
+              walletBalance > 0 && stack < state.maxBuyIn;
+            if (!canAddSomething) return null;
+            return (
+              <NeonButton size="sm" variant="gold" onClick={() => setTopUpOpen(true)}>
+                💰 {t('action.topUp')}
+              </NeonButton>
+            );
+          })()}
           {state.mySeatIndex !== null && (() => {
             const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
             const paused = mySeat?.isPaused ?? false;
@@ -420,6 +467,21 @@ export default function TablePage() {
       {historyOpen && id && (
         <HistoryModal tableId={id} onClose={() => setHistoryOpen(false)} />
       )}
+
+      {topUpOpen && state.mySeatIndex !== null && (() => {
+        const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
+        if (!mySeat) return null;
+        return (
+          <TopUpModal
+            currentStack={mySeat.stack}
+            maxBuyIn={state.maxBuyIn}
+            walletBalance={walletBalance}
+            bigBlind={state.bigBlind}
+            onClose={() => setTopUpOpen(false)}
+            onSubmit={sendTopUp}
+          />
+        );
+      })()}
     </main>
   );
 }

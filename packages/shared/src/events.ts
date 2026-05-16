@@ -61,6 +61,14 @@ export interface PublicTableState {
   legalActionsForMe: LegalActions | null;
   /** Mein Sitz, falls ich sitze. */
   mySeatIndex: number | null;
+  /**
+   * Hard cap on a seat's stack at this table. The Top-up flow refuses
+   * any amount that would push the stack above this number. Computed
+   * as table.buyIn × MAX_BUY_IN_MULTIPLIER (env, default 4×).
+   */
+  maxBuyIn: number;
+  /** Player-initiated top-up is currently legal for my seat. */
+  canTopUp: boolean;
 }
 
 export interface LegalActions {
@@ -145,6 +153,20 @@ export interface ClientToServerEvents {
   ) => void;
   'client:player:resume': (
     ack: (res: { ok: true } | { ok: false; error: string }) => void,
+  ) => void;
+  /**
+   * Pulls chips from the player's off-table wallet into their seat
+   * stack. Server is authoritative: validates against the per-table
+   * stack cap and wallet balance, refuses while the player is active
+   * in the current hand. Ack carries the new stack or an error code.
+   */
+  'client:player:topup': (
+    payload: { amount: number },
+    ack: (
+      res:
+        | { ok: true; newStack: number }
+        | { ok: false; error: string; code?: string },
+    ) => void,
   ) => void;
 }
 

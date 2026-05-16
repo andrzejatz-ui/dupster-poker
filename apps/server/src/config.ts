@@ -22,6 +22,15 @@ const Env = z.object({
   TURN_TIMER_MS: z.coerce.number().int().positive().default(30_000),
   RECONNECT_GRACE_MS: z.coerce.number().int().positive().default(30_000),
   MIN_BUY_IN_MULTIPLIER: z.coerce.number().int().positive().default(20),
+  /**
+   * Hard cap on how big a single seat's stack can grow via the
+   * player-initiated top-up flow, expressed as a multiple of the
+   * table's initial buy-in. 4 = a player can hold at most 4× the
+   * buy-in at the table; reach the cap and the Top-up button locks
+   * out until the stack drops below it. Stops a wallet-flush
+   * dynamic that would otherwise eclipse a normal cash-game stack.
+   */
+  MAX_BUY_IN_MULTIPLIER: z.coerce.number().int().positive().default(4),
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),

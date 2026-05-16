@@ -222,6 +222,32 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       ack(ok ? { ok: true } : { ok: false, error: 'not_seated' });
     });
 
+    // ---- Mid-session top-up: pull from wallet to seat stack ---------
+    socket.on('client:player:topup', async (payload, ack) => {
+      const amount = Number((payload as { amount: number }).amount);
+      const res = await tables.playerTopUp({
+        playerId: socket.data.playerId,
+        amount,
+      });
+      if (res.ok) {
+        // Push the updated wallet balance to every open socket of this
+        // player so the lobby / header chips display refreshes too.
+        try {
+          const fresh = await findPlayerById(socket.data.playerId);
+          if (fresh) {
+            emitToPlayer(io, socket.data.playerId, 'server:account:chip_update', {
+              chips: fresh.chips,
+              delta: -amount,
+              reason: 'buy_in',
+            });
+          }
+        } catch { /* non-fatal */ }
+        ack({ ok: true, newStack: res.newStack });
+      } else {
+        ack({ ok: false, error: res.message, code: res.code });
+      }
+    });
+
     // ---- Reconnect markers --------------------------------------
     socket.on('disconnect', () => {
       // mark `isReconnecting` on the player's current seat

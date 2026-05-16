@@ -90,6 +90,13 @@ export interface TableConfig {
    * and are skipped by every persistence path.
    */
   isTestRoom?: boolean;
+  /**
+   * Absolute upper bound for a seat's stack — `buyIn * MAX_BUY_IN_MULTIPLIER`.
+   * Drives the player-initiated top-up flow: a player can pull chips
+   * from their wallet into the stack up to this cap (or the wallet
+   * balance, whichever is lower). Computed at table construction.
+   */
+  maxBuyIn: number;
 }
 
 export class PokerTable {
@@ -120,6 +127,19 @@ export class PokerTable {
 
   constructor(cfg: TableConfig) {
     this.cfg = cfg;
+  }
+
+  /**
+   * Top-up is allowed between hands, or mid-hand if the player isn't
+   * actively participating in it (folded, sitting-out, paused). Lets a
+   * player re-enter after busting without breaking the fairness rule
+   * "no rebuy mid-hand" for seats still in the action.
+   */
+  canPlayerTopUp(seatIndex: number): boolean {
+    const seat = this.seats.get(seatIndex);
+    if (!seat) return false;
+    if (this.phase === 'waiting') return true;
+    return seat.hasFolded || seat.isSittingOut || seat.isPaused;
   }
 
   /* -------- Seating -------- */
@@ -801,6 +821,8 @@ export class PokerTable {
       seats,
       legalActionsForMe: legal,
       mySeatIndex: viewerSeat,
+      maxBuyIn: this.cfg.maxBuyIn,
+      canTopUp: viewerSeat !== null ? this.canPlayerTopUp(viewerSeat) : false,
     };
   }
 }

@@ -332,6 +332,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       allowSpectators: false,
       turnTimerMs: config.TURN_TIMER_MS,
       isTestRoom: true,
+      maxBuyIn: buyIn * config.MAX_BUY_IN_MULTIPLIER,
     }));
 
     // Seat the admin first so they always land on seat 0. `defer:true`
@@ -806,6 +807,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         maxPlayers: parsed.data.maxPlayers,
         allowSpectators: parsed.data.allowSpectators,
         turnTimerMs: config.TURN_TIMER_MS,
+        maxBuyIn: parsed.data.buyIn * config.MAX_BUY_IN_MULTIPLIER,
       }),
     );
     await logAdminAction({

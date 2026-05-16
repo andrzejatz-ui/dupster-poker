@@ -9,6 +9,7 @@ import {
   type TableConfig,
 } from '../poker/engine.js';
 import { decideBotAction } from '../poker/bot.js';
+import { config } from '../config.js';
 
 const BOT_NAMES = [
   'Bot Alex', 'Bot Sam', 'Bot Riley', 'Bot Casey',
@@ -47,16 +48,18 @@ export class TableManager {
         await pool.query('update tables set archived_at = now() where id = $1', [row.id]);
         continue;
       }
+      const buyIn = Number(row.buy_in);
       const cfg: TableConfig = {
         tableId: row.id,
         name: row.name,
         smallBlind: Number(row.small_blind),
         bigBlind: Number(row.big_blind),
-        buyIn: Number(row.buy_in),
+        buyIn,
         maxPlayers: row.max_players,
         turnTimerMs,
         allowSpectators: row.allow_spectators,
         isTestRoom: false,
+        maxBuyIn: buyIn * config.MAX_BUY_IN_MULTIPLIER,
       };
       this.tables.set(row.id, new PokerTable(cfg));
     }
@@ -111,6 +114,7 @@ export class TableManager {
           maxPlayers: p.maxPlayers,
           turnTimerMs,
           allowSpectators: false,
+          maxBuyIn: p.buyIn * config.MAX_BUY_IN_MULTIPLIER,
         }),
       );
     }
@@ -362,6 +366,101 @@ export class TableManager {
   beginPlay(tableId: string): void {
     this.maybeStartHand(tableId);
     this.scheduleBotIfNeeded(tableId);
+  }
+
+  /**
+   * Player-initiated mid-session top-up. Pulls `amount` chips from the
+   * player's off-table balance into their seat stack, all in a single
+   * transaction so a crash can't half-apply it. Refuses when:
+   *   - the player isn't seated here
+   *   - the engine says top-up isn't legal right now (mid-hand action)
+   *   - the requested amount is non-positive
+   *   - the wallet is too thin (moveChipsInTx throws insufficient_chips)
+   *   - the resulting stack would exceed the table cap (maxBuyIn)
+   *
+   * The returned shape mirrors what the socket layer needs to ack the
+   * call: ok flag, optional error code/message, plus the new stack so
+   * the client can show "+N chips" feedback without waiting for the
+   * next state broadcast.
+   */
+  async playerTopUp(args: {
+    playerId: string;
+    amount: number;
+  }): Promise<
+    | { ok: true; tableId: string; seatIndex: number; newStack: number }
+    | { ok: false; code: string; message: string }
+  > {
+    const amount = Math.floor(args.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, code: 'bad_amount', message: 'Betrag muss positiv sein.' };
+    }
+    // Find the seat by player id across all live tables — same idiom
+    // as pausePlayer / resumePlayer. Bot seats never enter this branch
+    // because their synthetic IDs don't appear in /auth/join sessions.
+    for (const table of this.tables.values()) {
+      for (const seat of table.seats.values()) {
+        if (seat.playerId !== args.playerId) continue;
+
+        // Engine permission gate — between-hands or non-active seats only.
+        if (!table.canPlayerTopUp(seat.seatIndex)) {
+          return {
+            ok: false,
+            code: 'mid_hand',
+            message: 'Top-up erst nach Ende der Hand möglich.',
+          };
+        }
+
+        // Stack cap.
+        const cap = table.cfg.maxBuyIn;
+        if (seat.stack + amount > cap) {
+          return {
+            ok: false,
+            code: 'exceeds_cap',
+            message: `Max-Stack am Tisch: ${cap.toLocaleString()}.`,
+          };
+        }
+
+        // Single transaction: drain wallet, grow seat stack, ledger row.
+        try {
+          await withTx(async (c) => {
+            await moveChipsInTx(c, {
+              playerId: args.playerId,
+              delta: -amount,
+              reason: 'buy_in',
+              refTableId: table.cfg.tableId,
+              note: `mid-session top-up (seat ${seat.seatIndex})`,
+            });
+            await c.query(
+              'update table_seats set stack = stack + $1 where table_id = $2 and seat_index = $3',
+              [amount, table.cfg.tableId, seat.seatIndex],
+            );
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'unknown';
+          if (msg === 'insufficient_chips') {
+            return {
+              ok: false,
+              code: 'insufficient_wallet',
+              message: 'Im Wallet sind nicht genug Chips.',
+            };
+          }
+          logger.error({ err, playerId: args.playerId }, 'topup failed');
+          return { ok: false, code: 'tx_failed', message: msg };
+        }
+
+        // Reflect in memory so the next state push has the new stack
+        // (the DB write already landed atomically above).
+        seat.stack += amount;
+        this.onStateChange(table.cfg.tableId);
+        return {
+          ok: true,
+          tableId: table.cfg.tableId,
+          seatIndex: seat.seatIndex,
+          newStack: seat.stack,
+        };
+      }
+    }
+    return { ok: false, code: 'not_seated', message: 'Du sitzt an keinem Tisch.' };
   }
 
   applyAction(args: {
