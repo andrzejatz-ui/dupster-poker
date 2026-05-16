@@ -19,6 +19,7 @@ import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
 import { getProfile, setStoredProfile } from '@/lib/session';
 import { getToken } from '@/lib/session';
+import { getAdminToken } from '@/lib/admin';
 import {
   playActionAllIn,
   playActionBet,
@@ -72,6 +73,13 @@ export default function TablePage() {
   const [walletBalance, setWalletBalance] = useState<number>(
     () => getProfile()?.chips ?? 0,
   );
+  /** Same admin-detection trick as the lobby — surfaces a "Back to
+   *  Admin" button when the player session was minted from the admin
+   *  Play shortcut so the admin can hop back without re-logging in. */
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    setIsAdmin(getAdminToken() !== null);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -325,6 +333,11 @@ export default function TablePage() {
           <NeonButton size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
             {t('history.button')}
           </NeonButton>
+          {isAdmin && (
+            <NeonButton size="sm" variant="gold" onClick={() => router.push('/admin')}>
+              🛡 {t('common.backToAdmin')}
+            </NeonButton>
+          )}
           <NeonButton size="sm" variant="ghost" onClick={leave}>
             {t('table.leave')}
           </NeonButton>

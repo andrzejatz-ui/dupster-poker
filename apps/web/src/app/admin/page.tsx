@@ -10,7 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Signature } from '@/components/ui/Signature';
 import { Eye } from '@/components/brand/Eye';
 import { adminCall, clearAdminToken, getAdminToken } from '@/lib/admin';
-import { setSession } from '@/lib/session';
+import { setSession, getToken } from '@/lib/session';
 import { useT } from '@/i18n/context';
 
 interface PlayerRow {
@@ -83,6 +83,13 @@ export default function AdminDashboard() {
   const [chipRequests, setChipRequests] = useState<ChipRequestRow[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [me, setMe] = useState<AdminProfile | null>(null);
+  /** Is there an active player session in this tab? Lets us show a
+   *  "Continue playing" button so the admin can hop back into the
+   *  same player view they left without re-minting a session. */
+  const [hasPlayerSession, setHasPlayerSession] = useState(false);
+  useEffect(() => {
+    setHasPlayerSession(getToken() !== null);
+  }, []);
 
   useEffect(() => {
     if (!getAdminToken()) router.replace('/admin/login');
@@ -211,6 +218,15 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
+            {hasPlayerSession && (
+              <NeonButton
+                variant="gold"
+                size="sm"
+                onClick={() => router.push('/lobby')}
+              >
+                ↩ {t('admin.continuePlaying')}
+              </NeonButton>
+            )}
             <NeonButton variant="gold" size="sm" onClick={startPlaying}>
               ▶ {me?.playHandle ? `${t('admin.play')} · ${me.playHandle}` : t('admin.play')}
             </NeonButton>

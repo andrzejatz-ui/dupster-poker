@@ -25,6 +25,7 @@ const en = {
   'common.back': 'Back',
   'common.confirm': 'Confirm',
   'common.loading': 'Loading…',
+  'common.backToAdmin': 'Admin view',
   'common.connecting': 'Connecting',
 
   // Landing
@@ -238,6 +239,7 @@ const en = {
   'admin.passwordNone': '—',
   'admin.prompt.passwordSet': 'New password for this player (≥4 chars):',
   'admin.play': 'Play',
+  'admin.continuePlaying': 'Continue playing',
   'admin.testRoom': 'Test Room (vs Bots)',
   'admin.prompt.playHandle': 'Choose a Player ID for your in-game identity:',
   'admin.prompt.playChips': 'Initial chips if this is a new identity (0 to skip):',
@@ -267,6 +269,7 @@ const de: Record<keyof typeof en, string> = {
   'common.back': 'Zurück',
   'common.confirm': 'Bestätigen',
   'common.loading': 'Lade …',
+  'common.backToAdmin': 'Admin-Ansicht',
   'common.connecting': 'Verbinde',
 
   'landing.tagline': 'Private Tische · Play Money · Eigene Infrastruktur',
@@ -468,6 +471,7 @@ const de: Record<keyof typeof en, string> = {
   'admin.passwordNone': '—',
   'admin.prompt.passwordSet': 'Neues Passwort für diesen Spieler (≥4 Zeichen):',
   'admin.play': 'Spielen',
+  'admin.continuePlaying': 'Weiterspielen',
   'admin.testRoom': 'Test-Tisch (vs Bots)',
   'admin.prompt.playHandle': 'Wähle eine Player-ID für deine Spiel-Identität:',
   'admin.prompt.playChips': 'Initiale Chips, falls neu (0 = überspringen):',
@@ -496,6 +500,7 @@ const pl: Record<keyof typeof en, string> = {
   'common.back': 'Wróć',
   'common.confirm': 'Potwierdź',
   'common.loading': 'Ładowanie…',
+  'common.backToAdmin': 'Panel admina',
   'common.connecting': 'Łączenie',
 
   'landing.tagline': 'Prywatne stoły · Żetony bez wartości · Własna infrastruktura',
@@ -697,6 +702,7 @@ const pl: Record<keyof typeof en, string> = {
   'admin.passwordNone': '—',
   'admin.prompt.passwordSet': 'Nowe hasło dla tego gracza (≥4 znaki):',
   'admin.play': 'Graj',
+  'admin.continuePlaying': 'Wróć do gry',
   'admin.testRoom': 'Stół testowy (vs Boty)',
   'admin.prompt.playHandle': 'Wybierz Player ID dla swojej tożsamości w grze:',
   'admin.prompt.playChips': 'Początkowe żetony, jeśli nowa tożsamość (0 = pomiń):',

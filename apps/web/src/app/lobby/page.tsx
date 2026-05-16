@@ -18,6 +18,7 @@ import {
 import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { Eye } from '@/components/brand/Eye';
+import { getAdminToken } from '@/lib/admin';
 import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
 
@@ -30,6 +31,14 @@ export default function LobbyPage() {
   const initial = typeof window !== 'undefined' ? getProfile() : null;
   const [profile, setProfile] = useState(initial);
   const [profileOpen, setProfileOpen] = useState(false);
+  /** Did this user arrive in the lobby from the admin "Play" shortcut?
+   *  If so, getAdminToken() returns a value and we expose a one-tap
+   *  "Back to Admin" button so the admin doesn't have to sign out
+   *  + log back in to flip views. */
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    setIsAdmin(getAdminToken() !== null);
+  }, []);
 
   // If the profile arrived from session storage without an avatar but
   // we have a cached one from a previous sign-in, hydrate it instantly
@@ -138,9 +147,16 @@ export default function LobbyPage() {
             {' '}· <span className="text-ink-muted">{status}</span>
           </p>
         </div>
-        <NeonButton variant="ghost" onClick={logout}>
-          {t('common.signOut')}
-        </NeonButton>
+        <div className="flex items-center gap-2 shrink-0">
+          {isAdmin && (
+            <NeonButton variant="gold" size="sm" onClick={() => router.push('/admin')}>
+              🛡 {t('common.backToAdmin')}
+            </NeonButton>
+          )}
+          <NeonButton variant="ghost" onClick={logout}>
+            {t('common.signOut')}
+          </NeonButton>
+        </div>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
