@@ -2,6 +2,7 @@
 
 import clsx from 'clsx';
 import type { PublicSeat } from '@neon-poker/shared/events';
+import type { Card } from '@neon-poker/shared/poker';
 import { PlayingCard } from './PlayingCard';
 import { ChipStack } from './ChipStack';
 import { useT } from '@/i18n/context';
@@ -11,12 +12,26 @@ interface Props {
   seatIndex: number;
   isButton: boolean;
   bigBlindAmount: number;
+  /** Showdown label for this seat (e.g. "Two pair, Kings and Nines"). */
+  handLabel?: string | null;
+  /** The 5 cards that scored this seat's hand — used to glow the winning combo. */
+  winningCards?: Card[] | null;
+  /** True if this seat actually won chips this hand (gold accent + emphasised label). */
+  isWinningSeat?: boolean;
 }
 
 /**
  * One player slot around the felt. Empty seats render a faint silhouette.
  */
-export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props) {
+export function PlayerSeat({
+  seat,
+  seatIndex,
+  isButton,
+  bigBlindAmount,
+  handLabel = null,
+  winningCards = null,
+  isWinningSeat = false,
+}: Props) {
   const t = useT();
   if (!seat) {
     return (
@@ -30,6 +45,8 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
   }
 
   const stackInBB = bigBlindAmount > 0 ? `${(seat.stack / bigBlindAmount).toFixed(1)} ${t('table.bb')}` : '—';
+  const winningSet = winningCards ? new Set<Card>(winningCards) : null;
+  const cardIsWinning = (c?: Card) => !!(c && winningSet && winningSet.has(c));
 
   return (
     <div className="flex flex-col items-center gap-1.5 relative">
@@ -91,13 +108,31 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
       <div className="flex gap-1 mt-1">
         {seat.holeCards ? (
           <>
-            <PlayingCard card={seat.holeCards[0]} size="sm" hoverable />
-            <PlayingCard card={seat.holeCards[1]} size="sm" hoverable />
+            <PlayingCard
+              card={seat.holeCards[0]}
+              size="sm"
+              hoverable
+              className={clsx(cardIsWinning(seat.holeCards[0]) && 'card-winning')}
+            />
+            <PlayingCard
+              card={seat.holeCards[1]}
+              size="sm"
+              hoverable
+              className={clsx(cardIsWinning(seat.holeCards[1]) && 'card-winning')}
+            />
           </>
         ) : seat.revealedCards ? (
           <>
-            <PlayingCard card={seat.revealedCards[0]} size="sm" />
-            <PlayingCard card={seat.revealedCards[1]} size="sm" />
+            <PlayingCard
+              card={seat.revealedCards[0]}
+              size="sm"
+              className={clsx(cardIsWinning(seat.revealedCards[0]) && 'card-winning')}
+            />
+            <PlayingCard
+              card={seat.revealedCards[1]}
+              size="sm"
+              className={clsx(cardIsWinning(seat.revealedCards[1]) && 'card-winning')}
+            />
           </>
         ) : !seat.hasFolded ? (
           <>
@@ -106,6 +141,21 @@ export function PlayerSeat({ seat, seatIndex, isButton, bigBlindAmount }: Props)
           </>
         ) : null}
       </div>
+
+      {/* Showdown hand label — persistent under the cards while the
+          result is being displayed. Winners get a gold treatment. */}
+      {handLabel && (
+        <div
+          className={clsx(
+            'mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-[0.18em] font-display whitespace-nowrap',
+            isWinningSeat
+              ? 'bg-gold text-obsidian-bg shadow-gold-soft'
+              : 'bg-obsidian-soft/70 text-ink-secondary border border-rim-faint',
+          )}
+        >
+          {handLabel}
+        </div>
+      )}
 
       {/* Live chip stack — visible chips pushed into the pot */}
       {seat.currentBet > 0 && (

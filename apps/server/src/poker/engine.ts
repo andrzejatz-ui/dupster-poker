@@ -47,7 +47,17 @@ export interface HandResult {
   pot: number;
   sidePots: SidePot[];
   winners: Array<{ seatIndex: number; amount: number; handLabel: string | null }>;
-  revealed: Array<{ seatIndex: number; holeCards: [Card, Card]; handLabel: string }>;
+  /**
+   * Every seat that reached showdown. `bestCards` are the exact five
+   * cards (hole + board) that scored the seat's hand — used by the UI
+   * to spot-light the winning combination at the table.
+   */
+  revealed: Array<{
+    seatIndex: number;
+    holeCards: [Card, Card];
+    handLabel: string;
+    bestCards: Card[];
+  }>;
   /** seatIndex -> winnings */
   payouts: Map<number, number>;
 }
@@ -567,6 +577,7 @@ export class PokerTable {
           seatIndex: s.seatIndex,
           holeCards: s.holeCards!,
           handLabel: describeHand(hr),
+          bestCards: [...hr.cards],
         });
       }
 

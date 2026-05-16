@@ -185,7 +185,13 @@ export interface ServerToClientEvents {
       amount: number;
       handLabel: string | null;
     }>;
-    revealed: Array<{ seatIndex: number; holeCards: [Card, Card]; handLabel: string }>;
+    revealed: Array<{
+      seatIndex: number;
+      holeCards: [Card, Card];
+      handLabel: string;
+      /** The 5 cards (hole + board) that scored the seat's hand. */
+      bestCards: Card[];
+    }>;
     board: Card[];
   }) => void;
   'server:table:chat': (payload: {

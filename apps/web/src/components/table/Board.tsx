@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import clsx from 'clsx';
 import type { Card } from '@neon-poker/shared/poker';
 import { PlayingCard } from './PlayingCard';
 import { Eye } from '@/components/brand/Eye';
@@ -16,9 +17,11 @@ interface Props {
    * board-length change is enough for street transitions.
    */
   handToken?: string | null;
+  /** Board cards that belong to the winning 5-card combo — glow gold. */
+  winningCards?: Set<Card> | null;
 }
 
-export function Board({ board, pot, handToken = null }: Props) {
+export function Board({ board, pot, handToken = null, winningCards = null }: Props) {
   const t = useT();
   const [flash, setFlash] = useState(0);
   const prevBoardLen = useRef(board.length);
@@ -56,8 +59,14 @@ export function Board({ board, pot, handToken = null }: Props) {
       <div className="flex gap-1 sm:gap-2 mt-1 sm:mt-2">
         {slots.map((i) => {
           const card = board[i];
+          const isWinning = !!(card && winningCards && winningCards.has(card));
           return card ? (
-            <PlayingCard key={i} card={card} size="lg" />
+            <PlayingCard
+              key={i}
+              card={card}
+              size="lg"
+              className={clsx(isWinning && 'card-winning')}
+            />
           ) : (
             <div
               key={i}

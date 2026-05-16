@@ -21,7 +21,12 @@ import { useT } from '@/i18n/context';
 
 interface ResultSnapshot {
   winners: Array<{ seatIndex: number; amount: number; handLabel: string | null }>;
-  revealed: Array<{ seatIndex: number; holeCards: [Card, Card]; handLabel: string }>;
+  revealed: Array<{
+    seatIndex: number;
+    holeCards: [Card, Card];
+    handLabel: string;
+    bestCards: Card[];
+  }>;
 }
 
 export default function TablePage() {
@@ -203,7 +208,26 @@ export default function TablePage() {
         <div className="col-span-12 lg:col-span-9 flex flex-col min-h-0">
           <div className="felt rounded-[40px] sm:rounded-[110px] relative flex-1 min-h-0">
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <Board board={state.board} pot={state.pot} handToken={state.handId} />
+              <Board
+                board={state.board}
+                pot={state.pot}
+                handToken={state.handId}
+                winningCards={
+                  result
+                    ? (() => {
+                        const winnerSeats = new Set(
+                          result.winners.filter((w) => w.amount > 0).map((w) => w.seatIndex),
+                        );
+                        const cards = new Set<Card>();
+                        for (const r of result.revealed) {
+                          if (!winnerSeats.has(r.seatIndex)) continue;
+                          for (const c of r.bestCards) cards.add(c);
+                        }
+                        return cards;
+                      })()
+                    : null
+                }
+              />
             </div>
 
             {seatPositions.map((pos, idx) => {
@@ -212,6 +236,8 @@ export default function TablePage() {
               const seat = base && reveal && !base.holeCards
                 ? { ...base, revealedCards: reveal.holeCards }
                 : base;
+              const isWinningSeat =
+                result?.winners.some((w) => w.seatIndex === idx && w.amount > 0) ?? false;
               return (
                 <div
                   key={idx}
@@ -223,6 +249,9 @@ export default function TablePage() {
                     seatIndex={idx}
                     isButton={state.buttonSeat === idx}
                     bigBlindAmount={state.bigBlind}
+                    handLabel={reveal?.handLabel ?? null}
+                    winningCards={reveal?.bestCards ?? null}
+                    isWinningSeat={isWinningSeat}
                   />
                 </div>
               );
