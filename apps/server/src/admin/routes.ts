@@ -14,13 +14,93 @@ import {
   signAdminToken,
   signPlayerToken,
 } from '../auth/sessions.js';
-import { findPlayerByHandle } from '../auth/players.js';
+import { findPlayerByHandle, findPlayerById } from '../auth/players.js';
 import { requireAdmin, type AdminRequest } from '../middleware/adminAuth.js';
 import { config } from '../config.js';
 import type { TableManager } from '../rooms/tableManager.js';
 import { PokerTable } from '../poker/engine.js';
 import { disconnectPlayer, emitToPlayer, type IOType } from '../sockets/index.js';
 import { logger } from '../utils/logger.js';
+
+/**
+ * Resolves the player identity tied to this admin. If admins.linked_player_id
+ * is set, returns that player (renaming it if `requestedHandle` differs).
+ * Otherwise finds the existing player with the requested handle, or
+ * creates a new one. Either way, sets admins.linked_player_id so all
+ * future shortcuts return the SAME player — no more accidental
+ * duplicate accounts when the admin tweaks their play_handle.
+ *
+ * Throws 'handle_taken' if a rename would collide with another player's
+ * unique handle. Caller maps that to a 409.
+ */
+async function getOrLinkAdminPlayer(args: {
+  adminId: string;
+  requestedHandle: string;
+  displayName: string | null;
+}): Promise<{ id: string; handle: string; displayName: string | null; avatarUrl: string | null; chips: number; status: string }> {
+  const adminRow = await pool.query<{ linked_player_id: string | null }>(
+    'select linked_player_id from admins where id = $1',
+    [args.adminId],
+  );
+  const linkedId = adminRow.rows[0]?.linked_player_id ?? null;
+
+  // Case 1: admin already has a linked player.
+  if (linkedId) {
+    const linked = await findPlayerById(linkedId);
+    if (linked) {
+      // Rename if the play_handle has drifted from what this player is
+      // stored as. Catches handle collisions cleanly.
+      if (linked.handle !== args.requestedHandle) {
+        try {
+          await pool.query(
+            'update players set player_handle = $1 where id = $2',
+            [args.requestedHandle, linkedId],
+          );
+        } catch (err) {
+          const code = (err as { code?: string }).code;
+          if (code === '23505') throw new Error('handle_taken');
+          throw err;
+        }
+      }
+      // Make sure the linked player is approved + not soft-deleted.
+      await pool.query(
+        `update players set
+           status='approved', approved_at=now(), approved_by=$2,
+           banned_at=null, banned_reason=null, deleted_at=null
+         where id=$1`,
+        [linkedId, args.adminId],
+      );
+      const fresh = await findPlayerById(linkedId);
+      if (!fresh) throw new Error('linked_player_vanished');
+      return fresh;
+    }
+    // Linked row pointed to a player that's been hard-deleted — fall
+    // through to the "no link" path which will re-link cleanly.
+  }
+
+  // Case 2: no link yet. Upsert by handle so a previously soft-deleted
+  // row with this handle gets resurrected; brand-new handles get a
+  // fresh row.
+  await pool.query(
+    `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
+     values ($1, $2, 'approved', 0, now(), $3)
+     on conflict (player_handle) do update set
+       status='approved', approved_at=now(),
+       approved_by=excluded.approved_by,
+       banned_at=null, banned_reason=null, deleted_at=null`,
+    [args.requestedHandle, args.displayName, args.adminId],
+  );
+  const fresh = await findPlayerByHandle(args.requestedHandle);
+  if (!fresh) throw new Error('create_failed');
+
+  // Bind the admin to this player forever (or until the admin row is
+  // wiped). Future /admin/play calls reuse this row.
+  await pool.query(
+    'update admins set linked_player_id = $1 where id = $2',
+    [fresh.id, args.adminId],
+  );
+  return fresh;
+}
 
 export function adminRouter(tables: TableManager, io: IOType): Router {
   const r = Router();
@@ -116,6 +196,32 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     }
     if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
 
+    // If the admin renames their play_handle AND already has a linked
+    // player, propagate the rename to that player so they keep one
+    // identity instead of stranding an old player and creating a new
+    // one on the next /admin/play.
+    if (parsed.data.playHandle !== undefined && parsed.data.playHandle !== null) {
+      const link = await pool.query<{ linked_player_id: string | null }>(
+        'select linked_player_id from admins where id = $1',
+        [req.adminId],
+      );
+      const linkedId = link.rows[0]?.linked_player_id ?? null;
+      if (linkedId) {
+        try {
+          await pool.query(
+            'update players set player_handle = $1 where id = $2',
+            [parsed.data.playHandle, linkedId],
+          );
+        } catch (err) {
+          const code = (err as { code?: string }).code;
+          if (code === '23505') {
+            return res.status(409).json({ error: 'handle_taken' });
+          }
+          throw err;
+        }
+      }
+    }
+
     await pool.query(
       `update admins set ${updates.join(', ')} where id = $1`,
       [req.adminId, ...params],
@@ -160,34 +266,27 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       }
     }
     if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
-    const existing = await findPlayerByHandle(handle);
-    const created = !existing;
 
-    // Resurrect-or-create: a previously soft-deleted row holds the
-    // unique player_handle slot but findPlayerByHandle filters it
-    // out, so a plain INSERT trips a 23505. ON CONFLICT clears
-    // deleted_at + re-approves atomically.
-    //
-    // IMPORTANT: do NOT touch display_name on the update branch —
-    // the admin's chosen profile name should survive every Play
-    // shortcut. display_name only gets the supplied value on the
-    // initial INSERT path. To change it later, the admin edits
-    // their profile in the lobby (via /auth/profile), nothing
-    // here clobbers it.
-    await pool.query(
-      `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
-       values ($1, $2, 'approved', 0, now(), $3)
-       on conflict (player_handle) do update set
-         status        = 'approved',
-         approved_at   = now(),
-         approved_by   = excluded.approved_by,
-         banned_at     = null,
-         banned_reason = null,
-         deleted_at    = null`,
-      [handle, parsed.data.displayName ?? null, req.adminId],
-    );
-    let player = await findPlayerByHandle(handle);
-    if (!player) return res.status(500).json({ error: 'create_failed' });
+    // Single player per admin: linked via admins.linked_player_id.
+    // First call creates + links; later calls return the same row,
+    // even if play_handle has been tweaked in /admin/me since.
+    type AdminPlayer = Awaited<ReturnType<typeof getOrLinkAdminPlayer>>;
+    let player: AdminPlayer;
+    try {
+      player = await getOrLinkAdminPlayer({
+        adminId: req.adminId!,
+        requestedHandle: handle,
+        displayName: parsed.data.displayName ?? null,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      if (msg === 'handle_taken') {
+        return res.status(409).json({ error: 'handle_taken' });
+      }
+      logger.error({ err, adminId: req.adminId }, 'admin_play link failed');
+      return res.status(500).json({ error: msg });
+    }
+    const created = false; // linked-player path never "creates" a fresh row from the caller's POV
 
     // Only grant chips when a positive amount was requested AND the
     // balance is empty, to avoid accidental repeated top-ups when admin
@@ -269,26 +368,24 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     const handle = meRow.rows[0]?.play_handle ?? null;
     if (!handle) return res.status(400).json({ error: 'no_handle_configured' });
 
-    // Resurrect-or-create: a previously soft-deleted row still occupies
-    // the unique player_handle slot, but findPlayerByHandle filters
-    // soft-deleted rows out — so a plain INSERT after a null-lookup
-    // hits a 23505 and used to crash the route. ON CONFLICT clears
-    // deleted_at + re-approves in one atomic statement, which also
-    // covers banned / pending rows.
-    await pool.query(
-      `insert into players (player_handle, status, chips, approved_at, approved_by)
-       values ($1, 'approved', 0, now(), $2)
-       on conflict (player_handle) do update set
-         status        = 'approved',
-         approved_at   = now(),
-         approved_by   = excluded.approved_by,
-         banned_at     = null,
-         banned_reason = null,
-         deleted_at    = null`,
-      [handle, req.adminId],
-    );
-    const player = await findPlayerByHandle(handle);
-    if (!player) return res.status(500).json({ error: 'create_failed' });
+    // Single player per admin — same getOrLinkAdminPlayer helper used
+    // by /admin/play. Hitting Test-Room never creates a parallel
+    // player; the admin keeps one consistent identity at the table.
+    let player;
+    try {
+      player = await getOrLinkAdminPlayer({
+        adminId: req.adminId!,
+        requestedHandle: handle,
+        displayName: null,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown';
+      if (msg === 'handle_taken') {
+        return res.status(409).json({ error: 'handle_taken' });
+      }
+      logger.error({ err, adminId: req.adminId }, 'test-room link failed');
+      return res.status(500).json({ error: msg });
+    }
 
     // If the admin is already seated somewhere, kick them out first so
     // sitPlayer's "unique player per seat" invariant holds.

@@ -82,6 +82,16 @@ export async function runMigrations(): Promise<void> {
       end $$`,
     },
     {
+      // One-and-only player identity per admin. When the admin uses
+      // the Play / Test-room shortcut we link this column to the
+      // resulting player row; subsequent shortcuts reuse the same
+      // player instead of creating a fresh row for every distinct
+      // play_handle the admin has ever set. Renaming play_handle in
+      // /admin/me renames THIS player rather than orphaning them.
+      name: 'admins.linked_player_id column',
+      sql: 'alter table admins add column if not exists linked_player_id uuid references players(id)',
+    },
+    {
       // Player-initiated chip top-up requests. Pops up in the admin
       // dashboard + Telegram bot for approval. Status moves
       // pending → approved (grants chips) / rejected (no chips).
