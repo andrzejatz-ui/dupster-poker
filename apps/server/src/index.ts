@@ -9,6 +9,8 @@ import { bootstrapAdmin } from './auth/admin.js';
 import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { tablesRouter } from './tables/routes.js';
+import { telegramRouter, webhookSecret } from './telegram/routes.js';
+import { setupTelegramWebhook } from './utils/telegram.js';
 import { TableManager } from './rooms/tableManager.js';
 import { attachSocketServer } from './sockets/index.js';
 
@@ -60,6 +62,7 @@ async function main() {
 
   app.use('/admin', adminRouter(tables, io));
   app.use('/tables', tablesRouter());
+  app.use('/telegram', telegramRouter());
 
   // Express error middleware — any async route handler that throws
   // gets here instead of bubbling into the global unhandledRejection
@@ -77,6 +80,25 @@ async function main() {
       'neon-poker server up',
     );
   });
+
+  // Register the public-bot webhook with Telegram now that we're live.
+  // No-op (with a log line) when the public-bot token isn't configured;
+  // tries the explicit SERVER_PUBLIC_URL first, then Render's
+  // automatically-injected RENDER_EXTERNAL_URL.
+  const publicBotToken = config.TELEGRAM_PUBLIC_BOT_TOKEN;
+  const serverBase = (config.SERVER_PUBLIC_URL ?? config.RENDER_EXTERNAL_URL ?? '')
+    .replace(/\/$/, '');
+  if (publicBotToken && serverBase) {
+    const secret = webhookSecret(publicBotToken);
+    void setupTelegramWebhook({
+      botToken: publicBotToken,
+      webhookUrl: `${serverBase}/telegram/webhook/${secret}`,
+    });
+  } else if (publicBotToken && !serverBase) {
+    logger.warn(
+      'TELEGRAM_PUBLIC_BOT_TOKEN set but no SERVER_PUBLIC_URL / RENDER_EXTERNAL_URL — skipping webhook registration',
+    );
+  }
 
   for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     process.on(sig, () => {

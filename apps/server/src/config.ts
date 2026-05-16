@@ -49,6 +49,22 @@ const Env = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(20).optional(),
   TELEGRAM_CHAT_ID: z.string().min(1).optional(),
   ADMIN_URL: z.string().url().optional(),
+  /**
+   * Public bot token (the one users open from t.me/<bot>) — when set,
+   * the server registers a webhook and replies to /start with a
+   * welcome message + an inline button that launches the Mini App.
+   * Separate from TELEGRAM_BOT_TOKEN because the public bot answers
+   * many users while the admin bot only pushes alerts to one chat.
+   */
+  TELEGRAM_PUBLIC_BOT_TOKEN: z.string().min(20).optional(),
+  /**
+   * Server's own public URL, used to register the webhook with
+   * Telegram. Falls back to Render's RENDER_EXTERNAL_URL which the
+   * platform sets automatically — so on Render hosts you don't need
+   * to set this explicitly.
+   */
+  SERVER_PUBLIC_URL: z.string().url().optional(),
+  RENDER_EXTERNAL_URL: z.string().url().optional(),
 });
 
 const parsed = Env.safeParse(process.env);

@@ -87,6 +87,130 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Public-bot helpers. The admin bot uses notifyTelegram (single chat,
+ * fire-and-forget); the public bot needs richer outgoing messages
+ * with inline keyboards so the /start reply can carry a launch
+ * button, plus a setWebhook bootstrap so Telegram knows to push
+ * updates to us at all.
+ */
+export interface InlineButton {
+  text: string;
+  /** Opens a Mini App full-screen inside Telegram. */
+  web_app?: { url: string };
+  /** External link — used as a fallback if you don't want the Mini App. */
+  url?: string;
+}
+
+export async function sendTelegramMessage(args: {
+  botToken: string;
+  chatId: number | string;
+  text: string;
+  inlineKeyboard?: InlineButton[][];
+}): Promise<void> {
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${args.botToken}/sendMessage`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: args.chatId,
+          text: args.text,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          reply_markup: args.inlineKeyboard
+            ? { inline_keyboard: args.inlineKeyboard }
+            : undefined,
+        }),
+      },
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      logger.warn({ status: res.status, body }, 'sendTelegramMessage failed');
+    }
+  } catch (err) {
+    logger.warn({ err }, 'sendTelegramMessage threw');
+  }
+}
+
+/**
+ * Tells Telegram where to push updates for the given bot token. Idempotent —
+ * Telegram remembers the last URL set, and calling setWebhook with the
+ * same URL is a no-op-ish (returns ok: true). Safe to call on every
+ * server boot.
+ */
+export async function setupTelegramWebhook(args: {
+  botToken: string;
+  webhookUrl: string;
+}): Promise<void> {
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${args.botToken}/setWebhook`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          url: args.webhookUrl,
+          allowed_updates: ['message'],
+        }),
+      },
+    );
+    if (!res.ok) {
+      const body = await res.text();
+      logger.warn({ status: res.status, body, webhookUrl: args.webhookUrl }, 'setWebhook failed');
+    } else {
+      logger.info({ webhookUrl: args.webhookUrl }, 'telegram webhook registered');
+    }
+  } catch (err) {
+    logger.warn({ err }, 'setWebhook threw');
+  }
+}
+
+/**
+ * Welcome-message builder for the public bot's /start reply. Picks a
+ * tiny localization from the Telegram user's language_code so an EN
+ * user gets EN copy and a DE user gets DE copy. PL falls back to DE
+ * since most players are bilingual; default is EN.
+ */
+export function buildWelcomeMessage(args: {
+  languageCode: string | null;
+  webAppUrl: string;
+}): { text: string; inlineKeyboard: InlineButton[][] } {
+  const code = (args.languageCode ?? '').toLowerCase().slice(0, 2);
+  const copy =
+    code === 'de'
+      ? {
+          title: '🎰 <b>Bluffuminati</b>',
+          byline: '<i>by filipOS</i>',
+          body:
+            'Privates Texas Hold’em im engsten Kreis. Play Money. Invite-only.\n\n' +
+            'Tipp unten auf den Knopf, um an den Tisch zu kommen ↓',
+          button: '▶ Bluffuminati öffnen',
+        }
+      : code === 'pl'
+      ? {
+          title: '🎰 <b>Bluffuminati</b>',
+          byline: '<i>by filipOS</i>',
+          body:
+            'Prywatny Texas Hold’em, tylko z zaproszenia. Żetony bez wartości, własna infrastruktura.\n\n' +
+            'Naciśnij przycisk poniżej, aby usiąść przy stole ↓',
+          button: '▶ Otwórz Bluffuminati',
+        }
+      : {
+          title: '🎰 <b>Bluffuminati</b>',
+          byline: '<i>by filipOS</i>',
+          body:
+            "Private Texas Hold'em — invite-only, play-money chips, own infrastructure.\n\n" +
+            'Tap the button below to take a seat ↓',
+          button: '▶ Open Bluffuminati',
+        };
+  return {
+    text: `${copy.title}\n${copy.byline}\n\n${copy.body}`,
+    inlineKeyboard: [[{ text: copy.button, web_app: { url: args.webAppUrl } }]],
+  };
+}
+
+/**
  * Builds the message body for a player's chip-top-up request. Always
  * routed via the same admin bot used for new-signup alerts; the
  * admin clicks the dashboard link and approves / rejects from there.
