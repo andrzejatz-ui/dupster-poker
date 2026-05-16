@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { getProfile, recallAvatar } from '@/lib/session';
+import { getProfile, recallAvatar, recallLastAvatar } from '@/lib/session';
 
 interface Props {
   size?: number;
@@ -53,7 +53,12 @@ export function Eye({ size = 32, className, imageUrl }: Props) {
       const p = getProfile();
       const fromProfile = p?.avatarUrl ?? null;
       const fromCache = p?.handle ? recallAvatar(p.handle) : null;
-      setResolvedImg(fromProfile ?? fromCache ?? null);
+      // Final fallback: a handle-agnostic localStorage slot mirrored on
+      // every login. Lets the avatar persist on landing / join pages
+      // where there's no session profile yet (or after sign-out + fresh
+      // Telegram-WebApp launch in a new tab).
+      const fromGlobal = recallLastAvatar();
+      setResolvedImg(fromProfile ?? fromCache ?? fromGlobal ?? null);
     };
     sniff();
     window.addEventListener('focus', sniff);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { NeonButton } from '@/components/ui/NeonButton';
 import { useSocket } from '@/hooks/useSocket';
@@ -16,7 +16,7 @@ import { ChipTransferOverlay } from '@/components/table/ChipTransferOverlay';
 import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
 import { getToken } from '@/lib/session';
-import { playChatDing, playChipPlink } from '@/lib/sounds';
+import { playCashRegister, playChatDing, playGameOver } from '@/lib/sounds';
 import type { Card } from '@neon-poker/shared/poker';
 import { useT } from '@/i18n/context';
 
@@ -42,6 +42,9 @@ export default function TablePage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [unreadChat, setUnreadChat] = useState(0);
   const [, force] = useState(0);
+  /** Live mirror of state.mySeatIndex so the socket-event closures
+   *  can pick the right post-hand sound without re-subscribing. */
+  const mySeatRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +75,7 @@ export default function TablePage() {
     socket.on('server:table:state', (s) => {
       if (s.tableId === id) {
         setState(s);
+        mySeatRef.current = s.mySeatIndex;
         if (s.handNumber > 0 && s.phase !== 'showdown' && s.phase !== 'waiting') {
           setResult(null);
         }
@@ -91,7 +95,20 @@ export default function TablePage() {
     socket.on('server:table:hand:result', (payload) => {
       if (payload.tableId !== id) return;
       setResult({ winners: payload.winners, revealed: payload.revealed });
-      playChipPlink();
+      // Play a sound only for the viewer who actually had skin in the
+      // hand — winner gets the cash-register, loser gets the game-over
+      // motif, spectators stay silent. mySeatRef is the latest seat
+      // index from the most recent state push, so the closure doesn't
+      // go stale if the user changes seats between hands.
+      const mySeat = mySeatRef.current;
+      if (mySeat !== null) {
+        const iWon = payload.winners.some(
+          (w) => w.seatIndex === mySeat && w.amount > 0,
+        );
+        const iWasInShowdown = payload.revealed.some((r) => r.seatIndex === mySeat);
+        if (iWon) playCashRegister();
+        else if (iWasInShowdown) playGameOver();
+      }
       setTimeout(() => setResult(null), 8500);
     });
     socket.on('server:account:left_table', (payload) => {

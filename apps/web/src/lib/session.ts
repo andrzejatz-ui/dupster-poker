@@ -13,6 +13,13 @@
 const TOKEN_KEY = 'np_token';
 const PROFILE_KEY = 'np_profile';
 const AVATAR_PREFIX = 'np_avatar:';
+/**
+ * Persistent "last seen avatar" — survives logout / new tab / fresh
+ * Telegram-WebApp launch. The Eye component falls back to this so the
+ * player's face follows them around the whole app, including the
+ * pre-login landing page, instead of snapping back to the gold iris.
+ */
+const LAST_AVATAR_KEY = 'np_last_avatar';
 
 export interface StoredProfile {
   id: string;
@@ -30,6 +37,7 @@ export function setSession(token: string, profile: StoredProfile) {
   if (profile.handle) {
     rememberAvatar(profile.handle, profile.avatarUrl ?? null);
   }
+  rememberLastAvatar(profile.avatarUrl ?? null);
 }
 
 export function getToken(): string | null {
@@ -54,6 +62,7 @@ export function setStoredProfile(profile: StoredProfile) {
   if (profile.handle) {
     rememberAvatar(profile.handle, profile.avatarUrl ?? null);
   }
+  rememberLastAvatar(profile.avatarUrl ?? null);
 }
 
 export function clearSession() {
@@ -84,6 +93,32 @@ export function recallAvatar(handle: string): string | null {
   if (!h) return null;
   try {
     return window.localStorage.getItem(AVATAR_PREFIX + h);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mirror the most-recently-used avatar to a handle-agnostic localStorage
+ * slot. The Eye reads this when no session profile is present so the
+ * player's face still appears on the landing / join pages after their
+ * first login on this device.
+ */
+export function rememberLastAvatar(dataUrl: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (dataUrl) window.localStorage.setItem(LAST_AVATAR_KEY, dataUrl);
+    else window.localStorage.removeItem(LAST_AVATAR_KEY);
+  } catch {
+    /* quota / storage blocked — non-fatal */
+  }
+}
+
+/** Read the persistent last-avatar slot. Null if never set. */
+export function recallLastAvatar(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(LAST_AVATAR_KEY);
   } catch {
     return null;
   }

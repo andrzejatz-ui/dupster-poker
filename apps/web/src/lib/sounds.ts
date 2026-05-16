@@ -155,3 +155,115 @@ export function playWinChord(): void {
 
 /** @deprecated old triangle-wave plink — alias kept for back-compat. */
 export const playChipPlink = playWinChord;
+
+/**
+ * "Cha-ching" cash-register feel for the player who just won the pot.
+ * A bright bell on top of a quick coin-clatter noise burst, finished
+ * by the warm major-third arpeggio so the moment lands and resolves.
+ * Total length ~900 ms, kept under the win-chord peak so it doesn't
+ * blow the user's ears off.
+ */
+export function playCashRegister(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+
+  // 1) Bright bell — sine + slight detune for shimmer.
+  const bell = audio.createOscillator();
+  bell.type = 'sine';
+  bell.frequency.setValueAtTime(1760, now); // A6
+  bell.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+  const bellGain = audio.createGain();
+  bellGain.gain.setValueAtTime(0.0001, now);
+  bellGain.gain.exponentialRampToValueAtTime(0.12, now + 0.008);
+  bellGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.30);
+  bell.connect(bellGain).connect(audio.destination);
+  bell.start(now);
+  bell.stop(now + 0.32);
+
+  // 2) Coin-clatter — high-frequency band-passed noise burst right
+  //    after the bell, then a softer second burst for "more coins".
+  for (const offset of [0.08, 0.20]) {
+    const noise = audio.createBufferSource();
+    const len = Math.floor(0.20 * audio.sampleRate);
+    const buf = audio.createBuffer(1, len, audio.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    }
+    noise.buffer = buf;
+    const filt = audio.createBiquadFilter();
+    filt.type = 'highpass';
+    filt.frequency.value = 2200;
+    filt.Q.value = 0.6;
+    const ng = audio.createGain();
+    const start = now + offset;
+    ng.gain.setValueAtTime(0.0001, start);
+    ng.gain.exponentialRampToValueAtTime(0.06, start + 0.012);
+    ng.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+    noise.connect(filt).connect(ng).connect(audio.destination);
+    noise.start(start);
+    noise.stop(start + 0.22);
+  }
+
+  // 3) Resolving major chord, slightly delayed so the bell + clatter
+  //    register first. Reuses the same envelope as playWinChord but
+  //    inline so we control the start offset precisely.
+  const chordStart = now + 0.32;
+  const notes: Array<{ freq: number; start: number }> = [
+    { freq: 523.25, start: 0 },     // C5
+    { freq: 659.25, start: 0.090 }, // E5
+    { freq: 783.99, start: 0.180 }, // G5
+  ];
+  for (const n of notes) {
+    const osc = audio.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = n.freq;
+    const g = audio.createGain();
+    const t0 = chordStart + n.start;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.05, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
+    osc.connect(g).connect(audio.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.46);
+  }
+}
+
+/**
+ * Descending three-note motif for the player who lost the showdown.
+ * Classic "game over" feel — a minor third descent on a slightly
+ * detuned triangle wave that bends down on the last note for the
+ * cartoonish drop. Quieter than the win chord so the room cheering
+ * the winner stays the dominant cue.
+ */
+export function playGameOver(): void {
+  if (isMuted()) return;
+  const audio = getCtx();
+  if (!audio) return;
+  const now = audio.currentTime;
+
+  // Descending: G4 → E4 → C4, last note bends a semitone down.
+  const notes: Array<{ freq: number; bendTo?: number; start: number; dur: number }> = [
+    { freq: 392.00, start: 0,    dur: 0.22 }, // G4
+    { freq: 329.63, start: 0.20, dur: 0.22 }, // E4
+    { freq: 261.63, start: 0.42, dur: 0.55, bendTo: 207.65 }, // C4 → G#3 droop
+  ];
+  for (const n of notes) {
+    const osc = audio.createOscillator();
+    osc.type = 'triangle';
+    const t0 = now + n.start;
+    osc.frequency.setValueAtTime(n.freq, t0);
+    if (n.bendTo) {
+      osc.frequency.exponentialRampToValueAtTime(n.bendTo, t0 + n.dur);
+    }
+    const g = audio.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+    osc.connect(g).connect(audio.destination);
+    osc.start(t0);
+    osc.stop(t0 + n.dur + 0.05);
+  }
+}
