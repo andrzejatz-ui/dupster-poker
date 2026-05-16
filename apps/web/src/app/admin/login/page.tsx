@@ -36,14 +36,17 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="viewport-fit flex flex-col items-center justify-center px-6 py-6">
-      <div className="max-w-md w-full mb-3 flex justify-start">
+    <main className="min-h-dvh flex flex-col items-center justify-start sm:justify-center px-6 py-6 overflow-y-auto">
+      <div className="max-w-md w-full mb-3 flex justify-between items-center gap-3">
         <Link
           href="/"
           className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
         >
           ← {t('common.back')}
         </Link>
+        <div className="opacity-80 shrink-0">
+          <Eye size={28} />
+        </div>
       </div>
       <NeonCard glow="gold" strong className="max-w-md w-full">
         <div className="flex justify-center mb-4 opacity-90">

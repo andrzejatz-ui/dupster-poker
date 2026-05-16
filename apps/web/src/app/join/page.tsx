@@ -115,7 +115,7 @@ function JoinForm() {
 
   if (phase === 'pending') {
     return (
-      <main className="viewport-fit flex flex-col items-center justify-center px-6">
+      <main className="min-h-dvh flex flex-col items-center justify-center px-6 py-6 overflow-y-auto">
         <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full text-center">
           <div className="flex justify-center mb-4 opacity-90">
             <Eye size={96} />
@@ -138,7 +138,7 @@ function JoinForm() {
 
   if (phase === 'banned') {
     return (
-      <main className="viewport-fit flex items-center justify-center px-6">
+      <main className="min-h-dvh flex items-center justify-center px-6 py-6 overflow-y-auto">
         <NeonCard glow={null} strong className="relative z-10 max-w-md w-full text-center">
           <h1 className="font-display text-2xl text-status-alert mb-3">{t('join.banned.title')}</h1>
           <p className="text-ink-secondary text-sm">{t('join.banned.body')}</p>
@@ -148,14 +148,17 @@ function JoinForm() {
   }
 
   return (
-    <main className="viewport-fit flex flex-col items-center justify-center px-4 py-4 sm:py-6">
-      <div className="relative z-10 max-w-md w-full mb-2 flex justify-start">
+    <main className="min-h-dvh flex flex-col items-center justify-start sm:justify-center px-4 py-4 sm:py-6 overflow-y-auto">
+      <div className="relative z-10 max-w-md w-full mb-2 flex justify-between items-center gap-3">
         <Link
           href="/"
           className="text-[11px] uppercase tracking-[0.22em] text-ink-muted hover:text-gold transition-colors font-display"
         >
           ← {t('common.back')}
         </Link>
+        <div className="opacity-80 shrink-0">
+          <Eye size={28} />
+        </div>
       </div>
       <NeonCard glow="gold" strong className="relative z-10 max-w-md w-full">
         <div className="mb-4 sm:mb-5 flex items-start gap-3">

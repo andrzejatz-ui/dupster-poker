@@ -25,6 +25,21 @@ const Env = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
+  /**
+   * Optional Telegram notification channel. When both BOT_TOKEN and
+   * CHAT_ID are set, the server pings the chat every time a new player
+   * registers, with a one-click link to the admin dashboard so the
+   * admin can approve/reject without hunting through the UI.
+   *
+   *  TELEGRAM_BOT_TOKEN — from @BotFather
+   *  TELEGRAM_CHAT_ID   — numeric chat id (e.g. -100123456 for groups)
+   *  ADMIN_URL          — base URL of the deployed admin UI, used to
+   *                       build the deep link. Falls back to the first
+   *                       ALLOWED_ORIGINS entry if unset.
+   */
+  TELEGRAM_BOT_TOKEN: z.string().min(20).optional(),
+  TELEGRAM_CHAT_ID: z.string().min(1).optional(),
+  ADMIN_URL: z.string().url().optional(),
 });
 
 const parsed = Env.safeParse(process.env);

@@ -17,6 +17,7 @@ import {
 } from '@/lib/session';
 import { updateAvatar } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
+import { Eye } from '@/components/brand/Eye';
 import { useT } from '@/i18n/context';
 import type { TableSummary } from '@neon-poker/shared/events';
 
@@ -124,7 +125,12 @@ export default function LobbyPage() {
           )}
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-display text-xl sm:text-2xl text-gold text-glow-gold truncate">{t('lobby.title')}</h1>
+          <div className="flex items-center gap-2">
+            <div className="opacity-80 shrink-0">
+              <Eye size={22} />
+            </div>
+            <h1 className="font-display text-xl sm:text-2xl text-gold text-glow-gold truncate">{t('lobby.title')}</h1>
+          </div>
           <p className="text-ink-muted text-[11px] sm:text-xs truncate">
             {t('lobby.signedInAs')} <span className="font-mono text-ink-secondary">{profile?.handle}</span>
             {profile?.chips != null && (

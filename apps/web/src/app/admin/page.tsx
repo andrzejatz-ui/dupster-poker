@@ -8,6 +8,7 @@ import { NeonButton } from '@/components/ui/NeonButton';
 import { NeonInput } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Signature } from '@/components/ui/Signature';
+import { Eye } from '@/components/brand/Eye';
 import { adminCall, clearAdminToken, getAdminToken } from '@/lib/admin';
 import { setSession } from '@/lib/session';
 import { useT } from '@/i18n/context';
@@ -155,7 +156,11 @@ export default function AdminDashboard() {
     <>
       <main className="min-h-screen px-4 sm:px-6 py-8 sm:py-10 max-w-6xl mx-auto space-y-6">
         <header className="flex items-center justify-between pr-24 sm:pr-36">
-          <div>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="opacity-80 shrink-0">
+              <Eye size={32} />
+            </div>
+            <div className="min-w-0">
             <h1 className="font-display text-3xl text-gold text-glow-gold">
               {t('admin.title')}
             </h1>
@@ -167,6 +172,7 @@ export default function AdminDashboard() {
                 tables: tables.filter(x => !x.archived_at).length,
               })}
             </p>
+            </div>
           </div>
           <div className="flex gap-2 sm:gap-3 flex-wrap justify-end">
             <NeonButton variant="gold" size="sm" onClick={startPlaying}>

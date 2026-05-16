@@ -10,6 +10,7 @@ import { createSession, signPlayerToken } from './sessions.js';
 import { requirePlayer, type PlayerRequest } from './middleware.js';
 import { pool } from '../db/client.js';
 import type { TableManager } from '../rooms/tableManager.js';
+import { buildSignupMessage, notifyTelegram } from '../utils/telegram.js';
 
 export function authRouter(tables: TableManager): Router {
   const r = Router();
@@ -49,6 +50,15 @@ export function authRouter(tables: TableManager): Router {
         password: parsed.data.password,
         displayName: parsed.data.displayName ?? null,
       });
+      // Fire-and-forget Telegram ping so the admin gets a one-click
+      // link straight to the dashboard. Silent no-op if not configured.
+      void notifyTelegram(
+        buildSignupMessage({
+          handle: created.handle,
+          displayName: created.displayName,
+          createdAt: new Date(),
+        }),
+      );
       return res
         .status(202)
         .json({ status: 'pending', handle: created.handle });

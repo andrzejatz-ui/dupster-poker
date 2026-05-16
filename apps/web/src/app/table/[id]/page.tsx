@@ -13,6 +13,7 @@ import { ChatBox, type ChatLine } from '@/components/table/ChatBox';
 import { HandResultBanner } from '@/components/table/HandResultBanner';
 import { HistoryModal } from '@/components/table/HistoryModal';
 import { ChipTransferOverlay } from '@/components/table/ChipTransferOverlay';
+import { Eye } from '@/components/brand/Eye';
 import { fetchChatHistory } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { playChatDing, playChipPlink } from '@/lib/sounds';
@@ -161,11 +162,16 @@ export default function TablePage() {
     <main className="viewport-fit flex flex-col">
       {/* Header — extra right padding leaves room for the floating language switcher */}
       <div className="shrink-0 pl-3 pr-24 sm:pl-6 sm:pr-36 py-2 sm:py-3 flex items-center justify-between border-b border-white/5">
-        <div className="min-w-0">
-          <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display truncate">
-            {t('table.phaseLabel')} · {state.phase.toUpperCase()}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="opacity-80 shrink-0">
+            <Eye size={22} />
           </div>
-          <h1 className="font-display text-base sm:text-2xl truncate">{state.name}</h1>
+          <div className="min-w-0">
+            <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.4em] text-white/40 font-display truncate">
+              {t('table.phaseLabel')} · {state.phase.toUpperCase()}
+            </div>
+            <h1 className="font-display text-base sm:text-2xl truncate">{state.name}</h1>
+          </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <span className="hidden sm:inline text-xs font-mono text-ink-muted">{t('table.handNumber')}{state.handNumber}</span>
