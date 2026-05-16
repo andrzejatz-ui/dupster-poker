@@ -5,29 +5,26 @@ interface Props {
 }
 
 /**
- * Bluffuminati chip sigil — a capital B with a vertical stroke
- * through its centre, the brand's answer to the $ sign. Used as the
- * currency symbol next to wallet / pot amounts and as the lead
- * glyph in the BLUFFUMINATI wordmark so the typography reads
- * "this is THE currency of the room".
+ * Bluffuminati chip sigil — renders Unicode ₿ (U+20BF, BITCOIN SIGN),
+ * which Inter Extra-Bold ships with at the exact same metrics +
+ * weight as its neighbouring capitals. That keeps the
+ * "B|LUFFUMINATI" wordmark perfectly aligned without any custom
+ * stroke-overlay hackery, and the same component drops cleanly into
+ * wallet amounts as a currency symbol.
  *
- * Implementation: the B comes from the surrounding font (so it
- * always matches weight + tracking of the parent text), the stroke
- * is a positioned ::after pseudo. Both colours track currentColor
- * — set text-gold on the parent and you get a gold B with a gold
- * bar, set text-status-alert and the whole sigil turns red. All
- * sizing is em-based so it scales with font-size without any prop.
+ * currentColor + em sizing — no props beyond className. Set the
+ * parent's text-* colour and font-size and the sigil scales with it.
  */
 export function BCoin({ className }: Props) {
   return (
     <span
       className={clsx(
-        'bcoin inline-block relative font-display font-extrabold align-baseline leading-none',
+        'inline-block font-display font-extrabold align-baseline leading-none',
         className,
       )}
       aria-label="Bluffuminati chip"
     >
-      B
+      ₿
     </span>
   );
 }

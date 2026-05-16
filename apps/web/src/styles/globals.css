@@ -584,43 +584,6 @@ body::after {
     0 1px 2px rgba(0,0,0,0.45);
 }
 
-/* ---- BCoin sigil — capital B with a vertical stroke through it ----
- * The brand's $-style currency mark. Same colour as currentColor so
- * a parent text-gold gets a gold sigil, text-status-alert a red one.
- * The stroke is a pseudo so the B itself keeps using the surrounding
- * font (Inter ExtraBold) and visually matches sibling letters in a
- * wordmark like "B|LUFFUMINATI".
- *
- * Implementation pointers:
- *  - letter-spacing: 0 cancels the parent's tracking (e.g. tracking-
- *    [0.32em] on the BLUFFUMINATI wordmark) which would otherwise
- *    inflate the inline-block's width and shove the stroke off-centre.
- *  - isolation: isolate creates a local stacking context so the
- *    z-index: -1 stroke stays trapped behind THIS B without dropping
- *    below other page elements.
- *  - ::before with z-index: -1 puts the gold stroke BEHIND the B
- *    glyph, so it's visible above + below the letter AND through the
- *    transparent holes inside the two bumps — that's the classic
- *    Bitcoin-sign effect the user wants.
- */
-.bcoin {
-  letter-spacing: 0;
-  isolation: isolate;
-}
-.bcoin::before {
-  content: '';
-  position: absolute;
-  top: -0.16em;
-  bottom: -0.16em;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0.13em;
-  background: currentColor;
-  border-radius: 0.04em;
-  pointer-events: none;
-  z-index: -1;
-}
-
 /* ---- Lobby hero — cinematic gold-on-obsidian welcome panel ---- */
 .lobby-hero {
   position: relative;

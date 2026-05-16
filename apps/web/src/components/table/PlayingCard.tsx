@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import type { Card } from '@neon-poker/shared/poker';
+import { BCoin } from '@/components/brand/BCoin';
 
 interface Props {
   card?: Card | null;
@@ -9,6 +10,19 @@ interface Props {
   hoverable?: boolean;
   className?: string;
 }
+
+/**
+ * Size-tuned font-size for the BCoin sigil that sits at the centre of
+ * every face-down card. Picked so the emblem fills ~45% of the card
+ * height across all four variants — small enough to leave the gold
+ * cross-hatch frame visible, big enough to read at every viewport.
+ */
+const backEmblemSize: Record<NonNullable<Props['size']>, string> = {
+  sm: 'text-[14px] sm:text-[20px]',
+  md: 'text-[20px] sm:text-[26px]',
+  lg: 'text-[24px] sm:text-[40px]',
+  board: 'text-[16px] sm:text-[40px]',
+};
 
 const SUIT_GLYPHS: Record<string, { glyph: string; red: boolean }> = {
   c: { glyph: '♣', red: false },
@@ -46,14 +60,12 @@ export function PlayingCard({ card, size = 'md', faceDown = false, hoverable = f
           className,
         )}
       >
-        {/* Vertical "BLUFFUMINATI" wordmark on the card back. Letter
-            spacing + rotation kept tight so it reads as a sigil
-            rather than a paragraph even at the smallest card size. */}
-        <span
-          className="text-gold/75 font-display tracking-[0.14em] uppercase whitespace-nowrap select-none text-[6px] sm:text-[8px]"
-          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-        >
-          Bluffuminati
+        {/* Single centred ₿ emblem on the card back — classic
+            poker-deck "one mark" silhouette. Replaces the previous
+            vertical word-mark which read as too chunky against the
+            gold cross-hatch frame. */}
+        <span className={clsx('text-gold/80 leading-none', backEmblemSize[size])}>
+          <BCoin />
         </span>
       </div>
     );
