@@ -55,7 +55,7 @@ create table if not exists tables (
   small_blind      bigint not null check (small_blind > 0),
   big_blind        bigint not null check (big_blind > small_blind),
   buy_in           bigint not null,
-  max_players      int not null check (max_players between 2 and 9),
+  max_players      int not null check (max_players between 2 and 10),
   allow_spectators boolean not null default false,
   -- Admin-only sandbox tables seated with bots. Archived on every
   -- server restart since their in-memory bots can't survive a reboot.
@@ -67,7 +67,7 @@ create table if not exists tables (
 
 create table if not exists table_seats (
   table_id    uuid not null references tables(id) on delete cascade,
-  seat_index  int not null check (seat_index between 0 and 8),
+  seat_index  int not null check (seat_index between 0 and 9),
   player_id   uuid not null references players(id),
   stack       bigint not null check (stack >= 0),
   sat_down_at timestamptz not null default now(),

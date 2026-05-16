@@ -61,6 +61,26 @@ export async function runMigrations(): Promise<void> {
       name: 'tables.is_test_room column',
       sql: 'alter table tables add column if not exists is_test_room boolean not null default false',
     },
+    {
+      // Bump the max-players cap from 9 to the real-poker 10 (full ring).
+      // Drop the existing check first; ADD CONSTRAINT … IF NOT EXISTS only
+      // arrived in PG 16, so we go the portable route.
+      name: 'tables.max_players cap raised to 10',
+      sql: `do $$ begin
+        alter table tables drop constraint if exists tables_max_players_check;
+        alter table tables add constraint tables_max_players_check
+          check (max_players between 2 and 10);
+      end $$`,
+    },
+    {
+      // Matching bump for the seat_index check — full ring uses seats 0..9.
+      name: 'table_seats.seat_index cap raised to 9',
+      sql: `do $$ begin
+        alter table table_seats drop constraint if exists table_seats_seat_index_check;
+        alter table table_seats add constraint table_seats_seat_index_check
+          check (seat_index between 0 and 9);
+      end $$`,
+    },
     // future: add more idempotent migrations here
   ];
 

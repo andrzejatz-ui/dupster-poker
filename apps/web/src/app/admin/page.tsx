@@ -802,7 +802,7 @@ function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: (
                    onChange={(e) => { setBuyIn(Number(e.target.value) || 0); setActivePreset(null); }} />
         <NeonInput id="t-max" label={t('admin.prompt.tableMax')} type="number" inputMode="numeric"
                    value={String(maxPlayers)}
-                   onChange={(e) => { setMaxPlayers(Math.min(9, Math.max(2, Number(e.target.value) || 2))); setActivePreset(null); }} />
+                   onChange={(e) => { setMaxPlayers(Math.min(10, Math.max(2, Number(e.target.value) || 2))); setActivePreset(null); }} />
       </div>
     </Modal>
   );

@@ -238,7 +238,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
    */
   r.post('/test-room', requireAdmin, async (req: AdminRequest, res) => {
     const Body = z.object({
-      maxPlayers: z.number().int().min(2).max(8).default(6),
+      maxPlayers: z.number().int().min(2).max(10).default(6),
       smallBlind: z.number().int().positive().default(50),
       bigBlind: z.number().int().positive().default(100),
       buyIn: z.number().int().positive().default(10000),
@@ -762,7 +762,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       smallBlind: z.number().int().positive(),
       bigBlind: z.number().int().positive(),
       buyIn: z.number().int().positive(),
-      maxPlayers: z.number().int().min(2).max(9),
+      maxPlayers: z.number().int().min(2).max(10),
       allowSpectators: z.boolean().default(false),
     });
     const parsed = Body.safeParse(req.body);
