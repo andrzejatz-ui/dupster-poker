@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import { pool } from '../db/client.js';
+import { pool, withTx } from '../db/client.js';
 import { adminAddChipsToSeat, moveChips } from '../db/chips.js';
 import {
   logAdminAction,
@@ -862,6 +862,80 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     }
     await logAdminAction({ adminId: req.adminId!, action: 'close_table', targetTableId: req.params.id });
     res.json({ ok: true });
+  });
+
+  /**
+   * Hard-delete a table — purges the row, every hand played at it,
+   * every action / result / chat message, and removes the in-memory
+   * engine if still loaded. Foreign keys in chip_ledger and admin_log
+   * are detached (set null) so audit history survives. Irreversible.
+   *
+   * Refuses if anyone is currently seated; the admin must close the
+   * table first via /tables/:id/close which cashes everyone out.
+   */
+  r.delete('/tables/:id', requireAdmin, async (req: AdminRequest, res) => {
+    try {
+      const tableId = req.params.id!;
+
+      // Block if someone is still seated — losing chips silently would
+      // be a horrible surprise for the player. Close first.
+      const live = tables.get(tableId);
+      if (live && live.seats.size > 0) {
+        const hasHuman = [...live.seats.values()].some(
+          (s) => !s.playerId.startsWith('bot:'),
+        );
+        if (hasHuman) {
+          return res.status(409).json({
+            error: 'table_has_seated_players — close it first',
+          });
+        }
+      }
+
+      // If it's loaded in memory, drop it (this also kills timers and
+      // bot schedulers). Bots-only tables are cleanly tearable here.
+      if (live) {
+        await tables.closeTable(tableId);
+      }
+
+      // Detach the table from history-bearing tables first so the
+      // hard DELETE doesn't trip foreign keys. chat_messages and
+      // table_seats already cascade in the schema; hands needs an
+      // explicit drop because hand_actions / hand_results cascade
+      // FROM hands, not from tables.
+      await withTx(async (c) => {
+        await c.query(
+          'update chip_ledger set ref_table_id = null where ref_table_id = $1',
+          [tableId],
+        );
+        await c.query(
+          'update chip_ledger set ref_hand_id = null where ref_hand_id in (select id from hands where table_id = $1)',
+          [tableId],
+        );
+        await c.query(
+          'update admin_log set target_table_id = null where target_table_id = $1',
+          [tableId],
+        );
+        // Cascades into hand_actions + hand_results via ON DELETE CASCADE.
+        await c.query('delete from hands where table_id = $1', [tableId]);
+        // Cascades into table_seats + chat_messages via ON DELETE CASCADE.
+        const r = await c.query('delete from tables where id = $1', [tableId]);
+        if (r.rowCount === 0) {
+          throw new Error('not_found');
+        }
+      });
+
+      await logAdminAction({
+        adminId: req.adminId!,
+        action: 'delete_table',
+        targetTableId: tableId,
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err, tableId: req.params.id }, 'delete_table failed');
+      const msg = err instanceof Error ? err.message : 'unknown';
+      if (msg === 'not_found') return res.status(404).json({ error: 'not_found' });
+      if (!res.headersSent) res.status(500).json({ error: msg });
+    }
   });
 
   /* ---- Audit / Ledger ------------------------------------------- */

@@ -58,7 +58,8 @@ type Dialog =
   | { kind: 'delete'; player: PlayerRow }
   | { kind: 'password'; player: PlayerRow }
   | { kind: 'createTable' }
-  | { kind: 'closeTable'; table: TableRow };
+  | { kind: 'closeTable'; table: TableRow }
+  | { kind: 'deleteTable'; table: TableRow };
 
 export default function AdminDashboard() {
   const t = useT();
@@ -360,6 +361,9 @@ export default function AdminDashboard() {
                             </NeonButton>
                           </>
                         )}
+                        <NeonButton size="sm" variant="danger" onClick={() => setDialog({ kind: 'deleteTable', table: tbl })}>
+                          {t('admin.tableDelete')}
+                        </NeonButton>
                       </td>
                     </tr>
                   ))}
@@ -447,6 +451,23 @@ export default function AdminDashboard() {
           onClose={() => setDialog(null)}
           onConfirm={async () => {
             await adminCall(`/tables/${dialog.table.id}/close`, { method: 'POST' });
+            setDialog(null); refresh();
+          }}
+        />
+      )}
+      {dialog?.kind === 'deleteTable' && (
+        <ConfirmDialog
+          title={t('admin.prompt.confirmDeleteTable', { name: dialog.table.name })}
+          subtitle={t('admin.prompt.confirmDeleteTableBody')}
+          confirmLabel={t('admin.tableDelete')}
+          variant="danger"
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            const r = await adminCall(`/tables/${dialog.table.id}`, { method: 'DELETE' });
+            if (r.status !== 200) {
+              alert(r.body.error ?? 'failed');
+              return;
+            }
             setDialog(null); refresh();
           }}
         />
