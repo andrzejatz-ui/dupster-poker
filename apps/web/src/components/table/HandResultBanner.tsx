@@ -50,7 +50,7 @@ export function HandResultBanner({
   winners,
   revealed,
   nameForSeat,
-  countdownSeconds = 8,
+  countdownSeconds = 15,
 }: Props) {
   const t = useT();
   const [remaining, setRemaining] = useState(countdownSeconds);

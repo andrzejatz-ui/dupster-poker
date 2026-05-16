@@ -120,7 +120,7 @@ export default function TablePage() {
         if (iWon) playCashRegister();
         else if (iWasInShowdown) playGameOver();
       }
-      setTimeout(() => setResult(null), 8500);
+      setTimeout(() => setResult(null), 15500);
     });
     socket.on('server:account:left_table', (payload) => {
       if (payload.tableId !== id) return;
