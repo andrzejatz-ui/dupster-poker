@@ -279,6 +279,7 @@ export default function TablePage() {
                     winningCards={reveal?.bestCards ?? null}
                     isWinningSeat={isWinningSeat}
                     winningAmount={winningAmount}
+                    isMine={state.mySeatIndex === idx}
                   />
                 </div>
               );

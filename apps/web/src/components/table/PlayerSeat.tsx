@@ -5,6 +5,7 @@ import type { PublicSeat } from '@neon-poker/shared/events';
 import type { Card } from '@neon-poker/shared/poker';
 import { PlayingCard } from './PlayingCard';
 import { ChipStack } from './ChipStack';
+import { Eye } from '@/components/brand/Eye';
 import { useT } from '@/i18n/context';
 
 interface Props {
@@ -20,6 +21,9 @@ interface Props {
   isWinningSeat?: boolean;
   /** Chips this seat won this hand — shown as a floating "+X" gold badge above the avatar. */
   winningAmount?: number;
+  /** True if this is the viewer's own seat — renders the avatar as the
+   *  animated, cursor-tracking Eye instead of a static image. */
+  isMine?: boolean;
 }
 
 /**
@@ -34,6 +38,7 @@ export function PlayerSeat({
   winningCards = null,
   isWinningSeat = false,
   winningAmount = 0,
+  isMine = false,
 }: Props) {
   const t = useT();
   if (!seat) {
@@ -78,7 +83,16 @@ export function PlayerSeat({
           seat.hasFolded && 'opacity-40 grayscale',
         )}
       >
-        {seat.avatarUrl ? (
+        {isMine ? (
+          // Viewer's own seat → render the avatar as the brand Eye so
+          // the player's face follows the cursor like everywhere else
+          // in the app. Eye picks up the image from session storage if
+          // not passed in; we pass seat.avatarUrl explicitly to stay
+          // accurate when an avatar has just been changed.
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Eye imageUrl={seat.avatarUrl ?? null} size={110} />
+          </div>
+        ) : seat.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={seat.avatarUrl}
