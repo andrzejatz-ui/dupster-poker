@@ -1,38 +1,75 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
+import { getProfile, recallAvatar } from '@/lib/session';
 
 interface Props {
   size?: number;
   className?: string;
+  /**
+   * Optional image to use as the iris. Caller-supplied wins; otherwise
+   * the component auto-detects the current player's avatar from the
+   * session profile (or the cached avatar by handle). If still nothing,
+   * falls back to the original gold iris + dark pupil.
+   */
+  imageUrl?: string | null;
 }
 
 /**
  * PULSE-style sentinel eye — mirrors the eye in the Zendesk analyse app.
  *
- * Iris sits still. Only the pupil + its specular highlight track the
- * pointer (mouse or finger), with the highlight glued at a fixed
- * (-1.8, -1.8) offset from the pupil so it reads as a reflection on a
- * spherical eyeball rather than a free-floating dot.
+ * When no image is supplied: iris sits still, only the pupil + specular
+ * highlight track the pointer. Original behaviour.
+ *
+ * When an image (player avatar / brand logo) is supplied: the image is
+ * placed inside the almond eye-clip and *the whole image* shifts a few
+ * SVG units in the cursor's direction — no separate pupil. This keeps
+ * the "alive, following your finger" feel while making the eye uniquely
+ * the player's identity, exactly like the asked-for "mein Profillogo
+ * als Auge" feature.
  *
  * Motion is eased per frame (lerp 0.18) so saccades land in 70–90 ms
  * — fast enough to feel reactive, soft enough to feel alive. When the
- * pointer leaves the window the pupil snaps back to centre.
- *
- * Visual chrome: gold radial iris gradient, dark pupil with a touch of
- * warmth at the centre, almond-clipped, sat under a small feGaussianBlur
- * glow merge, plus a thin gold lid arc on top for depth.
+ * pointer leaves the window the iris/image snaps back to centre.
  */
-export function Eye({ size = 32, className }: Props) {
+export function Eye({ size = 32, className, imageUrl }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const pupilRef = useRef<SVGCircleElement>(null);
   const highlightRef = useRef<SVGCircleElement>(null);
+  const imageRef = useRef<SVGImageElement>(null);
+
+  // Auto-detect the avatar URL from session if none was passed in. We
+  // refresh once on mount and again when the page regains focus — enough
+  // to catch a user changing their avatar in another tab without paying
+  // for a permanent storage listener on every Eye instance.
+  const [resolvedImg, setResolvedImg] = useState<string | null>(imageUrl ?? null);
+  useEffect(() => {
+    if (imageUrl !== undefined) {
+      setResolvedImg(imageUrl);
+      return;
+    }
+    const sniff = () => {
+      const p = getProfile();
+      const fromProfile = p?.avatarUrl ?? null;
+      const fromCache = p?.handle ? recallAvatar(p.handle) : null;
+      setResolvedImg(fromProfile ?? fromCache ?? null);
+    };
+    sniff();
+    window.addEventListener('focus', sniff);
+    window.addEventListener('storage', sniff);
+    return () => {
+      window.removeEventListener('focus', sniff);
+      window.removeEventListener('storage', sniff);
+    };
+  }, [imageUrl]);
 
   useEffect(() => {
     const CX = 50;
     const CY = 30;
-    const MAX_OFFSET = 9; // SVG units inside the 100×60 viewBox
+    // Pupil mode tracks farther; image mode shifts less so the image
+    // never clips its corners outside the almond.
+    const MAX_OFFSET = resolvedImg ? 4 : 9;
     let raf: number | null = null;
     let targetX = CX;
     let targetY = CY;
@@ -43,17 +80,25 @@ export function Eye({ size = 32, className }: Props) {
       raf = requestAnimationFrame(tick);
       actualX += (targetX - actualX) * 0.18;
       actualY += (targetY - actualY) * 0.18;
-      const p = pupilRef.current;
-      const h = highlightRef.current;
-      if (p) {
-        p.setAttribute('cx', actualX.toFixed(2));
-        p.setAttribute('cy', actualY.toFixed(2));
-      }
-      if (h) {
-        // Catchlight rides with the pupil at a fixed offset — looks like
-        // a specular reflection sliding across the curve of the eyeball.
-        h.setAttribute('cx', (actualX - 1.8).toFixed(2));
-        h.setAttribute('cy', (actualY - 1.8).toFixed(2));
+      if (resolvedImg) {
+        // The image is 80×48 centred on (10, 6) when actualX=50, actualY=30.
+        // Translate via x/y offset attributes.
+        const img = imageRef.current;
+        if (img) {
+          img.setAttribute('x', (10 + (actualX - CX)).toFixed(2));
+          img.setAttribute('y', (6 + (actualY - CY)).toFixed(2));
+        }
+      } else {
+        const p = pupilRef.current;
+        const h = highlightRef.current;
+        if (p) {
+          p.setAttribute('cx', actualX.toFixed(2));
+          p.setAttribute('cy', actualY.toFixed(2));
+        }
+        if (h) {
+          h.setAttribute('cx', (actualX - 1.8).toFixed(2));
+          h.setAttribute('cy', (actualY - 1.8).toFixed(2));
+        }
       }
     }
     raf = requestAnimationFrame(tick);
@@ -100,7 +145,7 @@ export function Eye({ size = 32, className }: Props) {
       window.removeEventListener('pointerleave', onLeave);
       if (raf != null) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [resolvedImg]);
 
   return (
     <svg
@@ -146,12 +191,29 @@ export function Eye({ size = 32, className }: Props) {
       />
 
       <g clipPath="url(#eye-clip)" filter="url(#eye-glow)">
-        {/* Iris — stays put. */}
-        <circle cx="50" cy="30" r="16" fill="url(#iris-grad)" />
-        {/* Pupil — JS sets cx/cy each frame. */}
-        <circle ref={pupilRef} cx="50" cy="30" r="7" fill="url(#pupil-grad)" />
-        {/* Specular highlight — glued to pupil at (-1.8, -1.8). */}
-        <circle ref={highlightRef} cx="48.2" cy="28.2" r="1.6" fill="rgba(255,232,170,0.9)" />
+        {resolvedImg ? (
+          // Image-as-eye mode. preserveAspectRatio="xMidYMid slice" so the
+          // user's picture fills the almond without distortion, then the
+          // tick loop nudges x/y a few units to track the pointer.
+          <image
+            ref={imageRef}
+            href={resolvedImg}
+            x="10"
+            y="6"
+            width="80"
+            height="48"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        ) : (
+          <>
+            {/* Iris — stays put. */}
+            <circle cx="50" cy="30" r="16" fill="url(#iris-grad)" />
+            {/* Pupil — JS sets cx/cy each frame. */}
+            <circle ref={pupilRef} cx="50" cy="30" r="7" fill="url(#pupil-grad)" />
+            {/* Specular highlight — glued to pupil at (-1.8, -1.8). */}
+            <circle ref={highlightRef} cx="48.2" cy="28.2" r="1.6" fill="rgba(255,232,170,0.9)" />
+          </>
+        )}
       </g>
 
       {/* Subtle gold lid arc — adds depth without obscuring the iris. */}
