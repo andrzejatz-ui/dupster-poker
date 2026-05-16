@@ -296,6 +296,7 @@ export default function TablePage() {
             {result && (
               <HandResultBanner
                 winners={result.winners}
+                revealed={result.revealed}
                 nameForSeat={(i) =>
                   state.seats.find((s) => s.seatIndex === i)?.displayName ?? `#${i}`
                 }
