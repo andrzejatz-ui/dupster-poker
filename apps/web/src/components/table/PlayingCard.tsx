@@ -4,7 +4,7 @@ import { BCoin } from '@/components/brand/BCoin';
 
 interface Props {
   card?: Card | null;
-  size?: 'sm' | 'md' | 'lg' | 'board';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'board';
   faceDown?: boolean;
   /** Add a subtle hover lift — set on the viewer's own hole cards. */
   hoverable?: boolean;
@@ -18,6 +18,7 @@ interface Props {
  * cross-hatch frame visible, big enough to read at every viewport.
  */
 const backEmblemSize: Record<NonNullable<Props['size']>, string> = {
+  xs: 'text-[10px] sm:text-[14px]',
   sm: 'text-[14px] sm:text-[20px]',
   md: 'text-[20px] sm:text-[26px]',
   lg: 'text-[24px] sm:text-[40px]',
@@ -35,6 +36,10 @@ const SUIT_GLYPHS: Record<string, { glyph: string; red: boolean }> = {
 // glance on both phone and desktop. Mobile values stay touch-safe, sm:
 // breakpoints scale up to the full premium presentation.
 const sizes = {
+  // Tightest variant — for opponent face-down cards on mobile where
+  // the felt is already saturated. Still wide enough to read the
+  // suit/rank when shown face up at desktop sizes.
+  xs: 'w-6 h-9 text-[8px] sm:w-9 sm:h-12 sm:text-[10px]',
   sm: 'w-9 h-12 text-[10px] sm:w-11 sm:h-16 sm:text-xs',
   md: 'w-12 h-16 text-sm sm:w-16 sm:h-20 sm:text-lg',
   lg: 'w-14 h-20 text-base sm:w-24 sm:h-32 sm:text-2xl',
@@ -44,6 +49,7 @@ const sizes = {
 };
 
 const suitSize = {
+  xs: 'text-sm sm:text-lg',
   sm: 'text-lg sm:text-2xl',
   md: 'text-xl sm:text-3xl',
   lg: 'text-3xl sm:text-4xl',

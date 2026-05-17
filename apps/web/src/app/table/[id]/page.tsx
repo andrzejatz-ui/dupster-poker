@@ -293,14 +293,14 @@ export default function TablePage() {
             if (walletBalance > 0 && stack < state.maxBuyIn) {
               return (
                 <NeonButton size="sm" variant="gold" onClick={() => setTopUpOpen(true)}>
-                  💰 {t('action.topUp')}
+                  💰 <span className="hidden sm:inline">{t('action.topUp')}</span>
                 </NeonButton>
               );
             }
             if (walletBalance === 0) {
               return (
                 <NeonButton size="sm" variant="gold" onClick={() => setChipReqOpen(true)}>
-                  🙋 {t('action.requestChips')}
+                  🙋 <span className="hidden sm:inline">{t('action.requestChips')}</span>
                 </NeonButton>
               );
             }
@@ -310,8 +310,12 @@ export default function TablePage() {
             const mySeat = state.seats.find((s) => s.seatIndex === state.mySeatIndex);
             const paused = mySeat?.isPaused ?? false;
             return (
-              <NeonButton size="sm" variant={paused ? 'gold' : 'ghost'} onClick={togglePause}>
-                {paused ? t('action.resume') : t('action.pause')}
+              <NeonButton size="sm" variant={paused ? 'gold' : 'ghost'} onClick={togglePause}
+                          aria-label={paused ? t('action.resume') : t('action.pause')}>
+                {paused ? '▶' : '⏸'}
+                <span className="hidden sm:inline ml-1">
+                  {paused ? t('action.resume') : t('action.pause')}
+                </span>
               </NeonButton>
             );
           })()}
@@ -333,16 +337,19 @@ export default function TablePage() {
               </span>
             )}
           </button>
-          <NeonButton size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
-            {t('history.button')}
+          <NeonButton size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}
+                      aria-label={t('history.button')}>
+            📜 <span className="hidden sm:inline ml-1">{t('history.button')}</span>
           </NeonButton>
           {isAdmin && (
-            <NeonButton size="sm" variant="gold" onClick={() => router.push('/admin')}>
-              🛡 {t('common.backToAdmin')}
+            <NeonButton size="sm" variant="gold" onClick={() => router.push('/admin')}
+                        aria-label={t('common.backToAdmin')}>
+              🛡 <span className="hidden sm:inline ml-1">{t('common.backToAdmin')}</span>
             </NeonButton>
           )}
-          <NeonButton size="sm" variant="ghost" onClick={leave}>
-            {t('table.leave')}
+          <NeonButton size="sm" variant="ghost" onClick={leave}
+                      aria-label={t('table.leave')}>
+            ✕ <span className="hidden sm:inline ml-1">{t('table.leave')}</span>
           </NeonButton>
         </div>
       </div>

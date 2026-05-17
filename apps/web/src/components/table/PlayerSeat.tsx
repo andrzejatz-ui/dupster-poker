@@ -69,7 +69,7 @@ export function PlayerSeat({
   const showBotBadge = seat.isBot && !/^bot\b/i.test(seat.displayName);
 
   return (
-    <div className="flex flex-col items-center gap-1.5 relative">
+    <div className="flex flex-col items-center gap-0.5 sm:gap-1.5 relative">
       {/* Dealer button — bevelled poker chip. Sized down on mobile so
           it doesn't crash into the avatar disc when both are 36 px. */}
       {isButton && (
@@ -155,22 +155,24 @@ export function PlayerSeat({
         </div>
       </div>
 
-      {/* Hole cards (own face up, others face down or revealed).
-          The viewer's OWN seat renders cards a size bigger so they
-          stay legible on tight phone viewports — these are the
-          single most important pieces of information on screen. */}
-      <div className="flex gap-1 mt-1">
+      {/* Hole cards. Sizing rules:
+            - Viewer's own seat: md (biggest, always face up).
+            - Opponent face-down or revealed: xs on phone, sm on
+              desktop — keeps a 6-seat ring uncrowded.
+            Showdown revealed cards (anyone) inherit the same opponent
+            size so the felt doesn't visually re-shuffle at showdown. */}
+      <div className="flex gap-0.5 sm:gap-1">
         {seat.holeCards ? (
           <>
             <PlayingCard
               card={seat.holeCards[0]}
-              size={isMine ? 'md' : 'sm'}
+              size={isMine ? 'md' : 'xs'}
               hoverable
               className={clsx(cardIsWinning(seat.holeCards[0]) && 'card-winning')}
             />
             <PlayingCard
               card={seat.holeCards[1]}
-              size={isMine ? 'md' : 'sm'}
+              size={isMine ? 'md' : 'xs'}
               hoverable
               className={clsx(cardIsWinning(seat.holeCards[1]) && 'card-winning')}
             />
@@ -179,19 +181,19 @@ export function PlayerSeat({
           <>
             <PlayingCard
               card={seat.revealedCards[0]}
-              size="sm"
+              size="xs"
               className={clsx(cardIsWinning(seat.revealedCards[0]) && 'card-winning')}
             />
             <PlayingCard
               card={seat.revealedCards[1]}
-              size="sm"
+              size="xs"
               className={clsx(cardIsWinning(seat.revealedCards[1]) && 'card-winning')}
             />
           </>
         ) : !seat.hasFolded ? (
           <>
-            <PlayingCard faceDown size="sm" />
-            <PlayingCard faceDown size="sm" />
+            <PlayingCard faceDown size="xs" />
+            <PlayingCard faceDown size="xs" />
           </>
         ) : null}
       </div>
@@ -214,13 +216,20 @@ export function PlayerSeat({
         </div>
       )}
 
-      {/* Live chip stack — visible chips pushed into the pot */}
+      {/* Live chip bet. Mobile shows a compact gold pill so a 6-seat
+          ring doesn't stretch each seat with a tall chip stack; the
+          desktop layout has room for the proper bevelled discs. */}
       {seat.currentBet > 0 && (
-        <ChipStack
-          amount={seat.currentBet}
-          bigBlind={bigBlindAmount}
-          className="mt-1"
-        />
+        <>
+          <div className="mt-1 sm:hidden chip-bet font-mono text-gold text-[10px] bg-gold/10 border border-gold/55 rounded-full px-2 py-0.5 leading-none whitespace-nowrap">
+            {seat.currentBet.toLocaleString()}
+          </div>
+          <ChipStack
+            amount={seat.currentBet}
+            bigBlind={bigBlindAmount}
+            className="mt-1 hidden sm:flex"
+          />
+        </>
       )}
     </div>
   );
