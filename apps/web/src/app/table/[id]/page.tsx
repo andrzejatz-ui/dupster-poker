@@ -316,14 +316,17 @@ export default function TablePage() {
             );
           })()}
           {/* Chat toggle — mobile only. Desktop has it permanently
-              in the side panel so the button stays hidden via lg:hidden. */}
+              in the side panel so the button stays hidden via lg:hidden.
+              On phones we render just a 💬 glyph to keep the header row
+              from breaking onto two lines when the chat label is long
+              in some locales (e.g. CZAT PRZY STOLE in PL). */}
           <button
             type="button"
             onClick={toggleChat}
-            className="relative lg:hidden px-2.5 py-1.5 rounded-md border border-rim-bright text-[10px] uppercase tracking-[0.22em] text-ink-secondary font-display hover:border-gold/50"
+            className="relative lg:hidden px-2 py-1.5 rounded-md border border-rim-bright text-base text-ink-secondary font-display hover:border-gold/50 leading-none"
             aria-label={t('chat.title')}
           >
-            {t('chat.title')}
+            💬
             {unreadChat > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-gold text-obsidian-bg text-[9px] font-bold flex items-center justify-center">
                 {unreadChat > 9 ? '9+' : unreadChat}
@@ -345,8 +348,10 @@ export default function TablePage() {
       </div>
 
       {/* Felt + side panel — flex-1 + min-h-0 lets the felt shrink to
-          fit the viewport instead of pushing the action bar offscreen. */}
-      <div className="flex-1 min-h-0 px-2 sm:px-6 py-2 sm:py-4 grid grid-cols-12 gap-3 sm:gap-5">
+          fit the viewport instead of pushing the action bar offscreen.
+          Mobile padding shrunk so the felt gets every available pixel
+          on Telegram's already-trimmed viewport. */}
+      <div className="flex-1 min-h-0 px-1 sm:px-6 py-1 sm:py-4 grid grid-cols-12 gap-2 sm:gap-5">
         <div className="col-span-12 lg:col-span-9 flex flex-col min-h-0">
           <div className="felt rounded-[40px] sm:rounded-[110px] relative flex-1 min-h-0">
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">

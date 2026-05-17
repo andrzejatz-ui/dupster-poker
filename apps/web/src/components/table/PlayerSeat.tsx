@@ -44,7 +44,7 @@ export function PlayerSeat({
   if (!seat) {
     return (
       <div className="flex flex-col items-center gap-1 opacity-50">
-        <div className="w-11 h-11 sm:w-24 sm:h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
+        <div className="w-9 h-9 sm:w-24 sm:h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
           <span className="text-[9px] sm:text-xs text-white/30 font-mono">#{seatIndex}</span>
         </div>
         <span className="text-[9px] sm:text-[10px] text-white/30 uppercase tracking-widest font-display">{t('table.empty.seat')}</span>
@@ -56,11 +56,24 @@ export function PlayerSeat({
   const winningSet = winningCards ? new Set<Card>(winningCards) : null;
   const cardIsWinning = (c?: Card) => !!(c && winningSet && winningSet.has(c));
 
+  // Smart initials for the avatar fallback. The default first-2-chars
+  // logic made every bot look identical ("BO" for Bot Sam, Bot Riley,
+  // Bot Casey, …). Strip the "Bot " prefix so the real first letters
+  // come through (SA / RI / CA), giving each seat a distinguishable
+  // disc when no avatar image is set.
+  const nameForInitials = seat.displayName.replace(/^bot\s+/i, '').trim();
+  const initials = (nameForInitials || seat.displayName).slice(0, 2).toUpperCase();
+  // The "BOT" badge is redundant when the display name already starts
+  // with "Bot" — saves a corner pill on mobile where every pixel
+  // counts. Real bots whose display name doesn't reveal them keep it.
+  const showBotBadge = seat.isBot && !/^bot\b/i.test(seat.displayName);
+
   return (
     <div className="flex flex-col items-center gap-1.5 relative">
-      {/* Dealer button — bevelled poker chip */}
+      {/* Dealer button — bevelled poker chip. Sized down on mobile so
+          it doesn't crash into the avatar disc when both are 36 px. */}
       {isButton && (
-        <div className="dealer-chip absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-7 sm:h-7 rounded-full text-[10px] sm:text-xs font-display font-bold flex items-center justify-center z-10">
+        <div className="dealer-chip absolute -top-0.5 -right-0.5 sm:-top-2 sm:-right-2 w-4 h-4 sm:w-7 sm:h-7 rounded-full text-[8px] sm:text-xs font-display font-bold flex items-center justify-center z-10">
           D
         </div>
       )}
@@ -77,10 +90,10 @@ export function PlayerSeat({
       {/* Avatar disc — split into two containers so the status badges
           (BOT, ALL-IN, RECON, PAUSED) can hang past the circle's edge
           without being eaten by the avatar-side overflow-hidden.
-          Mobile size dropped from 56 to 44 px so the disc doesn't
-          collide with the board cards or the hole-card row beneath
-          it on tight phone viewports. */}
-      <div className="relative w-11 h-11 sm:w-24 sm:h-24">
+          Mobile size dropped to 36 px so a 6-seat layout doesn't
+          crash the avatar disc into the board cards or adjacent seats
+          on tight phone viewports. */}
+      <div className="relative w-9 h-9 sm:w-24 sm:h-24">
         <div
           className={clsx(
             'absolute inset-0 rounded-full surface-strong flex items-center justify-center overflow-hidden',
@@ -105,36 +118,38 @@ export function PlayerSeat({
             />
           ) : (
             <div className="font-display text-[10px] sm:text-lg">
-              {seat.displayName.slice(0, 2).toUpperCase()}
+              {initials}
             </div>
           )}
         </div>
         {seat.isReconnecting && (
-          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded bg-status-alert/85 text-[9px] font-display tracking-widest z-10">
+          <span className="absolute -bottom-1 -right-1 px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-status-alert/85 text-[8px] sm:text-[9px] font-display tracking-widest z-10">
             {t('seat.recon')}
           </span>
         )}
-        {seat.isBot && (
-          <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded bg-ink-muted/85 text-obsidian-bg text-[9px] font-display tracking-widest z-10">
+        {showBotBadge && (
+          <span className="absolute -top-1 -left-1 px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-ink-muted/85 text-obsidian-bg text-[8px] sm:text-[9px] font-display tracking-widest z-10">
             BOT
           </span>
         )}
         {seat.isAllIn && (
-          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-gold text-obsidian-bg text-[9px] font-display tracking-widest z-10">
+          <span className="absolute -bottom-1 -left-1 px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-gold text-obsidian-bg text-[8px] sm:text-[9px] font-display tracking-widest z-10">
             {t('seat.allIn')}
           </span>
         )}
         {seat.isPaused && (
-          <span className="absolute -bottom-1 -left-1 px-1.5 py-0.5 rounded bg-status-warning/85 text-obsidian-bg text-[9px] font-display tracking-widest z-10">
+          <span className="absolute -bottom-1 -left-1 px-1 py-0 sm:px-1.5 sm:py-0.5 rounded bg-status-warning/85 text-obsidian-bg text-[8px] sm:text-[9px] font-display tracking-widest z-10">
             {t('seat.paused')}
           </span>
         )}
       </div>
 
-      {/* Name + stack */}
-      <div className="text-center">
-        <div className="text-[10px] sm:text-sm font-display truncate max-w-[4.5rem] sm:max-w-[7rem]">{seat.displayName}</div>
-        <div className="text-[10px] sm:text-xs text-gold font-mono">
+      {/* Name + stack — single tight block on mobile so a 6-seat table
+          doesn't stack two text lines per seat between the avatar and
+          the cards. */}
+      <div className="text-center leading-tight">
+        <div className="text-[9px] sm:text-sm font-display truncate max-w-[4.5rem] sm:max-w-[7rem]">{seat.displayName}</div>
+        <div className="text-[9px] sm:text-xs text-gold font-mono">
           {seat.stack.toLocaleString()}
           <span className="text-ink-muted ml-1 hidden sm:inline">({stackInBB})</span>
         </div>
