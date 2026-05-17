@@ -37,7 +37,15 @@ async function getOrLinkAdminPlayer(args: {
   adminId: string;
   requestedHandle: string;
   displayName: string | null;
-}): Promise<{ id: string; handle: string; displayName: string | null; avatarUrl: string | null; chips: number; status: string }> {
+}): Promise<{
+  id: string; handle: string; displayName: string | null;
+  avatarUrl: string | null; chips: number; status: string;
+  /** True only when this call CREATED the player row (no prior
+   *  history in the DB). The /admin/play initial-grant logic uses
+   *  this so it doesn't refill the wallet of an existing admin who
+   *  legitimately cashed their stack down to zero. */
+  wasJustCreated: boolean;
+}> {
   const adminRow = await pool.query<{ linked_player_id: string | null }>(
     'select linked_player_id from admins where id = $1',
     [args.adminId],
@@ -72,7 +80,7 @@ async function getOrLinkAdminPlayer(args: {
       );
       const fresh = await findPlayerById(linkedId);
       if (!fresh) throw new Error('linked_player_vanished');
-      return fresh;
+      return { ...fresh, wasJustCreated: false };
     }
     // Linked row pointed to a player that's been hard-deleted — fall
     // through to the "no link" path which will re-link cleanly.
@@ -80,14 +88,17 @@ async function getOrLinkAdminPlayer(args: {
 
   // Case 2: no link yet. Upsert by handle so a previously soft-deleted
   // row with this handle gets resurrected; brand-new handles get a
-  // fresh row.
-  await pool.query(
+  // fresh row. xmax = 0 on the returned row means the INSERT branch
+  // fired (not the ON CONFLICT update) — that's how we tell a true
+  // first-time creation from a resurrection.
+  const ins = await pool.query<{ id: string; was_inserted: boolean }>(
     `insert into players (player_handle, display_name, status, chips, approved_at, approved_by)
      values ($1, $2, 'approved', 0, now(), $3)
      on conflict (player_handle) do update set
        status='approved', approved_at=now(),
        approved_by=excluded.approved_by,
-       banned_at=null, banned_reason=null, deleted_at=null`,
+       banned_at=null, banned_reason=null, deleted_at=null
+     returning id, (xmax = 0) as was_inserted`,
     [args.requestedHandle, args.displayName, args.adminId],
   );
   const fresh = await findPlayerByHandle(args.requestedHandle);
@@ -99,7 +110,7 @@ async function getOrLinkAdminPlayer(args: {
     'update admins set linked_player_id = $1 where id = $2',
     [fresh.id, args.adminId],
   );
-  return fresh;
+  return { ...fresh, wasJustCreated: ins.rows[0]?.was_inserted ?? false };
 }
 
 export function adminRouter(tables: TableManager, io: IOType): Router {
@@ -286,21 +297,27 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       logger.error({ err, adminId: req.adminId }, 'admin_play link failed');
       return res.status(500).json({ error: msg });
     }
-    const created = false; // linked-player path never "creates" a fresh row from the caller's POV
+    const created = player.wasJustCreated;
 
-    // Only grant chips when a positive amount was requested AND the
-    // balance is empty, to avoid accidental repeated top-ups when admin
-    // clicks Play twice.
-    if (initialChips && initialChips > 0 && player.chips === 0) {
+    // Initial-grant rule: ONLY on a brand-new player row. The previous
+    // version checked `chips === 0`, which incorrectly re-granted the
+    // wallet every time an admin cashed their stack down to zero —
+    // chips would "come back" on the next /admin/play tap and undo
+    // the legitimate cashout. Now we gate on the wasJustCreated flag
+    // set by the upsert's RETURNING xmax=0 check, so an existing admin
+    // who emptied their wallet has to either request chips or get an
+    // explicit admin chip-grant to refill — never an auto-refill.
+    if (initialChips && initialChips > 0 && created) {
       await moveChips({
         playerId: player.id,
         delta: initialChips,
         reason: 'admin_grant',
         adminId: req.adminId,
-        note: 'admin self-grant via /admin/play',
+        note: 'admin self-grant on first /admin/play',
       });
-      player = await findPlayerByHandle(handle);
-      if (!player) return res.status(500).json({ error: 'grant_failed' });
+      const fresh = await findPlayerByHandle(handle);
+      if (!fresh) return res.status(500).json({ error: 'grant_failed' });
+      player = { ...fresh, wasJustCreated: created };
     }
 
     // Mint a player session. Same two-step "temp token to get sid, then
