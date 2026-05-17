@@ -53,26 +53,30 @@ export function AdCarousel({ ads, intervalMs = 4500 }: { ads: Ad[]; intervalMs?:
 
   if (ads.length === 0) return null;
   const ad = ads[idx] ?? ads[0]!;
+  // Solid hex backgrounds (no alpha) so the panel is unmissable even
+  // on a near-black page where bg-gold/[0.06] essentially disappears.
+  // Kept tone-tinted to preserve the gold / smoky / alert mood, just
+  // with enough contrast to read at a glance.
+  const toneBg =
+    ad.tone === 'alert' ? '#2a1414'
+    : ad.tone === 'smoky' ? '#13131a'
+    : '#1c1a10';
+  const toneBorder =
+    ad.tone === 'alert' ? 'rgba(255,80,80,0.7)'
+    : ad.tone === 'smoky' ? 'rgba(212,175,55,0.4)'
+    : 'rgba(212,175,55,0.85)';
   return (
-    <div className="relative w-full" style={{ minHeight: 88 }}>
+    <div className="relative w-full" style={{ minHeight: 96 }}>
       <div
         key={idx}
-        // No animation class — the previous `animate-ad-fade` with
-        // `animation-fill-mode: both` was getting stuck at the 0%
-        // keyframe (opacity: 0) in some desktop browser contexts,
-        // making the entire card invisible while the pagination dots
-        // still rendered. Inline min-height as a belt-and-braces
-        // backup in case Tailwind's `min-h-[88px]` arbitrary value
-        // isn't picked up by the build.
-        className={clsx(
-          'ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 border',
-          ad.tone === 'alert'
-            ? 'border-status-alert/55 bg-status-alert/[0.06]'
-            : ad.tone === 'smoky'
-            ? 'border-rim-faint bg-obsidian-soft/40'
-            : 'border-gold/45 bg-gold/[0.06] shadow-gold-soft',
-        )}
-        style={{ minHeight: 88, opacity: 1 }}
+        className="ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4"
+        style={{
+          minHeight: 88,
+          opacity: 1,
+          backgroundColor: toneBg,
+          border: `2px solid ${toneBorder}`,
+          boxShadow: ad.tone === 'gold' ? '0 0 24px -8px rgba(212,175,55,0.35)' : undefined,
+        }}
       >
         <div
           className={clsx(
