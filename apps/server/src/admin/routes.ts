@@ -935,6 +935,110 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     res.json({ id });
   });
 
+  /**
+   * Edit an existing table's configuration. Same validation as create
+   * (BB > SB, buy-in ≥ BB × MIN_BUY_IN_MULTIPLIER) plus refusal to
+   * shrink max_players below the current seated count — that would
+   * orphan players mid-hand. Changes apply to BOTH the DB row and
+   * the in-memory PokerTable.cfg so the next hand uses the new
+   * blinds / buy-in; the currently running hand finishes at whatever
+   * blinds it started with.
+   */
+  r.put('/tables/:id', requireAdmin, async (req: AdminRequest, res) => {
+    const Body = z.object({
+      name: z.string().min(1).max(60).optional(),
+      smallBlind: z.number().int().positive().optional(),
+      bigBlind: z.number().int().positive().optional(),
+      buyIn: z.number().int().positive().optional(),
+      maxPlayers: z.number().int().min(2).max(10).optional(),
+      allowSpectators: z.boolean().optional(),
+    });
+    const parsed = Body.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const tableId = req.params.id!;
+
+    const cur = await pool.query<{
+      name: string;
+      small_blind: string;
+      big_blind: string;
+      buy_in: string;
+      max_players: number;
+      allow_spectators: boolean;
+      archived_at: string | null;
+    }>(
+      `select name, small_blind, big_blind, buy_in, max_players,
+              allow_spectators, archived_at
+         from tables where id = $1`,
+      [tableId],
+    );
+    if (cur.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    if (cur.rows[0]!.archived_at !== null) {
+      return res.status(409).json({ error: 'table_archived' });
+    }
+
+    // Merge incoming patch with current values for cross-field validation.
+    const merged = {
+      name: parsed.data.name ?? cur.rows[0]!.name,
+      smallBlind: parsed.data.smallBlind ?? Number(cur.rows[0]!.small_blind),
+      bigBlind: parsed.data.bigBlind ?? Number(cur.rows[0]!.big_blind),
+      buyIn: parsed.data.buyIn ?? Number(cur.rows[0]!.buy_in),
+      maxPlayers: parsed.data.maxPlayers ?? cur.rows[0]!.max_players,
+      allowSpectators: parsed.data.allowSpectators ?? cur.rows[0]!.allow_spectators,
+    };
+    if (merged.bigBlind <= merged.smallBlind) {
+      return res.status(400).json({ error: 'big_blind_must_exceed_small' });
+    }
+    if (merged.buyIn < merged.bigBlind * config.MIN_BUY_IN_MULTIPLIER) {
+      return res.status(400).json({ error: 'buy_in_too_low' });
+    }
+
+    // Don't let an admin orphan players by shrinking the seat count
+    // below the current occupancy.
+    const live = tables.get(tableId);
+    if (live && merged.maxPlayers < live.seats.size) {
+      return res.status(409).json({ error: 'max_players_below_seated' });
+    }
+
+    await pool.query(
+      `update tables set
+         name = $2, small_blind = $3, big_blind = $4, buy_in = $5,
+         max_players = $6, allow_spectators = $7
+       where id = $1`,
+      [
+        tableId, merged.name, merged.smallBlind, merged.bigBlind,
+        merged.buyIn, merged.maxPlayers, merged.allowSpectators,
+      ],
+    );
+
+    // Mirror into the in-memory PokerTable.cfg so the next hand uses
+    // the new values. The running hand keeps its existing blinds —
+    // engine state already references `this.cfg.bigBlind` etc., and
+    // changing them mid-hand would invalidate the action log.
+    if (live) {
+      live.cfg.name = merged.name;
+      live.cfg.smallBlind = merged.smallBlind;
+      live.cfg.bigBlind = merged.bigBlind;
+      live.cfg.buyIn = merged.buyIn;
+      live.cfg.maxPlayers = merged.maxPlayers;
+      live.cfg.allowSpectators = merged.allowSpectators;
+      live.cfg.maxBuyIn = merged.buyIn * config.MAX_BUY_IN_MULTIPLIER;
+      // Broadcast the new state so clients see the updated stake / buy-in
+      // labels without needing to re-enter the table.
+      (tables as unknown as { onStateChange: (id: string) => void })
+        .onStateChange(tableId);
+      // Lobby summary changes too (maxPlayers in particular).
+      io.emit('server:lobby:tables', { tables: [] });
+    }
+
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'update_table',
+      targetTableId: tableId,
+      payload: merged,
+    });
+    res.json({ ok: true });
+  });
+
   r.post('/tables/:id/archive', requireAdmin, async (req: AdminRequest, res) => {
     await pool.query('update tables set archived_at = now() where id = $1', [req.params.id]);
     await logAdminAction({ adminId: req.adminId!, action: 'archive_table', targetTableId: req.params.id });

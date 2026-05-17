@@ -86,6 +86,7 @@ type Dialog =
   | { kind: 'delete'; player: PlayerRow }
   | { kind: 'password'; player: PlayerRow }
   | { kind: 'createTable' }
+  | { kind: 'editTable'; table: TableRow }
   | { kind: 'closeTable'; table: TableRow }
   | { kind: 'deleteTable'; table: TableRow }
   | { kind: 'editAd'; ad: AdRow | null };
@@ -515,6 +516,9 @@ export default function AdminDashboard() {
                       <td className="text-right space-x-2 whitespace-nowrap">
                         {!tbl.archived_at && (
                           <>
+                            <NeonButton size="sm" variant="ghost" onClick={() => setDialog({ kind: 'editTable', table: tbl })}>
+                              {t('admin.tableEdit')}
+                            </NeonButton>
                             <NeonButton size="sm" variant="ghost" onClick={() => pauseToggle(tbl)}>
                               {tbl.is_paused ? t('admin.tableResume') : t('admin.tablePause')}
                             </NeonButton>
@@ -633,6 +637,13 @@ export default function AdminDashboard() {
       )}
       {dialog?.kind === 'createTable' && (
         <CreateTableDialog
+          onClose={() => setDialog(null)}
+          onDone={() => { setDialog(null); refresh(); }}
+        />
+      )}
+      {dialog?.kind === 'editTable' && (
+        <EditTableDialog
+          table={dialog.table}
           onClose={() => setDialog(null)}
           onDone={() => { setDialog(null); refresh(); }}
         />
@@ -1204,6 +1215,142 @@ function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: (
           </select>
           <p className="mt-1 text-[10px] text-ink-muted">
             {t('admin.prompt.tableMaxHint')}
+          </p>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * Edit-table dialog. Same fields as CreateTableDialog but pre-filled
+ * from the existing row, no preset grid (presets are for create-flow
+ * speed; an edit is a targeted change to one existing table). PUT
+ * /admin/tables/:id merges the patch, validates BB > SB + buy-in
+ * floor + max-players ≥ seated count, mirrors into the in-memory
+ * PokerTable.cfg, and broadcasts the new state so live players see
+ * the updated stake labels.
+ */
+function EditTableDialog({
+  table,
+  onClose,
+  onDone,
+}: {
+  table: TableRow;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [name, setName] = useState(table.name);
+  const [sb, setSb] = useState(Number(table.small_blind));
+  const [bb, setBb] = useState(Number(table.big_blind));
+  const [buyIn, setBuyIn] = useState(Number(table.buy_in));
+  const [maxPlayers, setMaxPlayers] = useState(table.max_players);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    setBusy(true);
+    const r = await adminCall(`/tables/${table.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        name: name.trim(),
+        smallBlind: sb,
+        bigBlind: bb,
+        buyIn,
+        maxPlayers,
+      }),
+    });
+    setBusy(false);
+    if (r.status === 200) {
+      onDone();
+      return;
+    }
+    if (r.body.error === 'max_players_below_seated') {
+      setError(t('admin.prompt.tableEditErr.belowSeated'));
+    } else if (r.body.error === 'big_blind_must_exceed_small') {
+      setError(t('admin.prompt.tableEditErr.bbVsSb'));
+    } else if (r.body.error === 'buy_in_too_low') {
+      setError(t('admin.prompt.tableEditErr.buyInLow'));
+    } else if (r.body.error === 'table_archived') {
+      setError(t('admin.prompt.tableEditErr.archived'));
+    } else {
+      setError(r.body.error ?? 'failed');
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t('admin.prompt.tableEditTitle', { name: table.name })}
+      subtitle={t('admin.prompt.tableEditBody')}
+      width="lg"
+      footer={
+        <DialogFooter
+          onCancel={onClose}
+          onSubmit={submit}
+          busy={busy}
+          submitLabel={t('admin.tableEditSave')}
+          variant="gold"
+        />
+      }
+    >
+      <NeonInput
+        id="te-name"
+        label={t('admin.prompt.tableName')}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        autoFocus
+        error={error}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <NeonInput
+          id="te-sb"
+          label={t('admin.prompt.tableSb')}
+          type="number"
+          inputMode="numeric"
+          value={String(sb)}
+          onChange={(e) => setSb(Number(e.target.value) || 0)}
+        />
+        <NeonInput
+          id="te-bb"
+          label={t('admin.prompt.tableBb')}
+          type="number"
+          inputMode="numeric"
+          value={String(bb)}
+          onChange={(e) => setBb(Number(e.target.value) || 0)}
+        />
+        <NeonInput
+          id="te-buyin"
+          label={t('admin.prompt.tableBuyIn')}
+          type="number"
+          inputMode="numeric"
+          value={String(buyIn)}
+          onChange={(e) => setBuyIn(Number(e.target.value) || 0)}
+        />
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display mb-1">
+            {t('admin.prompt.tableMax')}
+          </label>
+          <select
+            value={maxPlayers}
+            onChange={(e) => setMaxPlayers(Number(e.target.value))}
+            className="w-full px-2 py-2 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold"
+          >
+            <option value={2}>{t('admin.prompt.tableMaxOpt.headsUp')}</option>
+            <option value={3}>3</option>
+            <option value={4}>4</option>
+            <option value={5}>5</option>
+            <option value={6}>{t('admin.prompt.tableMaxOpt.sixMax')}</option>
+            <option value={7}>7</option>
+            <option value={8}>8</option>
+            <option value={9}>{t('admin.prompt.tableMaxOpt.nineMax')}</option>
+            <option value={10}>{t('admin.prompt.tableMaxOpt.fullRing')}</option>
+          </select>
+          <p className="mt-1 text-[10px] text-ink-muted">
+            {t('admin.prompt.tableEditMaxHint', { seated: String(table.seated) })}
           </p>
         </div>
       </div>
