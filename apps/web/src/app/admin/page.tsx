@@ -1183,9 +1183,29 @@ function CreateTableDialog({ onClose, onDone }: { onClose: () => void; onDone: (
         <NeonInput id="t-buyin" label={t('admin.prompt.tableBuyIn')} type="number" inputMode="numeric"
                    value={String(buyIn)}
                    onChange={(e) => { setBuyIn(Number(e.target.value) || 0); setActivePreset(null); }} />
-        <NeonInput id="t-max" label={t('admin.prompt.tableMax')} type="number" inputMode="numeric"
-                   value={String(maxPlayers)}
-                   onChange={(e) => { setMaxPlayers(Math.min(10, Math.max(2, Number(e.target.value) || 2))); setActivePreset(null); }} />
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display mb-1">
+            {t('admin.prompt.tableMax')}
+          </label>
+          <select
+            value={maxPlayers}
+            onChange={(e) => { setMaxPlayers(Number(e.target.value)); setActivePreset(null); }}
+            className="w-full px-2 py-2 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold"
+          >
+            <option value={2}>{t('admin.prompt.tableMaxOpt.headsUp')}</option>
+            <option value={3}>3</option>
+            <option value={4}>4</option>
+            <option value={5}>5</option>
+            <option value={6}>{t('admin.prompt.tableMaxOpt.sixMax')}</option>
+            <option value={7}>7</option>
+            <option value={8}>8</option>
+            <option value={9}>{t('admin.prompt.tableMaxOpt.nineMax')}</option>
+            <option value={10}>{t('admin.prompt.tableMaxOpt.fullRing')}</option>
+          </select>
+          <p className="mt-1 text-[10px] text-ink-muted">
+            {t('admin.prompt.tableMaxHint')}
+          </p>
+        </div>
       </div>
     </Modal>
   );
