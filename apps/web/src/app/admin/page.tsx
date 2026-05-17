@@ -62,6 +62,20 @@ interface ChipRequestRow {
   chips: string;
 }
 
+interface AdRow {
+  id: string;
+  kicker: string;
+  headline: string;
+  body: string;
+  disclaimer: string | null;
+  icon: string;
+  tone: 'gold' | 'smoky' | 'alert';
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 type Dialog =
   | null
   | { kind: 'settings' }
@@ -73,7 +87,8 @@ type Dialog =
   | { kind: 'password'; player: PlayerRow }
   | { kind: 'createTable' }
   | { kind: 'closeTable'; table: TableRow }
-  | { kind: 'deleteTable'; table: TableRow };
+  | { kind: 'deleteTable'; table: TableRow }
+  | { kind: 'editAd'; ad: AdRow | null };
 
 export default function AdminDashboard() {
   const t = useT();
@@ -83,6 +98,7 @@ export default function AdminDashboard() {
   const [banned, setBanned] = useState<PlayerRow[]>([]);
   const [tables, setTables] = useState<TableRow[]>([]);
   const [chipRequests, setChipRequests] = useState<ChipRequestRow[]>([]);
+  const [ads, setAds] = useState<AdRow[]>([]);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [me, setMe] = useState<AdminProfile | null>(null);
   /** Is there an active player session in this tab? Lets us show a
@@ -104,13 +120,14 @@ export default function AdminDashboard() {
 
   async function refresh() {
     try {
-      const [a, b, c, ts, meRes, crs] = await Promise.all([
+      const [a, b, c, ts, meRes, crs, adsRes] = await Promise.all([
         adminCall('/players?status=pending'),
         adminCall('/players?status=approved'),
         adminCall('/players?status=banned'),
         adminCall('/tables'),
         adminCall('/me'),
         adminCall('/chip-requests'),
+        adminCall('/ads'),
       ]);
       if (a.status === 401) { clearAdminToken(); router.replace('/admin/login'); return; }
       setPending(a.body.players ?? []);
@@ -118,8 +135,42 @@ export default function AdminDashboard() {
       setBanned(c.body.players ?? []);
       setTables(ts.body.tables ?? []);
       setChipRequests(crs.body.requests ?? []);
+      setAds(adsRes.body.ads ?? []);
       if (meRes.status === 200) setMe(meRes.body);
     } catch {/* ignore */}
+  }
+
+  async function saveAd(ad: Partial<AdRow> & { id?: string }) {
+    const body: Record<string, unknown> = {
+      kicker: ad.kicker,
+      headline: ad.headline,
+      body: ad.body,
+      disclaimer: ad.disclaimer ?? null,
+      icon: ad.icon,
+      tone: ad.tone,
+      sortOrder: ad.sort_order,
+      isActive: ad.is_active,
+    };
+    const r = ad.id
+      ? await adminCall(`/ads/${ad.id}`, { method: 'PUT', body: JSON.stringify(body) })
+      : await adminCall('/ads', { method: 'POST', body: JSON.stringify(body) });
+    if (r.status !== 200) { alert(r.body.error ?? 'failed'); return; }
+    setDialog(null);
+    refresh();
+  }
+  async function toggleAdActive(ad: AdRow) {
+    const r = await adminCall(`/ads/${ad.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ isActive: !ad.is_active }),
+    });
+    if (r.status !== 200) { alert(r.body.error ?? 'failed'); return; }
+    refresh();
+  }
+  async function deleteAd(ad: AdRow) {
+    if (!confirm(`Delete ad "${ad.headline}"?`)) return;
+    const r = await adminCall(`/ads/${ad.id}`, { method: 'DELETE' });
+    if (r.status !== 200) { alert(r.body.error ?? 'failed'); return; }
+    refresh();
   }
 
   async function approveChipRequest(req: ChipRequestRow, amount: number) {
@@ -483,6 +534,39 @@ export default function AdminDashboard() {
             </div>
           )}
         </NeonCard>
+
+        {/* Ads — admin-managed fake-ad inventory shown in the lobby
+            carousel. Active rows rotate in sort_order; inactive rows
+            stay in the dashboard so a copy can be revived later. */}
+        <NeonCard glow="gold">
+          <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+            <h2 className="font-display text-xl">{t('admin.ads.title')}</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-[0.22em] text-ink-muted font-display">
+                {ads.filter((a) => a.is_active).length}/{ads.length} {t('admin.ads.activeShort')}
+              </span>
+              <NeonButton size="sm" variant="gold" onClick={() => setDialog({ kind: 'editAd', ad: null })}>
+                + {t('admin.ads.new')}
+              </NeonButton>
+            </div>
+          </div>
+          {ads.length === 0 ? (
+            <p className="text-ink-muted text-sm">{t('admin.ads.empty')}</p>
+          ) : (
+            <div className="space-y-2">
+              {ads.map((ad) => (
+                <AdRowCmp
+                  key={ad.id}
+                  ad={ad}
+                  onEdit={() => setDialog({ kind: 'editAd', ad })}
+                  onToggle={() => toggleAdActive(ad)}
+                  onDelete={() => deleteAd(ad)}
+                />
+              ))}
+            </div>
+          )}
+        </NeonCard>
+
         <Signature className="mt-8 pb-6" />
       </main>
 
@@ -581,6 +665,13 @@ export default function AdminDashboard() {
             }
             setDialog(null); refresh();
           }}
+        />
+      )}
+      {dialog?.kind === 'editAd' && (
+        <AdEditDialog
+          ad={dialog.ad}
+          onClose={() => setDialog(null)}
+          onSave={saveAd}
         />
       )}
     </>
@@ -1112,6 +1203,227 @@ function ConfirmDialog({ title, subtitle, confirmLabel, variant, onClose, onConf
                                  onSubmit={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
                                  busy={busy} submitLabel={confirmLabel} variant={variant} />}>
       {/* body intentionally empty — title + subtitle carry the message */}
+    </Modal>
+  );
+}
+
+/**
+ * Single row in the admin ads list. Shows the ad's visual identity
+ * (icon, kicker, headline + first line of body), its sort_order and
+ * active state, plus inline Toggle / Edit / Delete buttons.
+ */
+function AdRowCmp({
+  ad,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
+  ad: AdRow;
+  onEdit: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const t = useT();
+  const toneBorder = ad.tone === 'alert'
+    ? 'border-status-alert/40'
+    : ad.tone === 'smoky'
+    ? 'border-rim-faint'
+    : 'border-gold/40';
+  const toneIcon = ad.tone === 'alert'
+    ? 'bg-status-alert/10 border-status-alert/40 text-status-alert'
+    : ad.tone === 'smoky'
+    ? 'bg-obsidian-soft border-rim-faint text-ink-secondary'
+    : 'bg-gold/10 border-gold/40 text-gold';
+  return (
+    <div
+      className={clsx(
+        'rounded-xl border p-3 flex items-start gap-3 transition-opacity',
+        toneBorder,
+        !ad.is_active && 'opacity-50',
+      )}
+    >
+      <div
+        className={clsx(
+          'shrink-0 w-10 h-10 rounded-full border flex items-center justify-center text-xl',
+          toneIcon,
+        )}
+      >
+        {ad.icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-[9px] uppercase tracking-[0.32em] font-display text-ink-muted">
+            #{ad.sort_order} · {ad.tone}
+          </span>
+          {!ad.is_active && (
+            <span className="text-[9px] uppercase tracking-[0.22em] text-status-alert/80 font-display">
+              {t('admin.ads.inactive')}
+            </span>
+          )}
+        </div>
+        <div className="font-display text-sm sm:text-base text-ink-primary truncate leading-tight mt-0.5">
+          {ad.headline}
+        </div>
+        <div className="text-[11px] text-ink-muted leading-snug line-clamp-2 mt-0.5">
+          {ad.kicker} — {ad.body}
+        </div>
+        {ad.disclaimer && (
+          <div className="text-[10px] italic text-ink-muted/70 mt-1 line-clamp-1">
+            {ad.disclaimer}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-1.5 shrink-0">
+        <NeonButton size="sm" variant="ghost" onClick={onToggle}>
+          {ad.is_active ? t('admin.ads.hide') : t('admin.ads.show')}
+        </NeonButton>
+        <NeonButton size="sm" variant="ghost" onClick={onEdit}>
+          {t('admin.ads.edit')}
+        </NeonButton>
+        <NeonButton size="sm" variant="danger" onClick={onDelete}>
+          {t('admin.ads.delete')}
+        </NeonButton>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Edit / create dialog for a fake-ad. New ad has ad=null, edit passes
+ * the existing row. Submit posts the form to /admin/ads (POST or PUT).
+ */
+function AdEditDialog({
+  ad,
+  onClose,
+  onSave,
+}: {
+  ad: AdRow | null;
+  onClose: () => void;
+  onSave: (ad: Partial<AdRow> & { id?: string }) => Promise<void>;
+}) {
+  const t = useT();
+  const [kicker, setKicker] = useState(ad?.kicker ?? '');
+  const [headline, setHeadline] = useState(ad?.headline ?? '');
+  const [body, setBody] = useState(ad?.body ?? '');
+  const [disclaimer, setDisclaimer] = useState(ad?.disclaimer ?? '');
+  const [icon, setIcon] = useState(ad?.icon ?? '✨');
+  const [tone, setTone] = useState<'gold' | 'smoky' | 'alert'>(ad?.tone ?? 'gold');
+  const [sortOrder, setSortOrder] = useState<number>(ad?.sort_order ?? 100);
+  const [isActive, setIsActive] = useState<boolean>(ad?.is_active ?? true);
+  const [busy, setBusy] = useState(false);
+
+  const valid = kicker.trim().length > 0 && headline.trim().length > 0 && body.trim().length > 0;
+
+  async function submit() {
+    if (!valid) return;
+    setBusy(true);
+    await onSave({
+      id: ad?.id,
+      kicker: kicker.trim(),
+      headline: headline.trim(),
+      body: body.trim(),
+      disclaimer: disclaimer.trim() || null,
+      icon: icon.trim() || '✨',
+      tone,
+      sort_order: sortOrder,
+      is_active: isActive,
+    });
+    setBusy(false);
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={ad ? t('admin.ads.editTitle') : t('admin.ads.newTitle')}
+      subtitle={t('admin.ads.editSubtitle')}
+      footer={
+        <DialogFooter
+          onCancel={onClose}
+          onSubmit={submit}
+          busy={busy}
+          submitLabel={ad ? t('admin.ads.save') : t('admin.ads.create')}
+          variant="gold"
+        />
+      }
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <NeonInput
+          id="ad-icon"
+          label={t('admin.ads.field.icon')}
+          value={icon}
+          onChange={(e) => setIcon(e.target.value)}
+          hint={t('admin.ads.field.iconHint')}
+        />
+        <div>
+          <label className="block text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display mb-1">
+            {t('admin.ads.field.tone')}
+          </label>
+          <select
+            value={tone}
+            onChange={(e) => setTone(e.target.value as 'gold' | 'smoky' | 'alert')}
+            className="w-full px-2 py-1.5 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold"
+          >
+            <option value="gold">gold</option>
+            <option value="smoky">smoky</option>
+            <option value="alert">alert</option>
+          </select>
+        </div>
+      </div>
+      <NeonInput
+        id="ad-kicker"
+        label={t('admin.ads.field.kicker')}
+        value={kicker}
+        onChange={(e) => setKicker(e.target.value)}
+        hint={t('admin.ads.field.kickerHint')}
+      />
+      <NeonInput
+        id="ad-headline"
+        label={t('admin.ads.field.headline')}
+        value={headline}
+        onChange={(e) => setHeadline(e.target.value)}
+        hint={t('admin.ads.field.headlineHint')}
+      />
+      <div>
+        <label className="block text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display mb-1">
+          {t('admin.ads.field.body')}
+        </label>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          className="w-full px-2 py-1.5 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-ink-primary"
+          placeholder={t('admin.ads.field.bodyHint')}
+        />
+      </div>
+      <NeonInput
+        id="ad-disclaimer"
+        label={t('admin.ads.field.disclaimer')}
+        value={disclaimer}
+        onChange={(e) => setDisclaimer(e.target.value)}
+        hint={t('admin.ads.field.disclaimerHint')}
+      />
+      <div className="grid grid-cols-2 gap-3 items-end">
+        <NeonInput
+          id="ad-sort"
+          type="number"
+          label={t('admin.ads.field.sortOrder')}
+          value={String(sortOrder)}
+          onChange={(e) => setSortOrder(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          hint={t('admin.ads.field.sortOrderHint')}
+        />
+        <label className="flex items-center gap-2 cursor-pointer pb-2">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            className="w-4 h-4 accent-gold"
+          />
+          <span className="text-sm font-display text-ink-primary">
+            {t('admin.ads.field.active')}
+          </span>
+        </label>
+      </div>
     </Modal>
   );
 }

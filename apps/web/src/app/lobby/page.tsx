@@ -15,7 +15,7 @@ import {
   rememberAvatar,
   recallAvatar,
 } from '@/lib/session';
-import { updateAvatar } from '@/lib/api';
+import { updateAvatar, SERVER_URL } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { BrandFooter } from '@/components/ui/BrandFooter';
 import { Eye } from '@/components/brand/Eye';
@@ -61,6 +61,36 @@ export default function LobbyPage() {
   const [cancelBusy, setCancelBusy] = useState(false);
   /** Invite-a-friend modal — opens from the header button. */
   const [inviteOpen, setInviteOpen] = useState(false);
+  /** Live ad inventory from the server. Empty array on initial mount
+   *  (lobby falls back to a hardcoded set so the carousel never goes
+   *  blank), populated by the GET /ads fetch below.  */
+  const [serverAds, setServerAds] = useState<Array<{
+    id: string;
+    kicker: string;
+    headline: string;
+    body: string;
+    disclaimer: string | null;
+    icon: string;
+    tone: 'gold' | 'smoky' | 'alert';
+  }>>([]);
+
+  // Pull the admin-managed fake-ad inventory on mount. The lobby
+  // falls back to a hardcoded localised set when this returns empty
+  // (initial deploy, server down, etc.) so the carousel is never
+  // visually missing.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${SERVER_URL}/ads`, { cache: 'no-store' });
+        if (!r.ok) return;
+        const body = await r.json() as { ads: typeof serverAds };
+        if (cancelled) return;
+        if (Array.isArray(body.ads)) setServerAds(body.ads);
+      } catch { /* offline / network — fallback set wins */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // If the profile arrived from session storage without an avatar but
   // we have a cached one from a previous sign-in, hydrate it instantly
@@ -215,9 +245,13 @@ export default function LobbyPage() {
   const totalSeats = tables.reduce((sum, tbl) => sum + tbl.maxPlayers, 0);
   const inHandCount = tables.filter((tbl) => tbl.inHand).length;
 
-  // ---- Fake-ad copy — all decorative, the disclaimers ARE the joke.
-  //      Localised via i18n so de/pl users see appropriate copy.
-  const ads = [
+  // ---- Fake-ad copy ----------------------------------------------
+  //      The admin maintains the live ad inventory in /admin/ads —
+  //      that's the source of truth. This hardcoded set ships as a
+  //      LOCALISED fallback so the carousel still rotates content
+  //      even if the API hasn't been populated yet (fresh deploy,
+  //      server down, network blip in Telegram WebView).
+  const fallbackAds = [
     {
       kicker: t('lobby.ads.tournament.kicker'),
       headline: t('lobby.ads.tournament.headline'),
@@ -258,6 +292,16 @@ export default function LobbyPage() {
       tone: 'alert' as const,
     },
   ];
+  const ads = serverAds.length > 0
+    ? serverAds.map((a) => ({
+        kicker: a.kicker,
+        headline: a.headline,
+        body: a.body,
+        disclaimer: a.disclaimer ?? undefined,
+        icon: a.icon,
+        tone: a.tone,
+      }))
+    : fallbackAds;
 
   return (
     <main className="min-h-dvh flex flex-col px-3 sm:px-6 pt-3 sm:pt-5 pb-3 max-w-6xl mx-auto w-full">

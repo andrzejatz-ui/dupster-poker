@@ -160,6 +160,64 @@ export async function runMigrations(): Promise<void> {
               add column if not exists deck_hash text,
               add column if not exists deck text[]`,
     },
+    {
+      // Admin-managed fake-ad inventory. Lobby pulls active rows in
+      // sort_order and rotates through them in the AdCarousel. Lets
+      // the admin edit the marketing copy live without a redeploy.
+      name: 'ads table',
+      sql: `create table if not exists ads (
+        id          uuid primary key default gen_random_uuid(),
+        kicker      text not null,
+        headline    text not null,
+        body        text not null,
+        disclaimer  text,
+        icon        text not null default '✨',
+        tone        text not null default 'gold'
+                    check (tone in ('gold','smoky','alert')),
+        sort_order  int  not null default 0,
+        is_active   boolean not null default true,
+        created_at  timestamptz not null default now(),
+        updated_at  timestamptz not null default now()
+      )`,
+    },
+    {
+      name: 'ads.active_sort index',
+      sql: 'create index if not exists ads_active_sort_idx on ads(is_active, sort_order)',
+    },
+    {
+      // First-boot seed of fake-ads. Mirrors the previously hardcoded
+      // 5 ads plus a few new entries so the admin starts with content
+      // and can edit / add / hide from the dashboard. Only seeds when
+      // the table is still empty so re-runs are no-ops.
+      name: 'seed default ads',
+      sql: `do $$
+        begin
+          if not exists (select 1 from ads) then
+            insert into ads (kicker, headline, body, disclaimer, icon, tone, sort_order) values
+              ('Weekend Tournament', 'Bluffuminati Grand Prix', 'Saturday 22:00 CET · No re-entries · Trophy goes to the most-tilted survivor.',
+               'No actual trophy. No actual prize. No actual Saturday.',
+               '🏆', 'gold', 10),
+              ('Tilt Insurance', 'Lose less, breathe more', 'Hand-tracked emotional volatility coverage. Bad beats fully reimbursed in moral support.',
+               'Not financial advice. Not emotional support. Not actually insurance.',
+               '🧊', 'smoky', 20),
+              ('Bot Coach', 'Train against the house mind', 'Spar with the Bluffuminati bots and steal their preflop ranges. They never sleep, they never tilt, they sometimes raise 5-bet light.',
+               'Bots may or may not be plotting against you.',
+               '🤖', 'smoky', 30),
+              ('About Bluffuminati', 'Private. Invite-only. By filipOS®.', 'A pretend casino for friends. Real chips, no real money, real consequences for your reputation in the group chat.',
+               null,
+               '👁', 'gold', 40),
+              ('Limited Edition', 'Saturday VIP All-In Hour', 'Doubled blinds, halved patience. Show up, shove or fold, leave with stories.',
+               'No VIP status conferred. No status of any kind. Don''t come.',
+               '⚡', 'alert', 50),
+              ('Bluffuminati Lab', 'Now testing: Tilt Detector v0.7', 'AI listens to your raise-clicking rhythm and tells you when to stand up and walk away.',
+               'AI listens but does not understand. Like a real friend.',
+               '🧪', 'smoky', 60),
+              ('Brag Wall', 'Hall of Hero Calls', 'Get featured for the bravest read of the week. Featured slot includes zero chips, zero respect, one screenshot.',
+               'Featured slot can be revoked at the algorithm''s whim.',
+               '📜', 'gold', 70);
+          end if;
+        end $$`,
+    },
     // future: add more idempotent migrations here
   ];
 

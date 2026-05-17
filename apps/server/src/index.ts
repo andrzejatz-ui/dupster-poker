@@ -10,6 +10,7 @@ import { authRouter } from './auth/routes.js';
 import { adminRouter } from './admin/routes.js';
 import { tablesRouter } from './tables/routes.js';
 import { telegramRouter, webhookSecret } from './telegram/routes.js';
+import { adsRouter } from './ads/routes.js';
 import { setupTelegramWebhook } from './utils/telegram.js';
 import { TableManager } from './rooms/tableManager.js';
 import { attachSocketServer } from './sockets/index.js';
@@ -63,6 +64,7 @@ async function main() {
   app.use('/admin', adminRouter(tables, io));
   app.use('/tables', tablesRouter());
   app.use('/telegram', telegramRouter());
+  app.use('/ads', adsRouter());
 
   // Express error middleware — any async route handler that throws
   // gets here instead of bubbling into the global unhandledRejection

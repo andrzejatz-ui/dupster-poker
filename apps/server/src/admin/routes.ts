@@ -1246,6 +1246,96 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
     res.json({ ok: true });
   });
 
+  /* ---- Ads (fake-ad inventory shown in the lobby) ---------------- */
+  /**
+   * Lobby ads are managed in the admin dashboard: list, create, edit,
+   * reorder, hide. The public /ads endpoint returns only the active
+   * rows; these endpoints expose everything so the admin can flip
+   * is_active on a row instead of deleting it outright.
+   */
+  r.get('/ads', requireAdmin, async (_req, res) => {
+    const q = await pool.query(
+      `select id, kicker, headline, body, disclaimer, icon, tone,
+              sort_order, is_active, created_at, updated_at
+         from ads order by sort_order asc, created_at asc`,
+    );
+    res.json({ ads: q.rows });
+  });
+
+  const AdBody = z.object({
+    kicker: z.string().min(1).max(60),
+    headline: z.string().min(1).max(120),
+    body: z.string().min(1).max(400),
+    disclaimer: z.string().max(200).nullable().optional(),
+    icon: z.string().min(1).max(8).default('✨'),
+    tone: z.enum(['gold', 'smoky', 'alert']).default('gold'),
+    sortOrder: z.number().int().min(0).max(100_000).default(0),
+    isActive: z.boolean().default(true),
+  });
+
+  r.post('/ads', requireAdmin, async (req: AdminRequest, res) => {
+    const parsed = AdBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const a = parsed.data;
+    const ins = await pool.query<{ id: string }>(
+      `insert into ads (kicker, headline, body, disclaimer, icon, tone,
+                        sort_order, is_active)
+       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
+      [a.kicker, a.headline, a.body, a.disclaimer ?? null, a.icon, a.tone,
+       a.sortOrder, a.isActive],
+    );
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'create_ad',
+      payload: { id: ins.rows[0]!.id, ...a },
+    });
+    res.json({ id: ins.rows[0]!.id });
+  });
+
+  r.put('/ads/:id', requireAdmin, async (req: AdminRequest, res) => {
+    const parsed = AdBody.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const a = parsed.data;
+    const updates: string[] = [];
+    const params: unknown[] = [];
+    const push = (col: string, value: unknown) => {
+      updates.push(`${col} = $${updates.length + 2}`);
+      params.push(value);
+    };
+    if (a.kicker !== undefined) push('kicker', a.kicker);
+    if (a.headline !== undefined) push('headline', a.headline);
+    if (a.body !== undefined) push('body', a.body);
+    if (a.disclaimer !== undefined) push('disclaimer', a.disclaimer);
+    if (a.icon !== undefined) push('icon', a.icon);
+    if (a.tone !== undefined) push('tone', a.tone);
+    if (a.sortOrder !== undefined) push('sort_order', a.sortOrder);
+    if (a.isActive !== undefined) push('is_active', a.isActive);
+    if (updates.length === 0) return res.status(400).json({ error: 'nothing_to_update' });
+    updates.push(`updated_at = now()`);
+    const upd = await pool.query(
+      `update ads set ${updates.join(', ')} where id = $1`,
+      [req.params.id, ...params],
+    );
+    if (upd.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'update_ad',
+      payload: { id: req.params.id, ...a },
+    });
+    res.json({ ok: true });
+  });
+
+  r.delete('/ads/:id', requireAdmin, async (req: AdminRequest, res) => {
+    const del = await pool.query('delete from ads where id = $1', [req.params.id]);
+    if (del.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    await logAdminAction({
+      adminId: req.adminId!,
+      action: 'delete_ad',
+      payload: { id: req.params.id },
+    });
+    res.json({ ok: true });
+  });
+
   /* ---- Audit / Ledger ------------------------------------------- */
 
   r.get('/audit', requireAdmin, async (req, res) => {
