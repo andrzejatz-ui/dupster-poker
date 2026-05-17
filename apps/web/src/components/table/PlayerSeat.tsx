@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import type { PublicSeat } from '@neon-poker/shared/events';
 import type { Card } from '@neon-poker/shared/poker';
@@ -24,6 +25,14 @@ interface Props {
   /** True if this is the viewer's own seat — renders the avatar as the
    *  animated, cursor-tracking Eye instead of a static image. */
   isMine?: boolean;
+  /** Epoch-ms deadline when this seat must act by; null when this seat
+   *  isn't the active one. Drives the countdown ring around the avatar
+   *  so everyone at the table can see how long the active player has
+   *  left, not just the player themselves. */
+  actDeadline?: number | null;
+  /** Full turn-timer duration in ms. Combined with actDeadline lets the
+   *  countdown ring start at the correct fraction for late joiners. */
+  turnTimerMs?: number | null;
 }
 
 /**
@@ -39,6 +48,8 @@ export function PlayerSeat({
   isWinningSeat = false,
   winningAmount = 0,
   isMine = false,
+  actDeadline = null,
+  turnTimerMs = null,
 }: Props) {
   const t = useT();
   if (!seat) {
@@ -94,6 +105,18 @@ export function PlayerSeat({
           crash the avatar disc into the board cards or adjacent seats
           on tight phone viewports. */}
       <div className="relative w-9 h-9 sm:w-24 sm:h-24">
+        {/* Turn-countdown ring overlays the avatar when this seat is
+            the one to act. Visible to every viewer, not just the
+            active player, so the whole table can see how much time is
+            left. The `key` on the SVG remounts it whenever a new
+            deadline lands, restarting the depletion animation. */}
+        {seat.isToAct && actDeadline !== null && turnTimerMs !== null && turnTimerMs > 0 && (
+          <TurnCountdownRing
+            key={actDeadline}
+            deadline={actDeadline}
+            fullDurationMs={turnTimerMs}
+          />
+        )}
         <div
           className={clsx(
             'absolute inset-0 rounded-full surface-strong flex items-center justify-center overflow-hidden',
@@ -232,5 +255,81 @@ export function PlayerSeat({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * SVG ring overlay that drains over the active player's remaining
+ * turn time. The parent always remounts this with `key={deadline}`
+ * so a new deadline restarts the depletion from the correct point
+ * (handles late joiners + reconnects mid-turn).
+ *
+ * How it works:
+ *   - stroke-dasharray = full circumference; the stroke becomes a
+ *     gapped circle whose visible portion is (circumference - offset).
+ *   - On mount we set the offset to whatever fraction is already
+ *     consumed, then on the very next animation frame we set it to
+ *     the full circumference. The browser interpolates via the CSS
+ *     transition over `remaining` ms — clean depletion with no JS
+ *     ticking required.
+ */
+function TurnCountdownRing({
+  deadline,
+  fullDurationMs,
+}: {
+  deadline: number;
+  fullDurationMs: number;
+}) {
+  const radius = 47;
+  const circumference = 2 * Math.PI * radius;
+  const remaining = Math.max(0, deadline - Date.now());
+  const consumed = Math.max(
+    0,
+    Math.min(1, (fullDurationMs - remaining) / fullDurationMs),
+  );
+  const initialOffset = consumed * circumference;
+  const [offset, setOffset] = useState<number>(initialOffset);
+
+  useEffect(() => {
+    // requestAnimationFrame ensures the initial dashoffset paints
+    // first so the CSS transition has a real "from" state to animate
+    // away from. Without it the browser sometimes skips straight to
+    // the end state without showing the depletion.
+    const raf = requestAnimationFrame(() => setOffset(circumference));
+    return () => cancelAnimationFrame(raf);
+  }, [circumference]);
+
+  // Colour shifts to red in the last 25 % so a player about to time
+  // out gets a visible warning — even if they aren't watching their
+  // own clock the table sees the alarm.
+  const urgent = remaining < fullDurationMs * 0.25;
+  const stroke = urgent ? 'rgba(255,90,90,0.95)' : 'rgba(212,175,55,0.95)';
+  const glow = urgent
+    ? 'drop-shadow(0 0 6px rgba(255,90,90,0.65))'
+    : 'drop-shadow(0 0 4px rgba(212,175,55,0.55))';
+
+  return (
+    <svg
+      className="absolute inset-0 -rotate-90 pointer-events-none z-[5]"
+      viewBox="0 0 100 100"
+      style={{ overflow: 'visible' }}
+      aria-hidden
+    >
+      <circle
+        cx={50}
+        cy={50}
+        r={radius}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        style={{
+          transition: `stroke-dashoffset ${remaining}ms linear`,
+          filter: glow,
+        }}
+      />
+    </svg>
   );
 }

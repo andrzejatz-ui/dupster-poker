@@ -190,10 +190,19 @@ export function decideBotAction(args: {
   const potBefore = table.pot;
   const callRatio = toCall > 0 ? toCall / Math.max(1, potBefore + toCall) : 0;
 
-  // Random think delay: faster on free actions, slower on tough spots.
-  const baseThink = legal.canCheck ? 900 : 1500;
+  // Per-bot reaction-time variability — each personality has its own
+  // pace, so a snap-caller fires in <1 s while a deliberate player
+  // takes 3-4 s on the same spot. Tough spots add extra delay for
+  // everyone (people DO take longer on close decisions). The clamp
+  // keeps the slowest bot under 6 s so a full ring doesn't crawl,
+  // and the fastest above 400 ms so it still feels like thinking.
+  const baseThink = legal.canCheck ? 800 : 1200;
   const tough = !legal.canCheck && callRatio > 0.25;
-  const thinkMs = baseThink + Math.floor(Math.random() * (tough ? 1400 : 900));
+  // pace 0 → 2.4× multiplier (slow), pace 1 → 0.4× (fast).
+  const paceMultiplier = 0.4 + (1 - personality.pace) * 2.0;
+  const variability = Math.floor(Math.random() * (tough ? 1400 : 900));
+  const rawThink = (baseThink + variability) * paceMultiplier;
+  const thinkMs = Math.max(400, Math.min(6000, Math.round(rawThink)));
 
   // ---- Decision tree -----------------------------------------------
 
@@ -295,6 +304,10 @@ interface Personality {
   bluffiness: number;
   /** Hand-specific bias on perceived strength, ±0.06. */
   tilt: number;
+  /** 0 (slow & deliberate) … 1 (snap-decision). Scales the per-action
+   *  think delay so different bots feel like different humans —
+   *  some take their time, some click instantly. */
+  pace: number;
 }
 
 /**
@@ -317,6 +330,7 @@ function personalityFor(seat: Seat, table: PokerTable): Personality {
     callTolerance: 0.30 + next() * 0.55, // 0.30–0.85
     bluffiness: 0.20 + next() * 0.70,    // 0.20–0.90
     tilt: (next() - 0.5) * 0.12,         // ±0.06
+    pace: next(),                        // 0–1, scales think-time
   };
 }
 

@@ -54,6 +54,11 @@ export interface PublicTableState {
   toActSeat: number | null;
   /** Epoch ms; UI rendert Countdown daraus. */
   toActDeadline: number | null;
+  /** Full per-turn timer in ms. Combined with toActDeadline lets every
+   *  client compute the remaining fraction so the countdown ring
+   *  around the active seat's avatar starts where it actually is
+   *  (not always at 100 %) for late joiners and reconnects. */
+  turnTimerMs: number;
   board: Card[];
   pot: number;
   sidePots: PublicSidePot[];

@@ -433,6 +433,8 @@ export default function TablePage() {
                     isWinningSeat={isWinningSeat}
                     winningAmount={winningAmount}
                     isMine={state.mySeatIndex === idx}
+                    actDeadline={seat?.isToAct ? state.toActDeadline : null}
+                    turnTimerMs={state.turnTimerMs ?? null}
                   />
                 </div>
               );

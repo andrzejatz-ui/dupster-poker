@@ -856,6 +856,7 @@ export class PokerTable {
       legalActionsForMe: legal,
       mySeatIndex: viewerSeat,
       maxBuyIn: this.cfg.maxBuyIn,
+      turnTimerMs: this.cfg.turnTimerMs,
       canTopUp: viewerSeat !== null ? this.canPlayerTopUp(viewerSeat) : false,
     };
   }
