@@ -46,97 +46,118 @@ export function ActionBar({
   const target = raiseAmount ?? (legal.minRaise || legal.minBet);
   const send = (action: PlayerAction) => onAction(action, ulid());
 
+  // Compute the bet/raise UI data once so we can split it into two
+  // micro-rows on mobile (quick pills strip + button strip) without
+  // walking the legal-action tree twice.
+  const betPanel = (legal.canBet || legal.canRaise) ? (() => {
+    const minVal = legal.canBet ? legal.minBet : legal.minRaise;
+    const maxVal = legal.canBet ? Number.MAX_SAFE_INTEGER : legal.maxRaise;
+    const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.floor(v)));
+    const candidates: Array<{ label: string; value: number }> = [];
+    candidates.push({ label: 'Min', value: minVal });
+    if (bigBlind > 0 && legal.canBet) {
+      candidates.push({ label: '3 BB', value: clamp(bigBlind * 3) });
+    }
+    if (pot > 0) {
+      candidates.push({ label: '½', value: clamp(Math.floor(pot / 2)) });
+      candidates.push({ label: 'Pot', value: clamp(pot) });
+      candidates.push({ label: '2×', value: clamp(pot * 2) });
+    }
+    const seen = new Set<number>();
+    const pills = candidates.filter((c) => {
+      if (c.value < minVal || c.value > maxVal) return false;
+      if (seen.has(c.value)) return false;
+      seen.add(c.value);
+      return true;
+    });
+    return { minVal, maxVal, pills } as const;
+  })() : null;
+
   return (
     <div className="w-full">
       <Countdown deadline={deadline} />
-      <div className="flex flex-wrap gap-2 sm:gap-3 mt-3 justify-center items-center">
+      {/* Quick-bet pills — appears only when bet/raise is legal. Lives
+          above the main button row on phone so the pills + the action
+          buttons stay on two thin strips instead of wrapping into
+          three or four cluttered lines. */}
+      {betPanel && betPanel.pills.length > 0 && (
+        <div className="mt-1.5 flex items-center gap-1 sm:gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 justify-center">
+          {betPanel.pills.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => setRaiseAmount(p.value)}
+              className={
+                'shrink-0 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md border text-[10px] sm:text-xs font-mono leading-none ' +
+                (target === p.value
+                  ? 'border-gold/70 bg-gold/15 text-gold'
+                  : 'border-rim-bright text-ink-secondary hover:border-gold/50 hover:bg-gold/[0.06]')
+              }
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Primary action strip — always one row. Fold | Check/Call |
+          bet input + Bet/Raise | All-in. flex-nowrap keeps it on one
+          line; the input is the only flexible element so on truly
+          tight viewports it shrinks before the buttons do. */}
+      <div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 justify-center flex-nowrap">
         {legal.canFold && (
-          <NeonButton size="sm" variant="danger" onClick={() => send({ type: 'fold' })}>
+          <NeonButton size="sm" variant="danger"
+                      className="!px-2 sm:!px-3 !text-[10px] sm:!text-xs"
+                      onClick={() => send({ type: 'fold' })}>
             {t('action.fold')}
           </NeonButton>
         )}
         {legal.canCheck && (
-          <NeonButton size="sm" variant="ghost" onClick={() => send({ type: 'check' })}>
+          <NeonButton size="sm" variant="ghost"
+                      className="!px-2 sm:!px-3 !text-[10px] sm:!text-xs"
+                      onClick={() => send({ type: 'check' })}>
             {t('action.check')}
           </NeonButton>
         )}
         {legal.canCall && (
-          <NeonButton size="sm" variant="primary" onClick={() => send({ type: 'call' })}>
+          <NeonButton size="sm" variant="primary"
+                      className="!px-2 sm:!px-3 !text-[10px] sm:!text-xs"
+                      onClick={() => send({ type: 'call' })}>
             {t('action.call')} {legal.callAmount.toLocaleString()}
           </NeonButton>
         )}
-        {(legal.canBet || legal.canRaise) && (() => {
-          const minVal = legal.canBet ? legal.minBet : legal.minRaise;
-          const maxVal = legal.canBet ? Number.MAX_SAFE_INTEGER : legal.maxRaise;
-          const clamp = (v: number) => Math.max(minVal, Math.min(maxVal, Math.floor(v)));
-
-          // Quick-bet pills sized against the current pot / big blind.
-          // Only show pills whose resulting amount falls within the
-          // legal min..max window so we never offer an illegal action.
-          const candidates: Array<{ label: string; value: number }> = [];
-          candidates.push({ label: 'Min', value: minVal });
-          if (bigBlind > 0 && legal.canBet) {
-            candidates.push({ label: '3 BB', value: clamp(bigBlind * 3) });
-          }
-          if (pot > 0) {
-            candidates.push({ label: '½ Pot', value: clamp(Math.floor(pot / 2)) });
-            candidates.push({ label: 'Pot',  value: clamp(pot) });
-            candidates.push({ label: '2× Pot', value: clamp(pot * 2) });
-          }
-          // De-duplicate adjacent values (e.g. when minVal already equals 3 BB).
-          const seen = new Set<number>();
-          const pills = candidates.filter((c) => {
-            if (c.value < minVal || c.value > maxVal) return false;
-            if (seen.has(c.value)) return false;
-            seen.add(c.value);
-            return true;
-          });
-
-          return (
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {pills.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onClick={() => setRaiseAmount(p.value)}
-                  className={
-                    'px-2 py-1 rounded-md border text-[10px] sm:text-xs font-mono ' +
-                    (target === p.value
-                      ? 'border-gold/70 bg-gold/15 text-gold'
-                      : 'border-rim-bright text-ink-secondary hover:border-gold/50 hover:bg-gold/[0.06]')
-                  }
-                >
-                  {p.label}
-                </button>
-              ))}
-              <input
-                type="number"
-                inputMode="numeric"
-                min={minVal}
-                max={legal.canBet ? undefined : legal.maxRaise}
-                value={target}
-                onChange={(e) => setRaiseAmount(Number(e.target.value))}
-                className="w-20 sm:w-28 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md bg-obsidian-soft border border-rim-bright text-gold font-mono text-sm focus:border-gold focus:shadow-gold-soft outline-none"
-              />
-              <NeonButton
-                size="sm"
-                variant="gold"
-                onClick={() =>
-                  send(
-                    legal.canBet
-                      ? { type: 'bet', amount: target }
-                      : { type: 'raise', amount: target },
-                  )
-                }
-              >
-                {legal.canBet ? t('action.bet') : t('action.raise')}
-              </NeonButton>
-            </div>
-          );
-        })()}
+        {betPanel && (
+          <>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={betPanel.minVal}
+              max={legal.canBet ? undefined : legal.maxRaise}
+              value={target}
+              onChange={(e) => setRaiseAmount(Number(e.target.value))}
+              className="w-14 sm:w-24 min-w-0 px-1.5 sm:px-3 py-1 sm:py-2 rounded-md bg-obsidian-soft border border-rim-bright text-gold font-mono text-[11px] sm:text-sm focus:border-gold focus:shadow-gold-soft outline-none text-right"
+            />
+            <NeonButton
+              size="sm"
+              variant="gold"
+              className="!px-2 sm:!px-3 !text-[10px] sm:!text-xs"
+              onClick={() =>
+                send(
+                  legal.canBet
+                    ? { type: 'bet', amount: target }
+                    : { type: 'raise', amount: target },
+                )
+              }
+            >
+              {legal.canBet ? t('action.bet') : t('action.raise')}
+            </NeonButton>
+          </>
+        )}
         {legal.canAllIn && (
-          <NeonButton size="sm" variant="gold" onClick={() => send({ type: 'all_in' })}>
-            {t('action.allIn')}
+          <NeonButton size="sm" variant="gold"
+                      className="!px-2 sm:!px-3 !text-[10px] sm:!text-xs"
+                      onClick={() => send({ type: 'all_in' })}>
+            <span className="hidden sm:inline">{t('action.allIn')}</span>
+            <span className="sm:hidden">ALL</span>
           </NeonButton>
         )}
       </div>

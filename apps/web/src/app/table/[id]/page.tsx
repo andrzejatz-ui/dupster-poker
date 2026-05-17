@@ -441,8 +441,9 @@ export default function TablePage() {
           </div>
 
           {/* Action bar — inline at the bottom of the felt column, no
-              longer fixed/floating. Keeps the viewport free of scroll. */}
-          <div className="shrink-0 mt-2 sm:mt-3 px-2 py-2 sm:p-3 surface rounded-xl lg:glass-strong lg:rounded-2xl">
+              longer fixed/floating. Mobile padding pulled down so the
+              felt eats the spare pixels rather than the chrome. */}
+          <div className="shrink-0 mt-1 sm:mt-3 px-1 py-1 sm:p-3 surface rounded-xl lg:glass-strong lg:rounded-2xl">
             <ActionBar
               legal={state.legalActionsForMe}
               isMyTurn={isMyTurn}
