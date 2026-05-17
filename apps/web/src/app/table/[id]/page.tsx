@@ -586,16 +586,14 @@ function computeSeatPositions(n: number): Array<{ x: number; y: number }> {
   const positions: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < n; i++) {
     const angle = (Math.PI / 2) + (i * 2 * Math.PI) / n;
-    // Tighter horizontal radius (36 instead of 42) keeps side seats'
-    // hole cards inside the felt edges — on a 360 px phone viewport
-    // the previous 42 % radius pushed the leftmost card off the
-    // green entirely. 36 gives ~6 % padding per side.
-    const x = 50 + 36 * Math.cos(angle);
-    // Vertical ellipse with a deeper bottom pull so the local-viewer
-    // seat (idx 0) lives at y≈80 instead of 82, freeing room between
-    // the board (y=50) and the bottom seat for the chip-bet badge +
-    // hole cards without overlapping the avatar disc.
-    const y = 50 + 30 * Math.sin(angle);
+    // Push seats out to the very edges of the felt so the middle
+    // (board + pot pile + chip-bets) has the most space possible —
+    // user-reported issue was side seats crowding the flop. With
+    // x=44 the leftmost seat sits at x=6%, with y=38 the side seats
+    // land at y≈68% / y≈32% instead of y≈65% / y≈35%, opening up a
+    // visible gap between the bottom seat and the board.
+    const x = 50 + 44 * Math.cos(angle);
+    const y = 50 + 38 * Math.sin(angle);
     positions.push({ x, y });
   }
   return positions;
