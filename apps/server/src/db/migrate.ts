@@ -161,6 +161,24 @@ export async function runMigrations(): Promise<void> {
               add column if not exists deck text[]`,
     },
     {
+      // Defence in depth: enforce "at most one admin per linked
+      // player" at the DB layer so /auth/me's isAdmin lookup
+      // (which uses `limit 1`) can never silently pick an arbitrary
+      // admin when two rows accidentally share the same link. PG
+      // treats NULLs as distinct, so admins without a linked player
+      // remain valid. Idempotent: re-running is a no-op if the
+      // constraint already exists.
+      name: 'admins.linked_player_id UNIQUE',
+      sql: `do $$ begin
+        if not exists (
+          select 1 from pg_constraint where conname = 'admins_linked_player_unique'
+        ) then
+          alter table admins
+            add constraint admins_linked_player_unique unique (linked_player_id);
+        end if;
+      end $$`,
+    },
+    {
       // Admin-managed fake-ad inventory. Lobby pulls active rows in
       // sort_order and rotates through them in the AdCarousel. Lets
       // the admin edit the marketing copy live without a redeploy.
