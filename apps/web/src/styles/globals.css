@@ -860,6 +860,43 @@ body {
    duplicates Telegram's own back button — hide ours. */
 .tg-mini .tg-hide { display: none !important; }
 
+/* ---- Landscape phone tweaks ------------------------------------- */
+/*
+ * Phones in landscape lose almost half their vertical space — the
+ * felt gets squashed into 200 ish px which can't fit seats + board.
+ * Trim the chrome (header, action bar, language switcher) so the
+ * felt keeps as much height as possible. Pure CSS, no JS layout
+ * branching, so the desktop path is untouched.
+ */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* Header strip shrinks: smaller eye, tighter padding, smaller title */
+  .viewport-fit > div:first-child {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .viewport-fit > div:first-child h1 {
+    font-size: 14px;
+    line-height: 1.1;
+  }
+  /* Action bar at the bottom compresses too — chip buttons + bet
+     field collapse into a single short row. */
+  .viewport-fit .surface,
+  .viewport-fit .glass-strong {
+    padding: 6px 8px;
+  }
+  /* Avatars and hole-card rows shrink further so seats fit when the
+     ellipse is short. 32-px disc + sm cards leaves a real gap. */
+  .felt .relative.w-11.h-11 {
+    width: 32px;
+    height: 32px;
+  }
+  /* Hand-result banner stays narrow + at the very top so the board
+     underneath remains fully visible. */
+  .felt > .pointer-events-none.absolute.top-1\.5 {
+    top: 2px !important;
+  }
+}
+
 /* ---- Ornamental gold rule (art-deco section divider) ----------- */
 .rule-ornament {
   display: flex;

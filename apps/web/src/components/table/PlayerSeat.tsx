@@ -44,8 +44,8 @@ export function PlayerSeat({
   if (!seat) {
     return (
       <div className="flex flex-col items-center gap-1 opacity-50">
-        <div className="w-14 h-14 sm:w-24 sm:h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
-          <span className="text-[10px] sm:text-xs text-white/30 font-mono">#{seatIndex}</span>
+        <div className="w-11 h-11 sm:w-24 sm:h-24 rounded-full border border-dashed border-white/15 flex items-center justify-center">
+          <span className="text-[9px] sm:text-xs text-white/30 font-mono">#{seatIndex}</span>
         </div>
         <span className="text-[9px] sm:text-[10px] text-white/30 uppercase tracking-widest font-display">{t('table.empty.seat')}</span>
       </div>
@@ -76,8 +76,11 @@ export function PlayerSeat({
 
       {/* Avatar disc — split into two containers so the status badges
           (BOT, ALL-IN, RECON, PAUSED) can hang past the circle's edge
-          without being eaten by the avatar-side overflow-hidden. */}
-      <div className="relative w-14 h-14 sm:w-24 sm:h-24">
+          without being eaten by the avatar-side overflow-hidden.
+          Mobile size dropped from 56 to 44 px so the disc doesn't
+          collide with the board cards or the hole-card row beneath
+          it on tight phone viewports. */}
+      <div className="relative w-11 h-11 sm:w-24 sm:h-24">
         <div
           className={clsx(
             'absolute inset-0 rounded-full surface-strong flex items-center justify-center overflow-hidden',
@@ -101,7 +104,7 @@ export function PlayerSeat({
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
-            <div className="font-display text-xs sm:text-lg">
+            <div className="font-display text-[10px] sm:text-lg">
               {seat.displayName.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -179,11 +182,14 @@ export function PlayerSeat({
       </div>
 
       {/* Showdown hand label — persistent under the cards while the
-          result is being displayed. Winners get a gold treatment. */}
+          result is being displayed. Winners get a gold treatment.
+          Tightened on mobile (smaller font + tracking + max-width)
+          so labels like "TWO PAIR, KINGS AND THREES" don't shoot
+          past the felt edge when the seat sits near a corner. */}
       {handLabel && (
         <div
           className={clsx(
-            'mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-[0.18em] font-display whitespace-nowrap',
+            'mt-1 px-1.5 py-0.5 rounded-full text-[8px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.18em] font-display text-center leading-tight max-w-[5.5rem] sm:max-w-none',
             isWinningSeat
               ? 'bg-gold text-obsidian-bg shadow-gold-soft'
               : 'bg-obsidian-soft/70 text-ink-secondary border border-rim-faint',
