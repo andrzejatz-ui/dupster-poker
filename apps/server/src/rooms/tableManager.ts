@@ -29,6 +29,17 @@ export class TableManager {
   onStateChange: (tableId: string) => void = () => {};
   onHandResult: (tableId: string, payload: ReturnType<PokerTable['resolveShowdown']>) => void = () => {};
   onTurn: (tableId: string) => void = () => {};
+  /** Fired after every player/bot action so the socket layer can
+   *  broadcast a per-action sound cue to everyone at the table. */
+  onAction: (
+    tableId: string,
+    payload: {
+      seatIndex: number;
+      action: 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in';
+      amount: number;
+      potAfter: number;
+    },
+  ) => void = () => {};
 
   async loadTablesFromDb(turnTimerMs: number) {
     // Sessions don't survive a server restart — the in-memory game state
@@ -489,12 +500,40 @@ export class TableManager {
     const table = this.tables.get(args.tableId);
     if (!table) return { ok: false as const, code: 'no_table', message: 'Tisch nicht gefunden' };
     const res = table.applyAction(args.seatIndex, args.action, args.clientActionId);
+    if (res.ok) this.emitActionFromLog(table, args.seatIndex);
     this.scheduleTurnTimer(args.tableId);
     this.onStateChange(args.tableId);
 
     if (table.phase === 'showdown') this.finalizeHand(args.tableId);
     else this.scheduleBotIfNeeded(args.tableId);
     return res;
+  }
+
+  /**
+   * Read the last action off the engine's actionLog and fanout via
+   * onAction so the socket layer can push a per-action sound cue to
+   * everyone at the table. Bots and humans both flow through this so
+   * a remote opponent's check / bet / fold is audible the same way
+   * the local player's is. Skips the synthetic `fold_timeout`,
+   * `fold_paused`, `post_blind`, `win_uncalled` and `deal` entries —
+   * those have either no sound need or a separate dedicated cue.
+   */
+  private emitActionFromLog(table: PokerTable, seatIndex: number): void {
+    const last = table.actionLog[table.actionLog.length - 1];
+    if (!last) return;
+    const playableActions = new Set([
+      'fold', 'check', 'call', 'bet', 'raise', 'all_in', 'fold_timeout',
+    ]);
+    if (!playableActions.has(last.action)) return;
+    // Auto-fold by timeout is still a fold from the listener's POV.
+    const canonical = (last.action === 'fold_timeout' ? 'fold' : last.action) as
+      'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in';
+    this.onAction(table.cfg.tableId, {
+      seatIndex,
+      action: canonical,
+      amount: last.amount ?? 0,
+      potAfter: table.pot,
+    });
   }
 
   private maybeStartHand(tableId: string) {
@@ -544,6 +583,7 @@ export class TableManager {
       if (t.isPaused) return;
       try {
         const res = t.applyAction(seatToAct, decision.action, `bot:${ulid()}`);
+        if (res.ok) this.emitActionFromLog(t, seatToAct);
         this.scheduleTurnTimer(tableId);
         this.onStateChange(tableId);
         if (t.phase === 'showdown') {
@@ -712,6 +752,10 @@ export class TableManager {
         if (table.toActSeat !== seatToTimeout) return;
         try {
           table.applyTimeout(seatToTimeout);
+          // applyTimeout writes a `fold_timeout` entry to the action
+          // log; emit it like a regular fold so every viewer hears
+          // the timeout-fold the same way as a manual fold.
+          this.emitActionFromLog(table, seatToTimeout);
           this.scheduleTurnTimer(tableId);
           this.onStateChange(tableId);
           if (table.phase === 'showdown') {

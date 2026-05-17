@@ -517,6 +517,20 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       board: result.board,
     });
   };
+  // Per-action broadcast so every viewer at the table can play the
+  // matching sound cue (check / fold / call / bet / raise / all-in /
+  // timeout). The client already subscribes to server:table:action
+  // and plays the right effect — this is the missing wire that lets
+  // opponents hear what each player did.
+  tables.onAction = (tableId, payload) => {
+    io.to(`table:${tableId}`).emit('server:table:action', {
+      tableId,
+      seatIndex: payload.seatIndex,
+      action: payload.action,
+      amount: payload.amount,
+      potAfter: payload.potAfter,
+    });
+  };
 
   return io;
 }
