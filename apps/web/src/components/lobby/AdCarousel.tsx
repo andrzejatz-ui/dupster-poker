@@ -29,24 +29,36 @@ interface Ad {
  * creates a sense of activity that real poker apps spend a lot of
  * design budget on.
  */
-export function AdCarousel({ ads, intervalMs = 6500 }: { ads: Ad[]; intervalMs?: number }) {
+export function AdCarousel({ ads, intervalMs = 4500 }: { ads: Ad[]; intervalMs?: number }) {
   const [idx, setIdx] = useState(0);
+  // Clamp idx whenever the ad list shrinks — otherwise a stale index
+  // points past the new array and the carousel renders `undefined`.
+  useEffect(() => {
+    if (idx >= ads.length && ads.length > 0) setIdx(0);
+  }, [ads.length, idx]);
   useEffect(() => {
     if (ads.length < 2) return;
-    const id = setInterval(() => {
+    // Telegram WebView and some mobile browsers throttle setInterval
+    // when the tab is briefly inactive — chained setTimeout keeps the
+    // wheel turning more reliably because each tick is rescheduled
+    // from a user-thread callback rather than a fixed wall-clock.
+    let id: ReturnType<typeof setTimeout>;
+    const tick = () => {
       setIdx((i) => (i + 1) % ads.length);
-    }, intervalMs);
-    return () => clearInterval(id);
+      id = setTimeout(tick, intervalMs);
+    };
+    id = setTimeout(tick, intervalMs);
+    return () => clearTimeout(id);
   }, [ads.length, intervalMs]);
 
   if (ads.length === 0) return null;
-  const ad = ads[idx]!;
+  const ad = ads[idx] ?? ads[0]!;
   return (
     <div className="relative w-full">
       <div
         key={idx}
         className={clsx(
-          'ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4',
+          'ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 min-h-[78px] sm:min-h-[88px]',
           'border transition-all duration-500 animate-ad-fade',
           ad.tone === 'alert'
             ? 'border-status-alert/55 bg-status-alert/[0.06]'
