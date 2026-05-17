@@ -37,6 +37,33 @@ export function telegramRouter(): Router {
       const msg = update.message;
       const text: string | undefined = msg?.text;
       if (msg && typeof text === 'string' && text.startsWith('/start')) {
+        // User allowlist: when TELEGRAM_ALLOWED_USER_IDS is set, only
+        // those Telegram user IDs get the WebApp launch button.
+        // Everyone else gets a brief "not invited" reply — silent
+        // ignore would feel like a broken bot. The empty-list case
+        // (env var unset) means the bot greets everyone, which is the
+        // pre-allowlist behaviour.
+        const userId = msg.from?.id != null ? String(msg.from.id) : null;
+        const allowList = config.telegramAllowedUserIds;
+        const allowed = allowList.length === 0
+          || (userId !== null && allowList.includes(userId));
+        if (!allowed) {
+          logger.info(
+            { userId, firstName: msg.from?.first_name },
+            'telegram /start blocked: user not in allowlist',
+          );
+          await sendTelegramMessage({
+            botToken: token,
+            chatId: msg.chat.id,
+            text:
+              '🔒 <b>Bluffuminati Poker</b> is private and invite-only.\n\n' +
+              'Your Telegram account is not on the access list. ' +
+              'If you should be playing here, ping the admin with ' +
+              `your user ID: <code>${userId ?? 'unknown'}</code>.`,
+          });
+          return res.json({ ok: true });
+        }
+
         const webAppUrl = (config.ADMIN_URL ?? '').replace(/\/$/, '');
         if (!webAppUrl) {
           logger.warn('public-bot /start: ADMIN_URL not set, skipping reply');

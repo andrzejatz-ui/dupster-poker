@@ -65,6 +65,18 @@ const Env = z.object({
    */
   SERVER_PUBLIC_URL: z.string().url().optional(),
   RENDER_EXTERNAL_URL: z.string().url().optional(),
+  /**
+   * Comma-separated list of Telegram user IDs that are allowed to
+   * launch the Mini App via the public bot. When set, the /start
+   * handler verifies update.message.from.id against this list and
+   * silently ignores unauthorized users (logged for audit). When
+   * empty or unset, every Telegram user gets the WebApp launch
+   * button — the existing player-approval flow inside the app is
+   * still the second gate.
+   *
+   * Example: '5540408952,1234567890'
+   */
+  TELEGRAM_ALLOWED_USER_IDS: z.string().default(''),
 });
 
 const parsed = Env.safeParse(process.env);
@@ -76,6 +88,16 @@ if (!parsed.success) {
 export const config = {
   ...parsed.data,
   allowedOrigins: parsed.data.ALLOWED_ORIGINS.split(',').map((s) => s.trim()),
+  /**
+   * Parsed Telegram user-ID allowlist. Empty array = no restriction
+   * (any Telegram user can /start the bot). Populated by splitting
+   * TELEGRAM_ALLOWED_USER_IDS, dropping empties / non-numerics, and
+   * comparing as strings so JS BigInt-range Telegram IDs survive.
+   */
+  telegramAllowedUserIds: parsed.data.TELEGRAM_ALLOWED_USER_IDS
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^\d+$/.test(s)),
 } as const;
 
 export type AppConfig = typeof config;
