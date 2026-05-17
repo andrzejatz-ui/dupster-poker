@@ -481,6 +481,17 @@ export default function LobbyPage() {
         </div>
       )}
 
+      {/* ───────────── AD PANEL ───────────────────────
+          Always-on slot between the wallet/hero block and the table
+          selection. Pulls from the admin-managed inventory; falls
+          back to the localised hardcoded set so the slot is never
+          visually empty. Same on phone and desktop. */}
+      {!pending && ads.length > 0 && (
+        <div className="mb-3 sm:mb-4 shrink-0">
+          <AdCarousel ads={ads} />
+        </div>
+      )}
+
       {/* ───────────── TAB BAR ─────────────────────────
           Three product tabs — only "Cash games" is active today, the
           others carry a Coming Soon badge so the page reads as a real
@@ -556,16 +567,11 @@ export default function LobbyPage() {
             <p className="text-white/55">{t('lobby.noFilterMatch')}</p>
           </NeonCard>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              {visibleTables.map((tbl) => (
-                <TableCard key={tbl.id} table={tbl} onJoin={() => join(tbl)} />
-              ))}
-            </div>
-            <div className="mt-2 sm:mt-3">
-              <AdCarousel ads={ads} />
-            </div>
-          </>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {visibleTables.map((tbl) => (
+              <TableCard key={tbl.id} table={tbl} onJoin={() => join(tbl)} />
+            ))}
+          </div>
         )}
       </div>
       <Signature className="shrink-0 mt-3" />
