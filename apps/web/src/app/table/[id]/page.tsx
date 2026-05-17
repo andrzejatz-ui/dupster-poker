@@ -20,6 +20,7 @@ import { fetchChatHistory } from '@/lib/api';
 import { getProfile, setStoredProfile } from '@/lib/session';
 import { getToken } from '@/lib/session';
 import { getAdminToken } from '@/lib/admin';
+import { fetchMe } from '@/lib/api';
 import {
   playActionAllIn,
   playActionBet,
@@ -73,12 +74,28 @@ export default function TablePage() {
   const [walletBalance, setWalletBalance] = useState<number>(
     () => getProfile()?.chips ?? 0,
   );
-  /** Same admin-detection trick as the lobby — surfaces a "Back to
-   *  Admin" button when the player session was minted from the admin
-   *  Play shortcut so the admin can hop back without re-logging in. */
+  /** Server-verified admin status via /auth/me. We never trust the
+   *  sessionStorage admin token on its own — a stale token from a
+   *  previous admin login on this device would otherwise leak the
+   *  "Back to Admin" button to a regular player who logged in
+   *  afterwards. Scrubs the stale token too if the server says
+   *  this account is not admin. */
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    setIsAdmin(getAdminToken() !== null);
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      const r = await fetchMe(token);
+      if (cancelled) return;
+      if (r.status === 200) {
+        setIsAdmin(Boolean(r.body.isAdmin));
+        if (!r.body.isAdmin && getAdminToken() !== null) {
+          try { window.sessionStorage.removeItem('np_admin_token'); } catch {}
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

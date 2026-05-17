@@ -10,8 +10,11 @@ import { createSession, signAdminToken, signPlayerToken } from './sessions.js';
 import { requirePlayer, type PlayerRequest } from './middleware.js';
 import { pool } from '../db/client.js';
 import type { TableManager } from '../rooms/tableManager.js';
+import { PokerTable } from '../poker/engine.js';
+import { config } from '../config.js';
 import { buildSignupMessage, notifyTelegram } from '../utils/telegram.js';
 import { logAdminAction, verifyAdminLogin } from './admin.js';
+import { logger } from '../utils/logger.js';
 
 export function authRouter(tables: TableManager): Router {
   const r = Router();
@@ -142,6 +145,15 @@ export function authRouter(tables: TableManager): Router {
   r.get('/me', requirePlayer, async (req: PlayerRequest, res) => {
     const p = await findPlayerById(req.playerId!);
     if (!p) return res.status(404).json({ error: 'not_found' });
+    // A player is "an admin's alter ego" iff an admins row carries
+    // linked_player_id pointing at them. This is the ONLY reliable
+    // server-side check for whether the current session belongs to
+    // an admin — sessionStorage-based admin tokens can leak between
+    // browser sessions on the same device.
+    const adminLink = await pool.query<{ id: string }>(
+      'select id from admins where linked_player_id = $1 limit 1',
+      [req.playerId],
+    );
     res.json({
       id: p.id,
       handle: p.handle,
@@ -149,6 +161,7 @@ export function authRouter(tables: TableManager): Router {
       avatarUrl: p.avatarUrl ?? null,
       chips: p.chips,
       status: p.status,
+      isAdmin: (adminLink.rowCount ?? 0) > 0,
     });
   });
 
@@ -211,6 +224,115 @@ export function authRouter(tables: TableManager): Router {
         chips: fresh!.chips,
       },
     });
+  });
+
+  /**
+   * Player-facing bot training room. Same is_test_room=true semantic
+   * as the admin /admin/test-room endpoint — sit_player and
+   * leave_player both skip the wallet move for sandbox tables, so
+   * playing against bots can NEVER mint or drain real wallet chips.
+   *
+   * Rate-limited to one room per minute per player so a malicious
+   * client can't spawn dozens of in-memory tables. Bots are seeded
+   * fresh on every call; the underlying table row sets created_by
+   * to NULL because players aren't admins.
+   */
+  const botTrainingLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  r.post('/test-bots', botTrainingLimiter, requirePlayer, async (req: PlayerRequest, res) => {
+    const Body = z.object({
+      maxPlayers: z.number().int().min(2).max(10).default(6),
+      smallBlind: z.number().int().positive().default(50),
+      bigBlind: z.number().int().positive().default(100),
+      buyIn: z.number().int().positive().default(10000),
+    });
+    const parsed = Body.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ error: 'bad_payload' });
+    const { maxPlayers, smallBlind, bigBlind, buyIn } = parsed.data;
+    if (bigBlind <= smallBlind) {
+      return res.status(400).json({ error: 'big_blind_must_exceed_small' });
+    }
+
+    try {
+      // Kick the player out of any prior sandbox table so we don't
+      // accumulate orphan seats. Cash-game seats are preserved.
+      const seatRow = await pool.query<{
+        table_id: string;
+        seat_index: number;
+        is_test_room: boolean;
+      }>(
+        `select s.table_id, s.seat_index,
+                coalesce(t.is_test_room, false) as is_test_room
+           from table_seats s
+           left join tables t on t.id = s.table_id
+          where s.player_id = $1`,
+        [req.playerId],
+      );
+      if ((seatRow.rowCount ?? 0) > 0 && seatRow.rows[0]!.is_test_room) {
+        try {
+          await tables.leavePlayer({
+            tableId: seatRow.rows[0]!.table_id,
+            seatIndex: seatRow.rows[0]!.seat_index,
+            playerId: req.playerId!,
+          });
+        } catch { /* best-effort */ }
+      }
+
+      // tables.created_by references admins(id); players aren't
+      // admins so the FK requires NULL here. is_test_room=true is
+      // the only flag that matters — it drives the sandbox sit/leave
+      // chip logic in tableManager.
+      const ins = await pool.query<{ id: string }>(
+        `insert into tables
+           (name, small_blind, big_blind, buy_in, max_players,
+            allow_spectators, created_by, is_test_room)
+         values ($1,$2,$3,$4,$5,false,null,true) returning id`,
+        [
+          `Bot Training · ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`,
+          smallBlind, bigBlind, buyIn, maxPlayers,
+        ],
+      );
+      const tableId = ins.rows[0]!.id;
+
+      tables.addTable(new PokerTable({
+        tableId,
+        name: 'Bot Training',
+        smallBlind,
+        bigBlind,
+        buyIn,
+        maxPlayers,
+        allowSpectators: false,
+        turnTimerMs: config.TURN_TIMER_MS,
+        isTestRoom: true,
+        maxBuyIn: buyIn * config.MAX_BUY_IN_MULTIPLIER,
+      }, config.SESSION_SECRET));
+
+      const me = await findPlayerById(req.playerId!);
+      if (!me) return res.status(404).json({ error: 'player_vanished' });
+
+      await tables.sitPlayer({
+        tableId,
+        seatIndex: 0,
+        playerId: me.id,
+        displayName: me.displayName ?? me.handle,
+        avatarUrl: me.avatarUrl ?? null,
+        defer: true,
+      });
+      for (let i = 1; i < maxPlayers; i++) {
+        tables.sitBot({ tableId, seatIndex: i, defer: true });
+      }
+      tables.beginPlay(tableId);
+
+      res.json({ tableId });
+    } catch (err) {
+      logger.error({ err, playerId: req.playerId }, 'test-bots creation failed');
+      const msg = err instanceof Error ? err.message : 'unknown';
+      res.status(500).json({ error: msg });
+    }
   });
 
   return r;

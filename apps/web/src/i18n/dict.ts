@@ -119,6 +119,7 @@ const en = {
   'lobby.pendingRequest.topupBody': 'The admin will approve or reject your request shortly. You can withdraw it here.',
   'lobby.pendingRequest.cancel': 'Cancel request',
   'lobby.invite': 'Invite a friend',
+  'lobby.playVsBots': 'Play vs bots',
   'invite.title': 'Invite a friend',
   'invite.howToTitle': 'One-tap invite',
   'invite.howToBody':
@@ -504,6 +505,7 @@ const de: Record<keyof typeof en, string> = {
   'lobby.pendingRequest.topupBody': 'Der Admin entscheidet gleich. Du kannst deine Anfrage hier zurückziehen.',
   'lobby.pendingRequest.cancel': 'Abbrechen',
   'lobby.invite': 'Freund einladen',
+  'lobby.playVsBots': 'Gegen Bots spielen',
   'invite.title': 'Freund einladen',
   'invite.howToTitle': 'Einladung in einem Tap',
   'invite.howToBody':
@@ -879,6 +881,7 @@ const pl: Record<keyof typeof en, string> = {
   'lobby.pendingRequest.topupBody': 'Admin za chwilę zdecyduje. Możesz wycofać prośbę tutaj.',
   'lobby.pendingRequest.cancel': 'Anuluj',
   'lobby.invite': 'Zaproś znajomego',
+  'lobby.playVsBots': 'Zagraj z botami',
   'invite.title': 'Zaproś znajomego',
   'invite.howToTitle': 'Zaproszenie jednym tapnięciem',
   'invite.howToBody':

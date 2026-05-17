@@ -34,6 +34,29 @@ export async function updateAvatar(token: string, avatarUrl: string | null) {
   return { status: res.status, body } as const;
 }
 
+/** Re-fetch the player's own profile + server-verified isAdmin flag. */
+export async function fetchMe(token: string) {
+  const res = await rawFetch('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body } as const;
+}
+
+/** Create a sandbox bot-training table for the current player. */
+export async function createBotTable(
+  token: string,
+  args?: { maxPlayers?: number; smallBlind?: number; bigBlind?: number; buyIn?: number },
+) {
+  const res = await rawFetch('/auth/test-bots', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(args ?? {}),
+  });
+  const body = await res.json().catch(() => ({}));
+  return { status: res.status, body } as const;
+}
+
 export async function fetchChatHistory(token: string, tableId: string, limit = 50) {
   const res = await rawFetch(`/tables/${tableId}/chat?limit=${limit}`, {
     headers: { Authorization: `Bearer ${token}` },

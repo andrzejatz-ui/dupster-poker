@@ -15,7 +15,7 @@ import {
   rememberAvatar,
   recallAvatar,
 } from '@/lib/session';
-import { updateAvatar, SERVER_URL } from '@/lib/api';
+import { updateAvatar, SERVER_URL, fetchMe, createBotTable } from '@/lib/api';
 import { Signature } from '@/components/ui/Signature';
 import { BrandFooter } from '@/components/ui/BrandFooter';
 import { Eye } from '@/components/brand/Eye';
@@ -38,14 +38,48 @@ export default function LobbyPage() {
   const initial = typeof window !== 'undefined' ? getProfile() : null;
   const [profile, setProfile] = useState(initial);
   const [profileOpen, setProfileOpen] = useState(false);
-  /** Did this user arrive in the lobby from the admin "Play" shortcut?
-   *  If so, getAdminToken() returns a value and we expose a one-tap
-   *  "Back to Admin" button so the admin doesn't have to sign out
-   *  + log back in to flip views. */
+  /** Server-verified admin status. Determined via /auth/me which
+   *  checks whether an admins row carries linked_player_id pointing
+   *  at this player — the only source of truth that survives stale
+   *  sessionStorage admin tokens from a previous browser session. */
   const [isAdmin, setIsAdmin] = useState(false);
+  /** Bot-training is the player-facing equivalent of the admin's
+   *  Test Room — both use is_test_room=true so sit/leave never move
+   *  real chips. Busy flag keeps the button from double-firing. */
+  const [botBusy, setBotBusy] = useState(false);
   useEffect(() => {
-    setIsAdmin(getAdminToken() !== null);
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      const r = await fetchMe(token);
+      if (cancelled) return;
+      if (r.status === 200) {
+        setIsAdmin(Boolean(r.body.isAdmin));
+        // If the device has a stale admin token from a previous
+        // admin session but the current /auth/me says we're not an
+        // admin, scrub the token so the button + any subsequent
+        // /admin nav can't be tricked into showing.
+        if (!r.body.isAdmin && getAdminToken() !== null) {
+          try { window.sessionStorage.removeItem('np_admin_token'); } catch {}
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
+
+  async function startBotTraining() {
+    const token = getToken();
+    if (!token || botBusy) return;
+    setBotBusy(true);
+    const r = await createBotTable(token);
+    setBotBusy(false);
+    if (r.status === 200 && r.body.tableId) {
+      router.push(`/table/${r.body.tableId}`);
+    } else {
+      alert(r.body.error ?? 'failed');
+    }
+  }
   /** Stake-tier filter — controls which table cards are visible. */
   const [filterTier, setFilterTier] = useState<'all' | 'micro' | 'low' | 'mid' | 'high' | 'nosebleed'>('all');
   /** Future-product tab — only the cash one is active today. */
@@ -343,9 +377,14 @@ export default function LobbyPage() {
               🙋 <span className="hidden sm:inline ml-1">{t('action.requestChips')}</span>
             </NeonButton>
           )}
-          {isAdmin && (
+          {isAdmin ? (
             <NeonButton variant="gold" size="sm" onClick={() => router.push('/admin')}>
-              🛡 {t('common.backToAdmin')}
+              🛡 <span className="hidden sm:inline ml-1">{t('common.backToAdmin')}</span>
+            </NeonButton>
+          ) : (
+            <NeonButton variant="gold" size="sm" onClick={startBotTraining} disabled={botBusy}
+                        aria-label={t('lobby.playVsBots')}>
+              🤖 <span className="hidden sm:inline ml-1">{botBusy ? t('common.loading') : t('lobby.playVsBots')}</span>
             </NeonButton>
           )}
           <NeonButton variant="ghost" onClick={logout}>
