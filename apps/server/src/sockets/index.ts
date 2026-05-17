@@ -82,6 +82,28 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
     const profile = await findPlayerById(socket.data.playerId);
     if (!profile) return socket.disconnect();
 
+    /**
+     * Per-socket rate limiter for game-impacting events. Each bucket
+     * is a sliding window of timestamps; events arriving inside the
+     * window above `cap` are silently dropped. Stops a malicious or
+     * runaway client from spamming the table with action / wallet
+     * requests faster than a human ever could, without affecting
+     * legitimate play.
+     */
+    const rateBuckets = new Map<string, number[]>();
+    const allowEvent = (key: string, capPerWindow: number, windowMs: number): boolean => {
+      const now = Date.now();
+      const arr = rateBuckets.get(key) ?? [];
+      const recent = arr.filter((t) => now - t < windowMs);
+      if (recent.length >= capPerWindow) {
+        rateBuckets.set(key, recent);
+        return false;
+      }
+      recent.push(now);
+      rateBuckets.set(key, recent);
+      return true;
+    };
+
     if (profile.status === 'banned') {
       socket.emit('server:hello', { status: 'banned', reason: null });
       return socket.disconnect();
@@ -167,6 +189,15 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
 
     // ---- Table actions ------------------------------------------
     socket.on('client:table:action', (raw, ack) => {
+      // Cheap DoS guard: a human plays at most a few actions per
+      // second. Cap at 20/sec — well above realistic play but low
+      // enough that a runaway/malicious client can't flood the engine
+      // (which would burn CPU on legal-action validation on every
+      // call). Server is authoritative on amounts and turn order, so
+      // even bypassing this only buys the attacker dropped packets.
+      if (!allowEvent('action', 20, 1000)) {
+        return ack({ ok: false, error: 'rate_limited', code: 'rate_limited' });
+      }
       const parsed = ActionSchema.safeParse(raw);
       if (!parsed.success) {
         return ack({ ok: false, error: 'bad_payload' });
@@ -351,12 +382,22 @@ export function attachSocketServer(http: HttpServer, tables: TableManager): IOTy
       }
     }
 
-    socket.on('client:player:chip_request', (payload, ack) =>
-      handleWalletRequest('topup', payload, ack),
-    );
-    socket.on('client:player:cashout_request', (payload, ack) =>
-      handleWalletRequest('cashout', payload, ack),
-    );
+    // Wallet-request endpoints already enforce "one pending per
+    // player" server-side, but a low-burst-rate cap stops spam
+    // before it hits the DB transaction. 3 attempts per 10 s is
+    // generous for retries while blocking automated abuse.
+    socket.on('client:player:chip_request', (payload, ack) => {
+      if (!allowEvent('wallet_request', 3, 10_000)) {
+        return ack({ ok: false, error: 'rate_limited', code: 'rate_limited' });
+      }
+      handleWalletRequest('topup', payload, ack);
+    });
+    socket.on('client:player:cashout_request', (payload, ack) => {
+      if (!allowEvent('wallet_request', 3, 10_000)) {
+        return ack({ ok: false, error: 'rate_limited', code: 'rate_limited' });
+      }
+      handleWalletRequest('cashout', payload, ack);
+    });
 
     /**
      * Player withdraws their own pending wallet request. For a cashout

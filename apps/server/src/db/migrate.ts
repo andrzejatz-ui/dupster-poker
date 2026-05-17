@@ -149,6 +149,17 @@ export async function runMigrations(): Promise<void> {
           check (status in ('pending','approved','rejected','cancelled'));
       end $$`,
     },
+    {
+      // Audit fields for fairness: deck_hash is the HMAC of the
+      // shuffled deck stored at hand start; deck is the full 52-card
+      // shuffled order persisted at hand end. Together they let any
+      // admin reconstruct a hand and prove the deal wasn't tampered
+      // with between deal and showdown.
+      name: 'hands.deck_hash + hands.deck columns',
+      sql: `alter table hands
+              add column if not exists deck_hash text,
+              add column if not exists deck text[]`,
+    },
     // future: add more idempotent migrations here
   ];
 

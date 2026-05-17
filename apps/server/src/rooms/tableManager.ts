@@ -61,7 +61,7 @@ export class TableManager {
         isTestRoom: false,
         maxBuyIn: buyIn * config.MAX_BUY_IN_MULTIPLIER,
       };
-      this.tables.set(row.id, new PokerTable(cfg));
+      this.tables.set(row.id, new PokerTable(cfg, config.SESSION_SECRET));
     }
     logger.info({ count: this.tables.size }, 'tables loaded');
   }
@@ -115,7 +115,7 @@ export class TableManager {
           turnTimerMs,
           allowSpectators: false,
           maxBuyIn: p.buyIn * config.MAX_BUY_IN_MULTIPLIER,
-        }),
+        }, config.SESSION_SECRET),
       );
     }
     logger.warn({ count: presets.length }, 'seeded default tables');
@@ -729,12 +729,14 @@ export class TableManager {
       return;
     }
 
-    // Persist hand + winnings to chip ledger
+    // Persist hand + winnings to chip ledger + full action log so the
+    // entire hand is replayable from the DB for audit + dispute review.
     try {
       await withTx(async (c) => {
         await c.query(
-          `insert into hands (id, table_id, hand_number, board, pot_total, ended_at)
-           values ($1, $2, $3, $4, $5, now())
+          `insert into hands
+             (id, table_id, hand_number, board, pot_total, deck, deck_hash, ended_at)
+           values ($1, $2, $3, $4, $5, $6, $7, now())
            on conflict (id) do nothing`,
           [
             result.handId,
@@ -742,8 +744,28 @@ export class TableManager {
             result.handNumber,
             result.board,
             result.sidePots.reduce((s, p) => s + p.amount, 0),
+            // Audit columns — full shuffled deck order + HMAC commit.
+            // hash(deck) under the server's secret key must equal
+            // deck_hash for the hand to be considered un-tampered.
+            table.deckAtStart,
+            table.deckHash,
           ],
         );
+
+        // Persist every action in the hand. hand_actions is the
+        // append-only ledger of "who did what when" — fold, check, call,
+        // bet, raise, all-in, post_blind, deal, fold_timeout,
+        // fold_paused, win_uncalled. Bots have no players row, so we
+        // null their player_id rather than rejecting on the FK.
+        for (const a of table.actionLog) {
+          const pid = a.playerId && !isBotPlayerId(a.playerId) ? a.playerId : null;
+          await c.query(
+            `insert into hand_actions (hand_id, seq, player_id, street, action, amount)
+             values ($1, $2, $3, $4, $5, $6)
+             on conflict (hand_id, seq) do nothing`,
+            [result.handId, a.seq, pid, a.street, a.action, a.amount],
+          );
+        }
 
         // Persist seat stack updates (so a crash doesn't wipe winnings).
         // Bots have no table_seats row — skip them.

@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { ulid } from 'ulid';
 import type {
   Card,
@@ -111,6 +112,21 @@ export class PokerTable {
   isPaused = false;
   seats: Map<number, Seat> = new Map();
   deck: Card[] = [];
+  /**
+   * Frozen snapshot of the deck AS SHUFFLED, before any card is drawn.
+   * Persisted to hands.deck on finalize so a hand can be fully replayed
+   * (board + burns + the would-have-been cards). Combined with
+   * deck_hash, this gives an audit trail proving the deal was
+   * deterministic in the order it played out.
+   */
+  deckAtStart: Card[] = [];
+  /**
+   * HMAC-SHA256 of the post-shuffle deck, keyed by an audit secret.
+   * Stored on the hand record so an external party can verify
+   * hash(stored deck) == stored hash — proves the deck order wasn't
+   * tampered with between deal and persistence.
+   */
+  deckHash: string | null = null;
   board: Card[] = [];
   pot = 0;
   currentBet = 0;
@@ -124,9 +140,17 @@ export class PokerTable {
   seenClientActionIds = new Set<string>();
   /** Per-hand last raise size, for min-raise rules. */
   lastRaiseSize = 0;
+  /**
+   * HMAC key for the deck hash. Set once at table construction from
+   * the server's SESSION_SECRET so the same key can verify any hand
+   * persisted across restarts. Falls back to a static label when not
+   * provided (test environments without env config).
+   */
+  private deckHmacKey: string;
 
-  constructor(cfg: TableConfig) {
+  constructor(cfg: TableConfig, deckHmacKey = 'neon-poker-deck-audit') {
     this.cfg = cfg;
+    this.deckHmacKey = deckHmacKey;
   }
 
   /**
@@ -201,6 +225,16 @@ export class PokerTable {
     this.actionLog = [];
     this.seenClientActionIds.clear();
     this.deck = makeShuffledDeck();
+    // Snapshot + commit hash AS SHUFFLED, before any card is drawn.
+    // Persisted alongside the hand for audit + replay; the hash lets
+    // an external auditor verify the stored deck matches what was
+    // dealt at the time the hand was committed.
+    this.deckAtStart = [...this.deck];
+    this.deckHash = createHmac('sha256', this.deckHmacKey)
+      .update(this.handId)
+      .update('|')
+      .update(this.deckAtStart.join(','))
+      .digest('hex');
     this.board = [];
     this.pot = 0;
     this.currentBet = 0;

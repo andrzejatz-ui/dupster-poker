@@ -436,7 +436,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       turnTimerMs: config.TURN_TIMER_MS,
       isTestRoom: true,
       maxBuyIn: buyIn * config.MAX_BUY_IN_MULTIPLIER,
-    }));
+    }, config.SESSION_SECRET));
 
     // Seat the admin first so they always land on seat 0. `defer:true`
     // suppresses the auto-dealer until every bot is at the table —
@@ -911,7 +911,7 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
         allowSpectators: parsed.data.allowSpectators,
         turnTimerMs: config.TURN_TIMER_MS,
         maxBuyIn: parsed.data.buyIn * config.MAX_BUY_IN_MULTIPLIER,
-      }),
+      }, config.SESSION_SECRET),
     );
     await logAdminAction({
       adminId: req.adminId!,
