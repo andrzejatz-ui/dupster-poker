@@ -643,9 +643,20 @@ function ChipRequestRowCmp({
           <span className="font-mono text-[11px] text-ink-muted">
             @{req.player_handle}
           </span>
-          <span className="font-mono text-[10px] text-ink-muted">
-            · {t('admin.chipRequests.wallet')}: {Number(req.chips).toLocaleString()}
-          </span>
+          {/* Cashout already deducted the amount from the wallet at
+              request time — show the post-hold balance + the held
+              amount separately so the admin doesn't expect the wallet
+              to drop again on approval. */}
+          {isCashout ? (
+            <span className="font-mono text-[10px] text-ink-muted">
+              · {t('admin.chipRequests.wallet')}: {Number(req.chips).toLocaleString()}
+              {' '}({t('admin.chipRequests.heldNote', { amount: asked.toLocaleString() })})
+            </span>
+          ) : (
+            <span className="font-mono text-[10px] text-ink-muted">
+              · {t('admin.chipRequests.wallet')}: {Number(req.chips).toLocaleString()}
+            </span>
+          )}
         </div>
         <div className="text-xs text-ink-secondary mt-1">
           {askedText}
@@ -656,6 +667,11 @@ function ChipRequestRowCmp({
             </>
           )}
         </div>
+        {isCashout && (
+          <div className="text-[10px] text-status-alert/80 italic mt-1 leading-tight">
+            {t('admin.chipRequests.cashoutHint')}
+          </div>
+        )}
         <div className="text-[10px] text-ink-muted font-mono mt-1">
           {new Date(req.created_at).toLocaleString()}
         </div>
@@ -665,7 +681,13 @@ function ChipRequestRowCmp({
           type="number"
           inputMode="numeric"
           value={amount}
-          onChange={(e) => setAmount(Math.max(1, Math.floor(Number(e.target.value) || 0)))}
+          onChange={(e) => {
+            // Cashout approval is hard-capped at the held amount (asked) —
+            // admins can grant less and refund the rest, never more.
+            const raw = Math.max(1, Math.floor(Number(e.target.value) || 0));
+            setAmount(isCashout && asked > 0 ? Math.min(raw, asked) : raw);
+          }}
+          max={isCashout && asked > 0 ? asked : undefined}
           className="w-28 px-2 py-1 rounded-md bg-obsidian-bg border border-rim-bright font-mono text-sm text-gold text-right"
         />
         <NeonButton size="sm" variant="gold" onClick={() => onApprove(amount)}>

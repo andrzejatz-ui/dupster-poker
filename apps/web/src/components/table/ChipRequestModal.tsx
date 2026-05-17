@@ -52,6 +52,13 @@ export function ChipRequestModal({
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
+  // Cashout can never request more than what's actually in the wallet —
+  // the server enforces this via the cash_out_hold's insufficient_chips
+  // guard, but we mirror it client-side so the user gets immediate
+  // feedback instead of typing a bogus number, hitting submit, and
+  // getting bounced.
+  const exceedsWallet = kind === 'cashout' && amount > walletBalance;
+
   async function submit() {
     setError(null);
     // Cashout must specify how many chips to hold — the server can't
@@ -59,6 +66,10 @@ export function ChipRequestModal({
     // since the admin chooses the grant at approve time anyway.
     if (kind === 'cashout' && amount <= 0) {
       setError(t(`${ns}.errors.amountRequired`));
+      return;
+    }
+    if (kind === 'cashout' && amount > walletBalance) {
+      setError(t(`${ns}.errors.insufficientChips`));
       return;
     }
     setBusy(true);
@@ -94,6 +105,16 @@ export function ChipRequestModal({
     );
   }
 
+  // Cashout amount is hard-capped at the wallet balance to prevent
+  // the "type 99999, hit submit, server bounces" round-trip.
+  function setAmountSafely(next: number) {
+    if (kind === 'cashout') {
+      setAmount(Math.max(0, Math.min(walletBalance, Math.floor(next))));
+    } else {
+      setAmount(Math.max(0, Math.floor(next)));
+    }
+  }
+
   return (
     <Modal
       open
@@ -105,25 +126,56 @@ export function ChipRequestModal({
           <NeonButton variant="ghost" onClick={onClose}>
             {t('common.cancel')}
           </NeonButton>
-          <NeonButton variant="gold" onClick={submit} disabled={busy}>
+          <NeonButton
+            variant="gold"
+            onClick={submit}
+            disabled={busy || exceedsWallet || (kind === 'cashout' && amount <= 0)}
+          >
             {busy ? t(`${ns}.submitting`) : t(`${ns}.submit`)}
           </NeonButton>
         </>
       }
     >
+      {kind === 'cashout' && (
+        <div className="mb-3 px-3 py-2 rounded-lg border border-gold/30 bg-gold/[0.06] flex items-baseline justify-between">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-ink-muted font-display">
+            {t('cashoutRequest.walletLabel')}
+          </span>
+          <span className="font-mono text-gold text-glow-gold text-base">
+            ₿ {walletBalance.toLocaleString()}
+          </span>
+        </div>
+      )}
       <NeonInput
         id="req-amount"
         label={t(`${ns}.amountLabel`)}
         type="number"
         inputMode="numeric"
         value={String(amount)}
-        onChange={(e) => setAmount(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        onChange={(e) => setAmountSafely(Number(e.target.value) || 0)}
         hint={t(`${ns}.amountHint`, {
           bb: (bigBlind * 50).toLocaleString(),
           wallet: walletBalance.toLocaleString(),
         })}
         error={error}
       />
+      {kind === 'cashout' && walletBalance > 0 && (
+        <div className="-mt-1 mb-1 flex flex-wrap items-center gap-1.5">
+          {[0.25, 0.5, 1].map((frac) => {
+            const target = Math.floor(walletBalance * frac);
+            return (
+              <button
+                key={frac}
+                type="button"
+                onClick={() => setAmountSafely(target)}
+                className="px-2 py-1 text-[10px] uppercase tracking-[0.18em] font-display rounded-md border border-rim-faint hover:border-gold/60 text-ink-secondary hover:text-gold transition-colors"
+              >
+                {frac === 1 ? t('cashoutRequest.max') : `${Math.round(frac * 100)}%`}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <NeonInput
         id="req-message"
         label={t(`${ns}.messageLabel`)}

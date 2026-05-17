@@ -101,8 +101,17 @@ export default function LobbyPage() {
         router.replace('/join');
       }
       if (hello.status === 'approved') {
-        // Hydrate the pending-request banner so a refresh during a
-        // pending cashout keeps showing the "auszahlung schwebt" state.
+        // Sync wallet balance + pending-request banner from the
+        // server's authoritative state — session storage may be stale
+        // after a chip move happened while this tab was disconnected
+        // (e.g. cashout hold pushed from another tab, admin grant).
+        setProfile((cur) => {
+          if (!cur) return cur;
+          if (cur.chips === hello.chips) return cur;
+          const next = { ...cur, chips: hello.chips };
+          setStoredProfile(next);
+          return next;
+        });
         setPendingRequest(hello.pendingRequest ?? null);
       }
     });
