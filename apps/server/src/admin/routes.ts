@@ -417,17 +417,13 @@ export function adminRouter(tables: TableManager, io: IOType): Router {
       } catch { /* best-effort */ }
     }
 
-    // Top the admin up to at least the buy-in. We don't drain the
-    // surplus — they keep whatever chips they had.
-    if (player.chips < buyIn) {
-      await moveChips({
-        playerId: player.id,
-        delta: buyIn - player.chips,
-        reason: 'admin_grant',
-        adminId: req.adminId,
-        note: 'test-room top-up',
-      });
-    }
+    // No auto-top-up. Test rooms are sandboxes — sitPlayer no longer
+    // touches the admin's wallet for is_test_room tables, so the
+    // previous "ensure wallet ≥ buyIn before sitting" check is gone
+    // too. It was the chip-printing exploit (enter with 1 000, get
+    // topped to 10 000, leave, keep 10 000) the user reported. The
+    // admin can still play in here with any buy-in regardless of
+    // their real wallet — the seat stack is purely virtual.
 
     // Insert the table row, flagged as a test room.
     const ins = await pool.query<{ id: string }>(

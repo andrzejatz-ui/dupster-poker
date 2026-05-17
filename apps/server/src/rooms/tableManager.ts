@@ -126,18 +126,26 @@ export class TableManager {
    * Called once on boot so the next sit-down can succeed.
    */
   private async cleanupStaleSeats(): Promise<void> {
+    // Join to tables so we know which seats belong to a test-room
+    // (sandbox) — those got a virtual stack at sit time, so refunding
+    // them on boot would print chips into the admin's wallet. Cash
+    // game seats still get refunded the way they always did.
     const rows = await pool.query<{
       table_id: string;
       seat_index: number;
       player_id: string;
       stack: string;
-    }>(`select table_id, seat_index, player_id, stack from table_seats`);
+      is_test_room: boolean;
+    }>(`select s.table_id, s.seat_index, s.player_id, s.stack,
+               coalesce(t.is_test_room, false) as is_test_room
+          from table_seats s
+          left join tables t on t.id = s.table_id`);
     if (rows.rowCount === 0) return;
     for (const row of rows.rows) {
       try {
         await withTx(async (c) => {
           const stack = Number(row.stack);
-          if (stack > 0) {
+          if (stack > 0 && !row.is_test_room) {
             await moveChipsInTx(c, {
               playerId: row.player_id,
               delta: BigInt(stack),
@@ -217,19 +225,23 @@ export class TableManager {
     if (chosen < 0) throw new Error('table_full');
 
     const buyIn = table.cfg.buyIn;
+    // Test rooms are admin-only sandboxes. The seat stack is virtual
+    // (handed out by the test-room bootstrap, not deducted from the
+    // admin's wallet) so practice play can never drain or inflate
+    // the real chip economy. Cash games still go through the normal
+    // wallet → seat buy-in flow.
+    const isSandbox = table.cfg.isTestRoom === true;
 
     await withTx(async (c) => {
-      // Defensive: a previous crashed session might have left a row at
-      // this (table, seat). Cleanup-on-boot already handled that, but a
-      // mid-run crash could re-create the situation, so we explicitly
-      // upsert here rather than blind-insert.
-      await moveChipsInTx(c, {
-        playerId: args.playerId,
-        delta: -BigInt(buyIn),
-        reason: 'buy_in',
-        refTableId: args.tableId,
-        note: `seat ${chosen}`,
-      });
+      if (!isSandbox) {
+        await moveChipsInTx(c, {
+          playerId: args.playerId,
+          delta: -BigInt(buyIn),
+          reason: 'buy_in',
+          refTableId: args.tableId,
+          note: `seat ${chosen}`,
+        });
+      }
       await c.query(
         `insert into table_seats (table_id, seat_index, player_id, stack)
          values ($1,$2,$3,$4)
@@ -268,13 +280,18 @@ export class TableManager {
 
     // Bot seats are pure in-memory; the players FK would reject any
     // ledger or table_seats write keyed on their synthetic id.
+    // Test rooms are sandboxes — the seat stack is virtual, so we
+    // delete the row but never credit the wallet. Otherwise admins
+    // could "earn" chips by sitting down and standing up in a test
+    // room with a buy-in larger than their wallet.
+    const isSandbox = table.cfg.isTestRoom === true;
     if (!isBotPlayerId(args.playerId)) {
       await withTx(async (c) => {
         await c.query(
           'delete from table_seats where table_id = $1 and seat_index = $2',
           [args.tableId, args.seatIndex],
         );
-        if (left.stack > 0) {
+        if (!isSandbox && left.stack > 0) {
           await moveChipsInTx(c, {
             playerId: args.playerId,
             delta: BigInt(left.stack),
