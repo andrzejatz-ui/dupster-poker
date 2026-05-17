@@ -733,10 +733,15 @@ export class TableManager {
     // entire hand is replayable from the DB for audit + dispute review.
     try {
       await withTx(async (c) => {
+        // Insert the core hand row first — this MUST succeed for the
+        // history view to work. Audit columns (deck / deck_hash) are
+        // filled in a SEPARATE statement AFTER the main tx so a
+        // missing migration on a stale DB can't poison the tx and
+        // wipe out hand_actions + hand_results too.
         await c.query(
           `insert into hands
-             (id, table_id, hand_number, board, pot_total, deck, deck_hash, ended_at)
-           values ($1, $2, $3, $4, $5, $6, $7, now())
+             (id, table_id, hand_number, board, pot_total, ended_at)
+           values ($1, $2, $3, $4, $5, now())
            on conflict (id) do nothing`,
           [
             result.handId,
@@ -744,11 +749,6 @@ export class TableManager {
             result.handNumber,
             result.board,
             result.sidePots.reduce((s, p) => s + p.amount, 0),
-            // Audit columns — full shuffled deck order + HMAC commit.
-            // hash(deck) under the server's secret key must equal
-            // deck_hash for the hand to be considered un-tampered.
-            table.deckAtStart,
-            table.deckHash,
           ],
         );
 
@@ -801,6 +801,23 @@ export class TableManager {
       });
     } catch (err) {
       logger.error({ err, tableId }, 'failed to persist hand');
+    }
+
+    // Audit columns (deck + deck_hash) live outside the main tx so a
+    // pre-migration DB that doesn't have these columns yet still gets
+    // a fully-recorded hand for history. If the UPDATE fails (column
+    // missing), we log and move on — next Render boot runs the
+    // idempotent migration and future hands persist the audit fields.
+    try {
+      await pool.query(
+        `update hands set deck = $2, deck_hash = $3 where id = $1`,
+        [result.handId, table.deckAtStart, table.deckHash],
+      );
+    } catch (err) {
+      logger.warn(
+        { err, tableId, handId: result.handId },
+        'deck/deck_hash update skipped (migration not yet applied)',
+      );
     }
 
     this.onHandResult(tableId, result);

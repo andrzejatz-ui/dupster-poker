@@ -42,14 +42,31 @@ export function HistoryModal({ tableId, onClose }: Props) {
     let cancelled = false;
     (async () => {
       const token = getToken();
-      if (!token) return;
-      const r = await fetchHandHistory(token, tableId, 20);
-      if (cancelled) return;
-      if (r.status === 200) setHands(r.body.hands ?? []);
-      else setError(r.body.error ?? 'failed');
+      if (!token) {
+        // No player session means there's nothing to authenticate
+        // the history endpoint with. Surface this as a clear error
+        // instead of an indefinite loading spinner.
+        if (!cancelled) setError(t('history.errors.noSession'));
+        return;
+      }
+      try {
+        const r = await fetchHandHistory(token, tableId, 20);
+        if (cancelled) return;
+        if (r.status === 200) {
+          setHands(r.body.hands ?? []);
+        } else if (r.status === 401) {
+          setError(t('history.errors.noSession'));
+        } else {
+          setError(r.body.error ?? t('history.errors.generic'));
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : 'network';
+        setError(`${t('history.errors.network')} (${msg})`);
+      }
     })();
     return () => { cancelled = true; };
-  }, [tableId]);
+  }, [tableId, t]);
 
   return (
     <Modal open onClose={onClose} title={t('history.title')} subtitle={t('history.subtitle')} width="lg">
