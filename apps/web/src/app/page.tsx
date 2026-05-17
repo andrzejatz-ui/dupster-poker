@@ -22,9 +22,12 @@ export default function Landing() {
           <span className="inline-block text-[10px] uppercase tracking-[0.4em] text-ink-muted font-display">
             {t('landing.tagline')}
           </span>
-          <h1 className="mt-2 font-display text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-[0.18em] text-gold text-glow-gold">
+          <h1 className="mt-2 font-display text-[28px] sm:text-5xl md:text-6xl font-extrabold tracking-[0.08em] sm:tracking-[0.18em] text-gold text-glow-gold whitespace-nowrap">
             {/* First letter rendered as the brand's BCoin sigil so the
-                wordmark + currency symbol share one visual idea. */}
+                wordmark + currency symbol share one visual idea.
+                Mobile uses a smaller font + tighter tracking so the
+                sigil + LUFFUMINATI fit on a single line on a 360 px
+                viewport — was wrapping the ₿ onto its own row. */}
             <BCoin />LUFFUMINATI
             {t('landing.titleB') ? <> {t('landing.titleB')}</> : null}
           </h1>

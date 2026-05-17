@@ -364,7 +364,7 @@ export default function LobbyPage() {
             <div className="hero-eye-halo mb-2">
               <Eye size={84} />
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl text-gold text-glow-gold tracking-[0.32em] mt-1">
+            <h2 className="font-display text-xl sm:text-3xl text-gold text-glow-gold tracking-[0.14em] sm:tracking-[0.32em] mt-1 whitespace-nowrap">
               <BCoin />LUFFUMINATI
             </h2>
             <p className="text-xs sm:text-sm tracking-[0.18em] text-gold/70 font-display italic mt-0.5">
