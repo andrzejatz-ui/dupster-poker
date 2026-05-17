@@ -132,7 +132,7 @@ const en = {
   'invite.step1': 'Copy the invite with the gold button.',
   'invite.step2': 'Open any chat (Telegram, WhatsApp, SMS, …) and paste it for your friend.',
   'invite.message':
-    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Grypsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Featured tournament',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Sunday Midnight',
   'lobby.ads.tournament.body':
@@ -503,7 +503,7 @@ const de: Record<keyof typeof en, string> = {
   'invite.step1': 'Mit dem goldenen Knopf die Einladung kopieren.',
   'invite.step2': 'In irgendeinem Chat (Telegram, WhatsApp, SMS, …) deinem Freund einfügen.',
   'invite.message':
-    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Grypsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Featured Turnier',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Sonntag um Mitternacht',
   'lobby.ads.tournament.body':
@@ -864,7 +864,7 @@ const pl: Record<keyof typeof en, string> = {
   'invite.step1': 'Tapnij złoty przycisk, by skopiować zaproszenie.',
   'invite.step2': 'Otwórz dowolny czat (Telegram, WhatsApp, SMS, …) i wklej je znajomemu.',
   'invite.message':
-    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Gripsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
+    '🎰 Join me on Bluffuminati Poker - private Texas Hold\'em, play-money chips, invite-only.\n→ {web}\nOr via Telegram: {bot}\n\nRunning on filipOS® — the next-generation operating system for high-risk decision making and emotionally compromised poker sessions.\nBluffuminati™ is part of the Grypsuminati AI Ecosystem.\n\n© 2026 Bluffuminati Technologies Group.\nCertified for absolutely nothing.',
   'lobby.ads.tournament.kicker': 'Polecany turniej',
   'lobby.ads.tournament.headline': 'Bluffuminati Open · Niedziela o północy',
   'lobby.ads.tournament.body':

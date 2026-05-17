@@ -20,7 +20,7 @@ export function BrandFooter({ className }: Props) {
     >
       <div>
         Bluffuminati™ is part of the{' '}
-        <span className="text-gold/70">Gripsuminati AI Ecosystem</span>.
+        <span className="text-gold/70">Grypsuminati AI Ecosystem</span>.
       </div>
       <div className="text-ink-muted/55">
         © 2026 Bluffuminati Technologies Group.
