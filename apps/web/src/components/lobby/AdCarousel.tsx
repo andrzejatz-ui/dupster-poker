@@ -54,18 +54,25 @@ export function AdCarousel({ ads, intervalMs = 4500 }: { ads: Ad[]; intervalMs?:
   if (ads.length === 0) return null;
   const ad = ads[idx] ?? ads[0]!;
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" style={{ minHeight: 88 }}>
       <div
         key={idx}
+        // No animation class — the previous `animate-ad-fade` with
+        // `animation-fill-mode: both` was getting stuck at the 0%
+        // keyframe (opacity: 0) in some desktop browser contexts,
+        // making the entire card invisible while the pagination dots
+        // still rendered. Inline min-height as a belt-and-braces
+        // backup in case Tailwind's `min-h-[88px]` arbitrary value
+        // isn't picked up by the build.
         className={clsx(
-          'ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 min-h-[78px] sm:min-h-[88px]',
-          'border transition-all duration-500 animate-ad-fade',
+          'ad-card rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 border',
           ad.tone === 'alert'
             ? 'border-status-alert/55 bg-status-alert/[0.06]'
             : ad.tone === 'smoky'
             ? 'border-rim-faint bg-obsidian-soft/40'
             : 'border-gold/45 bg-gold/[0.06] shadow-gold-soft',
         )}
+        style={{ minHeight: 88, opacity: 1 }}
       >
         <div
           className={clsx(
